@@ -9,7 +9,6 @@ permissions:
 
 jobs:
   sync:
-    if: github.event.head_commit.message == 'chore: run Expo dependency sync'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -23,10 +22,12 @@ jobs:
       - run: npm ci
       - name: Align Expo SDK 57 patch versions
         run: npx expo install expo@~57.0.21 @expo/ui@~57.0.17 expo-glass-effect@~57.0.2 expo-router@~57.0.20
-      - name: Commit lockfile update
+      - name: Commit lockfile update when needed
         run: |
           git config user.name "vizit-ci"
           git config user.email "88939484+manucharyansos@users.noreply.github.com"
           git add package.json package-lock.json
-          git diff --cached --quiet || git commit -m "chore: align Expo SDK 57 dependencies"
-          git push origin HEAD:main
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: align Expo SDK 57 dependencies"
+            git push origin HEAD:main
+          fi
