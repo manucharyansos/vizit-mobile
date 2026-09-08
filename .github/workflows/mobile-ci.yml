@@ -48,7 +48,7 @@ jobs:
         run: npx expo export --platform ios --output-dir dist/ios --clear
 
       - name: Build source archive
-        run: zip -rq vizit-mobile-source.zip . -x '.git/*' 'node_modules/*' 'dist/*' 'vizit-mobile-source.zip'
+        run: zip -rq vizit-mobile-source.zip . -x '.git/*' '.expo/*' 'node_modules/*' 'dist/*' 'vizit-mobile-source.zip'
 
       - name: Upload source archive
         uses: actions/upload-artifact@v4
