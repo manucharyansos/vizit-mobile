@@ -8,6 +8,8 @@ import { useApp } from '@/providers/app-provider';
 import { businessApi, BusinessOnboardingStatus, BusinessSettings } from '@/services/api/business';
 import { apiErrorMessage } from '@/services/api/client';
 
+type ShortcutIcon = 'grid_view' | 'group' | 'schedule' | 'location_on' | 'photo_library';
+
 const copy = {
   hy: {
     title: 'Կառավարում', subtitle: 'Բիզնեսի էջ և սկզբնական կարգավորում', setup: 'Ավարտեք բիզնեսի կարգավորումը',
@@ -139,7 +141,7 @@ export default function BusinessAdmin() {
     </ScrollView>
   </SafeAreaView>;
 
-  function Module({ title, icon, route }: { title: string; icon: string; route: string }) {
+  function Module({ title, icon, route }: { title: string; icon: ShortcutIcon; route: string }) {
     return <Pressable onPress={() => router.push(route as Href)} style={({ pressed }) => [styles.module, { backgroundColor: theme.surfaceRaised, borderColor: theme.border, opacity: pressed ? 0.75 : 1 }]}><View style={[styles.moduleIcon, { backgroundColor: theme.plumSoft }]}><VizitIcon ios="square.grid.2x2.fill" android={icon} color={theme.plum} size={21} /></View><Text style={[styles.moduleText, { color: theme.text }]}>{title}</Text><VizitIcon ios="chevron.right" android="chevron_right" color={theme.muted} size={19} /></Pressable>;
   }
 }
