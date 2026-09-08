@@ -6,7 +6,7 @@ let modulePromise: Promise<NotificationsModule> | null = null;
 let handlerConfigured = false;
 
 export function supportsNativePush() {
-  return Platform.OS !== 'web' && Constants.appOwnership !== 'expo';
+  return Platform.OS !== 'web' && Constants.expoGoConfig == null;
 }
 
 export async function getNotifications(): Promise<NotificationsModule | null> {
