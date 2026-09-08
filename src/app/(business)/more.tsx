@@ -7,9 +7,9 @@ import { useApp } from '@/providers/app-provider';
 import { businessApi } from '@/services/api/business';
 
 const labels = {
-  hy: { title: 'Բոլոր բաժինները', booking: 'Նոր ամրագրում', services: 'Ծառայություններ', staff: 'Աշխատակիցներ և գրաֆիկ', hours: 'Աշխատանքային ժամեր', locations: 'Հասցեներ և մասնաճյուղեր', media: 'Լոգո և նկարներ', tasks: 'Առաջադրանքներ', analytics: 'Վերլուծություն', gifts: 'Նվեր քարտեր', loyalty: 'Հավատարմություն', growth: 'Սպասման ցուցակ', settings: 'Բիզնեսի կարգավորումներ', billing: 'Պլան և վճարումներ', telegram: 'Telegram ծանուցումներ', logout: 'Դուրս գալ', logoutConfirm: 'Դուրս գա՞լ բիզնես հաշվից։', cancel: 'Չեղարկել' },
-  ru: { title: 'Все разделы', booking: 'Новая запись', services: 'Услуги', staff: 'Сотрудники и график', hours: 'Рабочие часы', locations: 'Адреса и филиалы', media: 'Логотип и фото', tasks: 'Задачи', analytics: 'Аналитика', gifts: 'Подарочные карты', loyalty: 'Лояльность', growth: 'Лист ожидания', settings: 'Настройки бизнеса', billing: 'Тариф и платежи', telegram: 'Telegram-уведомления', logout: 'Выйти', logoutConfirm: 'Выйти из бизнес-аккаунта?', cancel: 'Отмена' },
-  en: { title: 'All sections', booking: 'New booking', services: 'Services', staff: 'Team and schedules', hours: 'Working hours', locations: 'Locations and branches', media: 'Logo and images', tasks: 'Tasks', analytics: 'Analytics', gifts: 'Gift cards', loyalty: 'Loyalty', growth: 'Waitlist', settings: 'Business settings', billing: 'Plan and billing', telegram: 'Telegram notifications', logout: 'Sign out', logoutConfirm: 'Sign out of the business account?', cancel: 'Cancel' },
+  hy: { title: 'Բոլոր բաժինները', booking: 'Նոր ամրագրում', services: 'Ծառայություններ', staff: 'Աշխատակիցներ և գրաֆիկ', hours: 'Աշխատանքային ժամեր', blocks: 'Փակ ժամեր և բացակայություններ', locations: 'Հասցեներ և մասնաճյուղեր', media: 'Լոգո և նկարներ', tasks: 'Առաջադրանքներ', analytics: 'Վերլուծություն', gifts: 'Նվեր քարտեր', loyalty: 'Հավատարմություն', growth: 'Աճ և marketing', settings: 'Բիզնեսի կարգավորումներ', billing: 'Պլան և վճարումներ', telegram: 'Telegram ծանուցումներ', logout: 'Դուրս գալ', logoutConfirm: 'Դուրս գա՞լ բիզնես հաշվից։', cancel: 'Չեղարկել' },
+  ru: { title: 'Все разделы', booking: 'Новая запись', services: 'Услуги', staff: 'Сотрудники и график', hours: 'Рабочие часы', blocks: 'Закрытые часы и отсутствие', locations: 'Адреса и филиалы', media: 'Логотип и фото', tasks: 'Задачи', analytics: 'Аналитика', gifts: 'Подарочные карты', loyalty: 'Лояльность', growth: 'Рост и маркетинг', settings: 'Настройки бизнеса', billing: 'Тариф и платежи', telegram: 'Telegram-уведомления', logout: 'Выйти', logoutConfirm: 'Выйти из бизнес-аккаунта?', cancel: 'Отмена' },
+  en: { title: 'All sections', booking: 'New booking', services: 'Services', staff: 'Team and schedules', hours: 'Working hours', blocks: 'Blocked time and leave', locations: 'Locations and branches', media: 'Logo and images', tasks: 'Tasks', analytics: 'Analytics', gifts: 'Gift cards', loyalty: 'Loyalty', growth: 'Growth and marketing', settings: 'Business settings', billing: 'Plan and billing', telegram: 'Telegram notifications', logout: 'Sign out', logoutConfirm: 'Sign out of the business account?', cancel: 'Cancel' },
 };
 
 export default function BusinessMore() {
@@ -20,6 +20,7 @@ export default function BusinessMore() {
     [c.services, '/(business)/services', 'grid_view'],
     [c.staff, '/(business)/staff', 'group'],
     [c.hours, 'working-hours', 'schedule'],
+    [c.blocks, 'calendar-blocks', 'event_busy'],
     [c.locations, 'locations', 'location_on'],
     [c.media, 'profile-media', 'photo_library'],
     [c.tasks, 'tasks', 'task_alt'],
