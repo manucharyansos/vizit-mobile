@@ -1,0 +1,69 @@
+{
+  "expo": {
+    "name": "Vizit",
+    "slug": "vizit-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "vizit",
+    "extra": {
+      "store": {
+        "privacyPolicyUrl": "https://vizit.am/privacy-policy",
+        "termsUrl": "https://vizit.am/terms",
+        "supportUrl": "https://vizit.am/contact"
+      }
+    },
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#071624",
+    "androidStatusBar": {
+      "backgroundColor": "#071624",
+      "barStyle": "light-content"
+    },
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "am.vizit.mobile",
+      "buildNumber": "1",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "am.vizit.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#071624",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Vizit-ին անհրաժեշտ է նկարների հասանելիություն՝ բիզնեսի լոգոն և շապիկը ընտրելու համար։",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      "./plugins/with-yandex-mapkit",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#071624",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": false
+    }
+  }
+}

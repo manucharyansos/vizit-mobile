@@ -1,0 +1,19 @@
+const shared = {
+  radius: { small: 8, medium: 10, large: 16, pill: 999 },
+  spacing: { xs: 6, sm: 10, md: 16, lg: 22, xl: 30 },
+} as const;
+
+export const themes = {
+  light: {
+    ...shared, background: '#F5F9FC', surface: '#EAF2F8', surfaceRaised: '#FFFFFF', cream: '#E2EDF5', peach: '#CDE4F7', peachSoft: '#E8F3FC',
+    plum: '#237CC5', plumStrong: '#092B46', plumSoft: '#DDEFFC', gold: '#378ADD', goldSoft: '#E2F1FD', text: '#071624', muted: '#58758D',
+    border: '#CFE0EC', map: '#DCECF7', danger: '#C84252', success: '#18745A', shadow: '#071624',
+  },
+  dark: {
+    ...shared, background: '#071624', surface: '#0E2940', surfaceRaised: '#0B2133', cream: '#102D45', peach: '#174A70', peachSoft: '#0F2D45',
+    plum: '#378ADD', plumStrong: '#E5F3FF', plumSoft: '#123653', gold: '#7DBCF4', goldSoft: '#123653', text: '#F3F8FD', muted: '#7390AA',
+    border: '#173B57', map: '#102D45', danger: '#FF8291', success: '#68D2AA', shadow: '#020B12',
+  },
+} as const;
+export type ThemeMode = keyof typeof themes;
+export type VizitTheme = (typeof themes)[ThemeMode];
