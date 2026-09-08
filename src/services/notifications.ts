@@ -10,7 +10,7 @@ export async function requestExpoPushToken() {
   const Notifications = await getNotifications();
   if (!Notifications) throw new Error('Push notifications require a development build');
   if (!Device.isDevice) throw new Error('Push notifications require a physical device');
-  if (Platform.OS === 'android') await Notifications.setNotificationChannelAsync('bookings', { name: 'Bookings', importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 250, 250, 250], lightColor: '#252A56' });
+  if (Platform.OS === 'android') await Notifications.setNotificationChannelAsync('bookings', { name: 'Bookings', importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 250, 250, 250], lightColor: '#378ADD' });
   const current = await Notifications.getPermissionsAsync();
   const permission = current.status === 'granted' ? current : await Notifications.requestPermissionsAsync();
   if (permission.status !== 'granted') throw new Error('Notification permission denied');
