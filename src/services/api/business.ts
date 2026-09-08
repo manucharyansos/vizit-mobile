@@ -17,19 +17,19 @@ export type BusinessSettings = {
   id?: number;
   name?: string;
   slug?: string;
-  phone?: string | null;
-  address?: string | null;
-  city?: string | null;
-  district?: string | null;
-  short_description?: string | null;
-  description?: string | null;
+  phone?: string;
+  address?: string;
+  city?: string;
+  district?: string;
+  short_description?: string;
+  description?: string;
   logo_url?: string | null;
   cover_url?: string | null;
   is_public_profile_enabled?: boolean;
   is_marketplace_visible?: boolean;
-  timezone?: string | null;
-  work_start?: string | null;
-  work_end?: string | null;
+  timezone?: string;
+  work_start?: string;
+  work_end?: string;
   locations?: BusinessLocation[];
   location_limit?: number;
   [key: string]: unknown;
@@ -40,6 +40,30 @@ export type BusinessRegistration = { business_name: string; business_phone: stri
 
 function assertBusinessAudience(data: { user?: { audience?: unknown } }) {
   if (data.user?.audience && data.user.audience !== 'business') throw new Error('Invalid business token audience');
+}
+
+function normalizeBusinessSettings(payload: unknown): BusinessSettings {
+  const raw = normalizeResource<Record<string, unknown>>(payload);
+  const text = (key: string): string | undefined => typeof raw[key] === 'string' ? raw[key] as string : undefined;
+  return {
+    ...raw,
+    id: typeof raw.id === 'number' ? raw.id : undefined,
+    name: text('name'),
+    slug: text('slug'),
+    phone: text('phone'),
+    address: text('address'),
+    city: text('city'),
+    district: text('district'),
+    short_description: text('short_description'),
+    description: text('description'),
+    timezone: text('timezone'),
+    work_start: text('work_start'),
+    work_end: text('work_end'),
+    logo_url: typeof raw.logo_url === 'string' ? raw.logo_url : null,
+    cover_url: typeof raw.cover_url === 'string' ? raw.cover_url : null,
+    locations: normalizeList<BusinessLocation>(raw.locations, ['locations']),
+    location_limit: typeof raw.location_limit === 'number' ? raw.location_limit : undefined,
+  };
 }
 
 export const businessApi = {
@@ -70,8 +94,8 @@ export const businessApi = {
   async telegram(): Promise<{ available: boolean; connected: boolean; bot_url?: string | null }> { const { data } = await businessAuthClient.get('/telegram/connection'); return normalizeResource<{ available: boolean; connected: boolean; bot_url?: string | null }>(data); },
   async createTelegramLink(): Promise<{ url: string }> { const { data } = await businessAuthClient.post('/telegram/connection'); return normalizeResource<{ url: string }>(data); },
   async disconnectTelegram(): Promise<void> { await businessAuthClient.delete('/telegram/connection'); },
-  async settings(): Promise<BusinessSettings> { const { data } = await businessAuthClient.get('/business/settings'); return normalizeResource<BusinessSettings>(data); },
-  async updateSettings(payload: Record<string, unknown>): Promise<BusinessSettings> { const { data } = await businessAuthClient.patch('/business/settings', payload); return normalizeResource<BusinessSettings>(data); },
+  async settings(): Promise<BusinessSettings> { const { data } = await businessAuthClient.get('/business/settings'); return normalizeBusinessSettings(data); },
+  async updateSettings(payload: Record<string, unknown>): Promise<BusinessSettings> { const { data } = await businessAuthClient.patch('/business/settings', payload); return normalizeBusinessSettings(data); },
   async uploadImage(file: LocalImageFile, folder = 'businesses'): Promise<{ path: string; url: string }> { const form = new FormData(); form.append('file', { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob); form.append('folder', folder); const { data } = await businessAuthClient.post('/media/upload', form); return normalizeResource<{ path: string; url: string }>(data); },
   async createLocation(payload: Omit<BusinessLocation, 'id' | 'is_active'> & { is_active?: boolean }): Promise<BusinessLocation> { const { data } = await businessAuthClient.post('/business/locations', payload); return normalizeResource<BusinessLocation>(data, ['location']); },
   async updateLocation(id: number, payload: Partial<BusinessLocation>): Promise<BusinessLocation> { const { data } = await businessAuthClient.patch(`/business/locations/${id}`, payload); return normalizeResource<BusinessLocation>(data, ['location']); },
