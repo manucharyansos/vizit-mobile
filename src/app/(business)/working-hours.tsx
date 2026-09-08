@@ -69,8 +69,14 @@ export default function WorkingHoursScreen() {
   const save = useMutation({
     mutationFn: () => businessApi.updateSchedule(days.map((day) => ({ ...day, start: day.is_closed ? null : day.start, end: day.is_closed ? null : day.end, break_start: day.is_closed ? null : day.break_start, break_end: day.is_closed ? null : day.break_end }))),
     onSuccess: async () => {
-      await cache.invalidateQueries({ queryKey: ['business-schedule'] });
-      await cache.refetchQueries({ queryKey: ['business-schedule'], type: 'active' });
+      await Promise.all([
+        cache.invalidateQueries({ queryKey: ['business-schedule'] }),
+        cache.invalidateQueries({ queryKey: ['business-onboarding'] }),
+      ]);
+      await Promise.all([
+        cache.refetchQueries({ queryKey: ['business-schedule'], type: 'active' }),
+        cache.refetchQueries({ queryKey: ['business-onboarding'], type: 'active' }),
+      ]);
       Alert.alert(c.saved);
     },
     onError: (error) => Alert.alert(c.error, apiErrorMessage(error)),
