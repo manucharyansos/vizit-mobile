@@ -41,8 +41,8 @@ export default function BookingScreen() {
 
   useEffect(() => {
     if (!locations.length) return;
-    const requested = requestedLocationId && locations.find((location) => location.id === requestedLocationId);
-    const current = locationId && locations.find((location) => location.id === locationId);
+    const requested = requestedLocationId ? locations.find((location) => location.id === requestedLocationId) : undefined;
+    const current = locationId ? locations.find((location) => location.id === locationId) : undefined;
     const resolved = requested?.id ?? current?.id ?? locations[0].id;
     if (resolved !== locationId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
