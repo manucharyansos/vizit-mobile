@@ -28,6 +28,12 @@ export const guestBookingStore = {
     const normalized = normalizeCode(code);
     await Promise.all([SecureStore.setItemAsync(lastCodeKey, normalized), SecureStore.setItemAsync(tokenKey(normalized), manageToken)]);
   },
+  async restore(code: string) {
+    const normalized = normalizeCode(code);
+    if (!normalized) return null;
+    const token = await SecureStore.getItemAsync(tokenKey(normalized));
+    return token ? { code: normalized, token } : null;
+  },
   async restoreLast() {
     const code = await SecureStore.getItemAsync(lastCodeKey);
     if (!code) return null;
