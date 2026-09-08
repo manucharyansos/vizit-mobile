@@ -1,12 +1,13 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as NavigationBar from 'expo-navigation-bar';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { AppProvider, useApp } from '@/providers/app-provider';
 import { useNotificationNavigation } from '@/hooks/use-notification-navigation';
+import { appQueryClient } from '@/services/query-client';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +21,5 @@ function Navigator() {
 }
 
 export default function RootLayout() {
-  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } }));
-  return <QueryClientProvider client={queryClient}><AppProvider><Navigator /></AppProvider></QueryClientProvider>;
+  return <QueryClientProvider client={appQueryClient}><AppProvider><Navigator /></AppProvider></QueryClientProvider>;
 }
