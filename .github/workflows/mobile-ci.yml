@@ -29,6 +29,12 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
+      - name: Expo dependency check
+        run: npx expo install --check
+
+      - name: Expo doctor
+        run: npx expo-doctor
+
       - name: TypeScript
         run: npm run typecheck
 
