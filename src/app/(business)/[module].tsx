@@ -30,8 +30,11 @@ const rows = (data: unknown): [string, string][] => {
   return result;
 };
 export default function BusinessModule() {
-  const { module } = useLocalSearchParams<{ module: string }>(); const { locale, theme } = useApp(); const key = module as ModuleKey; const definition = definitions[key];
-  const query = useQuery({ queryKey: ['business-module', key], queryFn: () => definition.load(), enabled: !!definition, retry: false });
+  const { module } = useLocalSearchParams<{ module: string }>();
+  const { locale, theme } = useApp();
+  const key = module as ModuleKey;
+  const definition = definitions[key];
+  const query = useQuery<unknown>({ queryKey: ['business-module', key], queryFn: async () => definition ? await definition.load() : null, enabled: !!definition, retry: false });
   if (!definition) return null;
   return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}><View style={styles.header}><Pressable onPress={() => router.back()} style={[styles.back, { borderColor: theme.border }]}><VizitIcon ios="chevron.left" android="chevron_left" color={theme.text} size={22} /></Pressable><Text style={[styles.title, { color: theme.text }]}>{definition[locale]}</Text></View>{query.isLoading ? <ActivityIndicator color={theme.plum} /> : <ScrollView contentContainerStyle={styles.content}>{rows(query.data).map(([label, value], index) => <View key={`${label}-${index}`} style={[styles.row, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}><Text style={[styles.label, { color: theme.text }]}>{label.replaceAll('_', ' ')}</Text><Text style={[styles.value, { color: theme.muted }]}>{value}</Text></View>)}</ScrollView>}</SafeAreaView>;
 }
