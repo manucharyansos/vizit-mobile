@@ -8,7 +8,7 @@ Native Expo SDK 57 / React Native 0.86 app with Expo Router. The app does not em
 - `src/app/(business)`: authenticated business/employee calendar and operations.
 - `src/services/api`: Laravel API clients and DTO normalization.
 - Client and business bearer tokens have distinct SecureStore keys and Axios clients.
-- Guest management exchanges `booking_code + 4-digit OTP` for a guest token. Protected calls use `X-Guest-Token`.
+- The app stores Laravel's internal booking reference in SecureStore. The customer sees and enters only the 4-digit OTP; verification exchanges the internal reference plus OTP for a guest token. Protected calls use `X-Guest-Token`.
 - Public links use `https://vizit.am`; calls use `https://api.vizit.am/api`.
 
 ## Yandex MapKit

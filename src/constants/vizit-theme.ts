@@ -5,9 +5,9 @@ const shared = {
 
 export const themes = {
   light: {
-    ...shared, background: '#F5F9FC', surface: '#EAF2F8', surfaceRaised: '#FFFFFF', cream: '#E2EDF5', peach: '#CDE4F7', peachSoft: '#E8F3FC',
-    plum: '#237CC5', plumStrong: '#092B46', plumSoft: '#DDEFFC', gold: '#378ADD', goldSoft: '#E2F1FD', text: '#071624', muted: '#58758D',
-    border: '#CFE0EC', map: '#DCECF7', danger: '#C84252', success: '#18745A', shadow: '#071624',
+    ...shared, background: '#FFFFFF', surface: '#F4F8FB', surfaceRaised: '#FFFFFF', cream: '#EDF4F8', peach: '#D8ECFC', peachSoft: '#EEF7FE',
+    plum: '#237CC5', plumStrong: '#092B46', plumSoft: '#E5F2FD', gold: '#378ADD', goldSoft: '#EAF5FE', text: '#071624', muted: '#58758D',
+    border: '#D5E3EE', map: '#E9F3FA', danger: '#C84252', success: '#18745A', shadow: '#071624',
   },
   dark: {
     ...shared, background: '#071624', surface: '#0E2940', surfaceRaised: '#0B2133', cream: '#102D45', peach: '#174A70', peachSoft: '#0F2D45',

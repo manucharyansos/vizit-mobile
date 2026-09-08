@@ -6,11 +6,11 @@ import { Locale, TranslationKey, translations } from '@/i18n/translations';
 
 type Value = { ready: boolean; locale: Locale; setLocale: (value: Locale) => void; mode: ThemeMode; toggleMode: () => void; theme: (typeof themes)[ThemeMode]; t: (key: TranslationKey) => string };
 const Context = createContext<Value | null>(null);
-const preferenceKeys = { locale: 'vizit.preference.locale.v1', mode: 'vizit.preference.theme.v1' } as const;
+const preferenceKeys = { locale: 'vizit.preference.locale.v1', mode: 'vizit.preference.theme.v2' } as const;
 export function AppProvider({ children }: PropsWithChildren) {
   const language = Localization.getLocales()[0]?.languageCode;
   const [locale, setLocale] = useState<Locale>(language === 'hy' || language === 'ru' ? language : 'en');
-  const [mode, setMode] = useState<ThemeMode>('dark');
+  const [mode, setMode] = useState<ThemeMode>('light');
   const [ready, setReady] = useState(false);
   useEffect(() => { Promise.all([SecureStore.getItemAsync(preferenceKeys.locale), SecureStore.getItemAsync(preferenceKeys.mode)]).then(([savedLocale, savedMode]) => { if (savedLocale === 'hy' || savedLocale === 'ru' || savedLocale === 'en') setLocale(savedLocale); if (savedMode === 'light' || savedMode === 'dark') setMode(savedMode); }).catch(() => undefined).finally(() => setReady(true)); }, []);
   const changeLocale = useCallback((value: Locale) => { setLocale(value); void SecureStore.setItemAsync(preferenceKeys.locale, value).catch(() => undefined); }, []);

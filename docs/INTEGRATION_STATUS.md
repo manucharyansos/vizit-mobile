@@ -9,7 +9,7 @@ Status reflects the deployed API observed while building the mobile client. The 
 | Services and staff | `/public/businesses/{slug}/services`, `/staff` | Connected | No |
 | Availability | `/public/businesses/{slug}/availability` | Connected | No |
 | Create booking | `/public/businesses/{slug}/bookings` | Connected | No |
-| Guest booking access | code + 4-digit OTP → manage token | Connected | No |
+| Guest booking access | app-held internal reference + customer-entered 4-digit OTP → manage token | Connected | No |
 | Cancel/reschedule | guest-token protected endpoints | Connected | No |
 | Telegram connection | `/public/bookings/{code}/telegram-link` | Connected | No |
 | Client register/login/profile | `/client/auth/*` | Connected | No |

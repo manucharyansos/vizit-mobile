@@ -55,7 +55,7 @@ All push data must be non-sensitive. Never put OTP, guest manage token, access t
   "type": "booking.created",
   "audience": "business",
   "booking_id": 123,
-  "booking_code": "VZ-123"
+  "booking_id": 123
 }
 ```
 
@@ -76,7 +76,7 @@ The current business billing checkout is not a booking-deposit API. Mobile needs
 
 `POST /public/bookings/{booking_code}/payments/idbank/session`
 
-Header: `X-Guest-Token: {manage_token}`. The manage token is issued only after booking code + 4-digit OTP verification.
+Header: `X-Guest-Token: {manage_token}`. The manage token is issued only after the app-held internal booking reference and customer-entered 4-digit OTP are verified.
 
 ```json
 {
@@ -129,6 +129,6 @@ Allowed states: `pending`, `paid`, `failed`, `cancelled`, `expired`, `refunded`.
 
 - Rate-limit login, registration, password reset, OTP verify/resend and checkout creation.
 - Keep client, business/employee and guest-manage tokens in separate guards/scopes.
-- Guest booking mutation always requires both the prior booking-code + OTP verification and its issued manage token.
+- The customer UI asks only for the 4-digit OTP. Guest booking mutation still requires the app-held internal reference, successful OTP verification, and its issued manage token.
 - Return Laravel validation errors as `422` and unauthenticated/expired token as `401`.
 - Email and Telegram delivery must be queued; booking API responses should not wait for external providers.

@@ -23,8 +23,7 @@ import { checkoutUrlFrom, openIdBankCheckout } from "@/services/payments";
 const copy = {
   hy: {
     title: "Իմ ամրագրումները",
-    code: "Ամրագրման կոդ",
-    otp: "4-նիշ OTP",
+    otp: "4-նիշ հաստատման կոդ",
     verify: "Հաստատել և բացել",
     resend: "Ուղարկել նոր OTP",
     cancel: "Չեղարկել ամրագրումը",
@@ -33,17 +32,18 @@ const copy = {
     chooseNewDate: "Ընտրիր նոր օրը և ժամը",
     updated: "Ամրագրման ժամը փոխվեց",
     cancelled: "Ամրագրումը չեղարկված է",
-    invalid: "Մուտքագրիր կոդը և 4 թիվը",
+    invalid: "Մուտքագրիր ուղարկված 4 թիվը",
     verified: "Անվտանգ մուտքը հաստատված է",
     date: "Ամսաթիվ և ժամ",
     client: "Հաճախորդ",
     status: "Կարգավիճակ",
-    empty: "Մուտքագրիր ամրագրման կոդը և email/SMS-ով ստացած OTP-ն։",
+    empty: "Մուտքագրիր email/SMS-ով ստացած 4-նիշ հաստատման կոդը։",
+    missing: "Այս սարքում սպասող ամրագրում չկա։ Նոր ամրագրում կատարիր կամ մուտք գործիր հաճախորդի հաշիվ։",
+    booking: "Ամրագրում",
   },
   ru: {
     title: "Мои записи",
-    code: "Код записи",
-    otp: "4-значный OTP",
+    otp: "4-значный код подтверждения",
     verify: "Подтвердить и открыть",
     resend: "Отправить новый OTP",
     cancel: "Отменить запись",
@@ -52,17 +52,18 @@ const copy = {
     chooseNewDate: "Выберите новые дату и время",
     updated: "Время записи изменено",
     cancelled: "Запись отменена",
-    invalid: "Введите код и 4 цифры",
+    invalid: "Введите отправленные вам 4 цифры",
     verified: "Безопасный доступ подтверждён",
     date: "Дата и время",
     client: "Клиент",
     status: "Статус",
-    empty: "Введите код записи и OTP, полученный по email/SMS.",
+    empty: "Введите 4-значный код подтверждения из email/SMS.",
+    missing: "На этом устройстве нет ожидающей записи. Создайте новую запись или войдите в аккаунт клиента.",
+    booking: "Запись",
   },
   en: {
     title: "My bookings",
-    code: "Booking code",
-    otp: "4-digit OTP",
+    otp: "4-digit verification code",
     verify: "Verify and open",
     resend: "Send a new OTP",
     cancel: "Cancel booking",
@@ -71,12 +72,14 @@ const copy = {
     chooseNewDate: "Choose a new date and time",
     updated: "Booking time updated",
     cancelled: "Booking cancelled",
-    invalid: "Enter the code and 4 digits",
+    invalid: "Enter the 4 digits sent to you",
     verified: "Secure access verified",
     date: "Date and time",
     client: "Client",
     status: "Status",
-    empty: "Enter the booking code and the OTP received by email/SMS.",
+    empty: "Enter the 4-digit verification code received by email/SMS.",
+    missing: "There is no pending booking on this device. Make a new booking or sign in to your client account.",
+    booking: "Booking",
   },
 };
 
@@ -92,6 +95,7 @@ export default function BookingsScreen() {
   const [code, setCode] = useState("");
   const [otp, setOtp] = useState("");
   const [token, setToken] = useState("");
+  const [restoring, setRestoring] = useState(true);
   const [isRescheduling, setRescheduling] = useState(false);
   const detail = useQuery({
     queryKey: ["guest-booking", code, token],
@@ -106,12 +110,17 @@ export default function BookingsScreen() {
     retry: false,
   });
   useEffect(() => {
-    guestBookingStore.restoreLast().then((saved) => {
-      if (saved) {
-        setCode(saved.code);
-        setToken(saved.token);
-      }
-    });
+    let active = true;
+    Promise.all([guestBookingStore.restoreLastCode(), guestBookingStore.restoreLast()])
+      .then(([lastCode, saved]) => {
+        if (!active) return;
+        const storedCode = saved?.code ?? lastCode;
+        if (storedCode) setCode(storedCode);
+        if (saved) setToken(saved.token);
+      })
+      .catch(() => undefined)
+      .finally(() => { if (active) setRestoring(false); });
+    return () => { active = false; };
   }, []);
   const invalidSession = Boolean(
     detail.error &&
@@ -120,7 +129,11 @@ export default function BookingsScreen() {
         detail.error.response?.status === 403),
   );
   useEffect(() => {
-    if (invalidSession) void guestBookingStore.clear(code);
+    let active = true;
+    if (invalidSession) {
+      void guestBookingStore.clearSession(code).finally(() => { if (active) setToken(""); });
+    }
+    return () => { active = false; };
   }, [code, invalidSession]);
   const hasAccess = Boolean(token && !invalidSession);
   const verify = useMutation({
@@ -200,11 +213,25 @@ export default function BookingsScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.title, { color: theme.text }]}>{c.title}</Text>
             <Text style={[styles.help, { color: theme.muted }]}>
-              {hasAccess ? c.verified : c.empty}
+              {restoring ? "" : hasAccess ? c.verified : code ? c.empty : c.missing}
             </Text>
           </View>
         </View>
-        {!hasAccess ? (
+        {restoring ? (
+          <ActivityIndicator color={theme.plum} />
+        ) : !code ? (
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: theme.surface, shadowColor: theme.shadow, borderColor: theme.border },
+            ]}
+          >
+            <View style={[styles.securityNote, { backgroundColor: theme.goldSoft }]}>
+              <VizitIcon ios="calendar.badge.plus" android="event_available" color={theme.gold} size={21} />
+              <Text style={[styles.securityText, { color: theme.text }]}>{c.missing}</Text>
+            </View>
+          </View>
+        ) : !hasAccess ? (
           <View
             style={[
               styles.card,
@@ -225,15 +252,6 @@ export default function BookingsScreen() {
               </Text>
             </View>
             <Field
-              value={code}
-              onChangeText={(value) => {
-                setCode(value);
-                setToken("");
-              }}
-              placeholder={c.code}
-              autoCapitalize="characters"
-            />
-            <Field
               value={otp}
               onChangeText={(value) =>
                 setOtp(value.replace(/\D/g, "").slice(0, 4))
@@ -241,7 +259,9 @@ export default function BookingsScreen() {
               placeholder={c.otp}
               keyboardType="number-pad"
               maxLength={4}
-              secureTextEntry
+              textContentType="oneTimeCode"
+              autoComplete="sms-otp"
+              style={styles.otpField}
             />
             <Button
               title={c.verify}
@@ -249,7 +269,7 @@ export default function BookingsScreen() {
               pending={verify.isPending}
             />
             <Pressable
-              disabled={!code || resend.isPending}
+              disabled={resend.isPending}
               onPress={() => resend.mutate()}
             >
               <Text style={[styles.link, { color: theme.plum }]}>
@@ -267,7 +287,7 @@ export default function BookingsScreen() {
             ]}
           >
             <Text style={[styles.bookingTitle, { color: theme.plum }]}>
-              {booking.business?.name ?? booking.business_name ?? `#${code}`}
+              {booking.business?.name ?? booking.business_name ?? c.booking}
             </Text>
             <Info
               label={c.date}
@@ -360,6 +380,7 @@ function Field(props: React.ComponentProps<typeof TextInput>) {
           borderColor: theme.border,
           color: theme.text,
         },
+        props.style,
       ]}
     />
   );
@@ -561,6 +582,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 15,
     fontSize: 16,
+  },
+  otpField: {
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: 12,
+    textAlign: "center",
   },
   button: {
     height: 54,

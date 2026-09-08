@@ -19,17 +19,6 @@ import { clientAccountApi } from "@/services/api/client-account";
 import { tokenStore } from "@/services/api/client";
 import { publicApi, type PublicBusiness } from "@/services/api/public";
 
-const palette = {
-  background: "#071624",
-  surface: "#0E2940",
-  surfaceStrong: "#123653",
-  accent: "#378ADD",
-  accentStrong: "#15558E",
-  text: "#F3F8FD",
-  muted: "#7390AA",
-  soft: "#A9C7E2",
-  border: "#173B57",
-};
 const copy = {
   hy: {
     greeting: "Բարի երեկո",
@@ -42,6 +31,8 @@ const copy = {
     noBooking: "Մոտակա ամրագրում չկա",
     book: "Ամրագրել",
     guest: "հյուր",
+    theme: "Փոխել թեման",
+    language: "Փոխել լեզուն",
   },
   ru: {
     greeting: "Добрый вечер",
@@ -54,6 +45,8 @@ const copy = {
     noBooking: "Ближайших записей нет",
     book: "Записаться",
     guest: "гость",
+    theme: "Сменить тему",
+    language: "Сменить язык",
   },
   en: {
     greeting: "Good evening",
@@ -66,11 +59,13 @@ const copy = {
     noBooking: "No upcoming booking",
     book: "Book",
     guest: "guest",
+    theme: "Change theme",
+    language: "Change language",
   },
 };
 
 export default function DiscoverScreen() {
-  const { locale, setLocale } = useApp();
+  const { locale, setLocale, mode, theme, toggleMode } = useApp();
   const c = copy[locale];
   const [search, setSearch] = useState("");
   const [openedAt] = useState(() => Date.now());
@@ -137,7 +132,7 @@ export default function DiscoverScreen() {
   );
   const displayName = me.data?.name?.split(" ")[0] ?? c.guest;
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={["top"]}>
       <FlatList
         data={filtered}
         keyExtractor={(item) => `${item.business_id}-${item.slug}`}
@@ -152,44 +147,61 @@ export default function DiscoverScreen() {
                   style={styles.logo}
                   contentFit="contain"
                 />
-                <Text style={styles.brand}>Vizit</Text>
+                <Text style={[styles.brand, { color: theme.text }]}>Vizit</Text>
               </View>
-              <Pressable
-                onPress={() =>
-                  setLocale(
-                    locale === "hy" ? "ru" : locale === "ru" ? "en" : "hy",
-                  )
-                }
-                style={styles.avatar}
-              >
-                <Text style={styles.avatarText}>{locale.toUpperCase()}</Text>
-              </Pressable>
+              <View style={styles.headerActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={c.theme}
+                  onPress={toggleMode}
+                  style={[styles.headerControl, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                >
+                  <VizitIcon
+                    ios={mode === "dark" ? "sun.max.fill" : "moon.fill"}
+                    android={mode === "dark" ? "light_mode" : "dark_mode"}
+                    color={theme.text}
+                    size={21}
+                  />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={c.language}
+                  onPress={() =>
+                    setLocale(
+                      locale === "hy" ? "ru" : locale === "ru" ? "en" : "hy",
+                    )
+                  }
+                  style={[styles.avatar, { backgroundColor: theme.plum }]}
+                >
+                  <Text style={styles.avatarText}>{locale.toUpperCase()}</Text>
+                </Pressable>
+              </View>
             </View>
-            <Text style={styles.greeting}>
+            <Text style={[styles.greeting, { color: theme.muted }]}>
               {c.greeting}, {displayName}
             </Text>
-            <Text style={styles.hero}>{c.title}</Text>
-            <View style={styles.search}>
+            <Text style={[styles.hero, { color: theme.text }]}>{c.title}</Text>
+            <View style={[styles.search, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <VizitIcon
                 ios="magnifyingglass"
                 android="search"
-                color={palette.muted}
+                color={theme.muted}
                 size={27}
               />
               <TextInput
                 value={search}
                 onChangeText={setSearch}
                 placeholder={c.search}
-                placeholderTextColor={palette.muted}
+                placeholderTextColor={theme.muted}
                 returnKeyType="search"
-                style={styles.searchInput}
+                style={[styles.searchInput, { color: theme.text }]}
               />
               {search ? (
                 <Pressable onPress={() => setSearch("")}>
                   <VizitIcon
                     ios="xmark.circle.fill"
                     android="cancel"
-                    color={palette.muted}
+                    color={theme.muted}
                     size={20}
                   />
                 </Pressable>
@@ -203,12 +215,18 @@ export default function DiscoverScreen() {
               {days.map((date, index) => (
                 <View
                   key={date.toISOString()}
-                  style={[styles.day, index === 0 && styles.dayActive]}
+                  style={[
+                    styles.day,
+                    {
+                      backgroundColor: index === 0 ? theme.plum : theme.surface,
+                      borderColor: index === 0 ? theme.plum : theme.border,
+                    },
+                  ]}
                 >
                   <Text
                     style={[
                       styles.weekday,
-                      index === 0 && styles.dayActiveText,
+                      { color: index === 0 ? "#FFFFFF" : theme.muted },
                     ]}
                   >
                     {new Intl.DateTimeFormat(locale, {
@@ -218,7 +236,7 @@ export default function DiscoverScreen() {
                   <Text
                     style={[
                       styles.dayNumber,
-                      index === 0 && styles.dayActiveText,
+                      { color: index === 0 ? "#FFFFFF" : theme.text },
                     ]}
                   >
                     {date.getDate()}
@@ -226,9 +244,9 @@ export default function DiscoverScreen() {
                 </View>
               ))}
             </ScrollView>
-            <Text style={styles.sectionTitle}>{c.next}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.muted }]}>{c.next}</Text>
             {bookings.isLoading ? (
-              <ActivityIndicator color={palette.accent} style={styles.loader} />
+              <ActivityIndicator color={theme.plum} style={styles.loader} />
             ) : nextBooking ? (
               <Pressable
                 onPress={() => router.push("/(customer)/bookings")}
@@ -266,7 +284,7 @@ export default function DiscoverScreen() {
             )}
             {categories.length ? (
               <>
-                <Text style={styles.sectionTitle}>{c.categories}</Text>
+                <Text style={[styles.sectionTitle, { color: theme.muted }]}>{c.categories}</Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -276,15 +294,15 @@ export default function DiscoverScreen() {
                     <Pressable
                       key={name}
                       onPress={() => setSearch(name)}
-                      style={styles.category}
+                      style={[styles.category, { backgroundColor: theme.surface, borderColor: theme.border }]}
                     >
                       <VizitIcon
                         ios={index % 2 ? "heart.text.square" : "sparkles"}
                         android={index % 2 ? "favorite" : "spa"}
-                        color="#7DBCF4"
+                        color={theme.plum}
                         size={27}
                       />
-                      <Text numberOfLines={2} style={styles.categoryText}>
+                      <Text numberOfLines={2} style={[styles.categoryText, { color: theme.text }]}>
                         {name}
                       </Text>
                     </Pressable>
@@ -293,25 +311,25 @@ export default function DiscoverScreen() {
               </>
             ) : null}
             <View style={styles.businessHeading}>
-              <Text style={styles.sectionTitle}>{c.businesses}</Text>
+              <Text style={[styles.sectionTitle, { color: theme.muted }]}>{c.businesses}</Text>
               <Pressable onPress={() => router.push("/map")}>
                 <VizitIcon
                   ios="map.fill"
                   android="map"
-                  color={palette.accent}
+                  color={theme.plum}
                   size={23}
                 />
               </Pressable>
             </View>
             {businesses.isLoading ? (
-              <ActivityIndicator color={palette.accent} />
+              <ActivityIndicator color={theme.plum} />
             ) : null}
           </>
         }
         renderItem={({ item }) => <BusinessRow item={item} label={c.book} />}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListEmptyComponent={
-          !businesses.isLoading ? <Text style={styles.emptyList}>—</Text> : null
+          !businesses.isLoading ? <Text style={[styles.emptyList, { color: theme.muted }]}>—</Text> : null
         }
       />
     </SafeAreaView>
@@ -319,6 +337,7 @@ export default function DiscoverScreen() {
 }
 
 function BusinessRow({ item, label }: { item: PublicBusiness; label: string }) {
+  const { theme } = useApp();
   return (
     <Pressable
       onPress={() =>
@@ -327,9 +346,9 @@ function BusinessRow({ item, label }: { item: PublicBusiness; label: string }) {
           params: { slug: item.slug },
         })
       }
-      style={styles.business}
+      style={[styles.business, { backgroundColor: theme.surface, borderColor: theme.border }]}
     >
-      <View style={styles.businessImage}>
+      <View style={[styles.businessImage, { backgroundColor: theme.peachSoft }]}>
         {item.logo_url || item.cover_url ? (
           <Image
             source={item.logo_url ?? item.cover_url}
@@ -337,25 +356,25 @@ function BusinessRow({ item, label }: { item: PublicBusiness; label: string }) {
             contentFit="cover"
           />
         ) : (
-          <Text style={styles.fallback}>{item.name.slice(0, 1)}</Text>
+          <Text style={[styles.fallback, { color: theme.plum }]}>{item.name.slice(0, 1)}</Text>
         )}
       </View>
       <View style={styles.businessInfo}>
-        <Text numberOfLines={1} style={styles.businessName}>
+        <Text numberOfLines={1} style={[styles.businessName, { color: theme.text }]}>
           {item.name}
         </Text>
-        <Text numberOfLines={1} style={styles.businessMeta}>
+        <Text numberOfLines={1} style={[styles.businessMeta, { color: theme.muted }]}>
           {item.category_name ?? item.address ?? "Vizit"}
         </Text>
       </View>
-      <View style={styles.open}>
+      <View style={[styles.open, { backgroundColor: theme.plum }]}>
         <Text style={styles.openText}>{label}</Text>
       </View>
     </Pressable>
   );
 }
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: palette.background },
+  screen: { flex: 1 },
   list: { paddingHorizontal: 20, paddingBottom: 30 },
   header: {
     flexDirection: "row",
@@ -365,12 +384,20 @@ const styles = StyleSheet.create({
     marginBottom: 56,
   },
   brandWrap: { flexDirection: "row", alignItems: "center", gap: 12 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerControl: {
+    width: 45,
+    height: 45,
+    borderRadius: 23,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   logo: {
     width: 45,
     height: 45,
   },
   brand: {
-    color: palette.text,
     fontSize: 28,
     fontWeight: "800",
     letterSpacing: -0.8,
@@ -381,12 +408,10 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#15558E",
   },
   avatarText: { color: "#CDE5FA", fontWeight: "800", fontSize: 12 },
-  greeting: { color: palette.muted, fontSize: 17, marginBottom: 8 },
+  greeting: { fontSize: 17, marginBottom: 8 },
   hero: {
-    color: palette.text,
     fontSize: 30,
     lineHeight: 37,
     fontWeight: "800",
@@ -400,13 +425,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 11,
-    backgroundColor: palette.surface,
     borderWidth: 1,
-    borderColor: palette.border,
   },
   searchInput: {
     flex: 1,
-    color: palette.text,
     fontSize: 16,
     paddingVertical: 0,
   },
@@ -415,23 +437,17 @@ const styles = StyleSheet.create({
     width: 77,
     height: 82,
     borderRadius: 16,
-    backgroundColor: palette.surface,
     borderWidth: 1,
-    borderColor: palette.border,
     alignItems: "center",
     justifyContent: "center",
   },
-  dayActive: { backgroundColor: palette.accent, borderColor: palette.accent },
-  weekday: { color: palette.muted, fontSize: 13, textTransform: "capitalize" },
+  weekday: { fontSize: 13, textTransform: "capitalize" },
   dayNumber: {
-    color: palette.text,
     fontSize: 22,
     fontWeight: "700",
     marginTop: 5,
   },
-  dayActiveText: { color: "#FFFFFF" },
   sectionTitle: {
-    color: palette.muted,
     fontSize: 17,
     fontWeight: "700",
     marginBottom: 13,
@@ -442,7 +458,7 @@ const styles = StyleSheet.create({
     minHeight: 130,
     borderRadius: 19,
     padding: 20,
-    backgroundColor: palette.accentStrong,
+    backgroundColor: "#15558E",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -450,7 +466,7 @@ const styles = StyleSheet.create({
   },
   nextInfo: { flex: 1 },
   nextBusiness: { color: "#E7F3FE", fontSize: 21, fontWeight: "800" },
-  nextService: { color: palette.soft, fontSize: 15, marginTop: 8 },
+  nextService: { color: "#CDE5FA", fontSize: 15, marginTop: 8 },
   nextTime: {
     minWidth: 84,
     borderRadius: 15,
@@ -465,24 +481,21 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     padding: 18,
     marginBottom: 24,
-    backgroundColor: palette.accentStrong,
+    backgroundColor: "#15558E",
     justifyContent: "center",
   },
-  emptyText: { color: palette.soft },
+  emptyText: { color: "#CDE5FA" },
   bookText: { color: "#FFFFFF", fontWeight: "800", marginTop: 8 },
   categories: { gap: 11, paddingBottom: 24 },
   category: {
     width: 132,
     minHeight: 112,
     borderRadius: 17,
-    backgroundColor: palette.surface,
     borderWidth: 1,
-    borderColor: palette.border,
     padding: 15,
     justifyContent: "space-between",
   },
   categoryText: {
-    color: "#D8E8F6",
     fontSize: 15,
     fontWeight: "700",
     lineHeight: 20,
@@ -495,9 +508,7 @@ const styles = StyleSheet.create({
   business: {
     minHeight: 80,
     borderRadius: 14,
-    backgroundColor: palette.surface,
     borderWidth: 1,
-    borderColor: palette.border,
     padding: 10,
     flexDirection: "row",
     alignItems: "center",
@@ -507,23 +518,21 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 10,
-    backgroundColor: palette.surfaceStrong,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
-  fallback: { color: palette.accent, fontSize: 24, fontWeight: "900" },
+  fallback: { fontSize: 24, fontWeight: "900" },
   businessInfo: { flex: 1 },
-  businessName: { color: palette.text, fontSize: 15, fontWeight: "800" },
-  businessMeta: { color: palette.muted, fontSize: 12, marginTop: 5 },
+  businessName: { fontSize: 15, fontWeight: "800" },
+  businessMeta: { fontSize: 12, marginTop: 5 },
   open: {
     paddingHorizontal: 11,
     height: 34,
     borderRadius: 9,
-    backgroundColor: "#15558E",
     alignItems: "center",
     justifyContent: "center",
   },
-  openText: { color: "#DCEFFF", fontSize: 11, fontWeight: "800" },
-  emptyList: { color: palette.muted, textAlign: "center", padding: 30 },
+  openText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
+  emptyList: { textAlign: "center", padding: 30 },
 });

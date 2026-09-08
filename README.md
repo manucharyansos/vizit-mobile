@@ -4,7 +4,7 @@ Native appointment-booking application for iOS and Android, built with React Nat
 
 ## Product scope
 
-- Customer discovery, Yandex MapKit, business profiles, availability, booking, OTP-protected booking management, client cabinet, Telegram connection, and payment-return flow.
+- Customer discovery, Yandex MapKit, business profiles, availability, booking, 4-digit verification, client cabinet, Telegram connection, and payment-return flow.
 - Business and employee authentication, today calendar, bookings, clients, services, staff schedules, tasks, locations, analytics, growth, loyalty, gift cards, billing, Telegram, and business profile media.
 - Armenian, Russian, and English localization.
 - Light and dark Vizit navy/blue themes.
@@ -65,7 +65,7 @@ npm run doctor
 
 - Never commit `.env.local`, signing keys, service-account files, or store credentials.
 - Customer and business tokens use separate SecureStore keys and Axios clients.
-- Guest booking mutation requires booking code plus 4-digit OTP verification and the issued guest manage token.
+- The customer enters only a 4-digit verification code. The app keeps Laravel's internal booking reference in SecureStore and uses the issued guest manage token for protected mutations.
 - IDBank merchant secrets and authoritative payment confirmation belong only in Laravel.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/INTEGRATION_STATUS.md](docs/INTEGRATION_STATUS.md), and [docs/MOBILE_BACKEND_CONTRACT.md](docs/MOBILE_BACKEND_CONTRACT.md).

@@ -27,6 +27,7 @@ const copy = {
     forgot: "Մոռացե՞լ ես գաղտնաբառը",
     logout: "Դուրս գալ",
     visits: "Իմ այցերը",
+    booking: "Ամրագրում",
     empty: "Ամրագրումներ դեռ չկան",
     business: "Անցնել բիզնեսի մուտքին",
     failed: "Մուտքը չհաջողվեց",
@@ -46,6 +47,7 @@ const copy = {
     forgot: "Забыли пароль?",
     logout: "Выйти",
     visits: "Мои визиты",
+    booking: "Запись",
     empty: "Записей пока нет",
     business: "Перейти ко входу для бизнеса",
     failed: "Не удалось войти",
@@ -65,6 +67,7 @@ const copy = {
     forgot: "Forgot password?",
     logout: "Sign out",
     visits: "My visits",
+    booking: "Booking",
     empty: "No bookings yet",
     business: "Go to business sign in",
     failed: "Sign-in failed",
@@ -296,7 +299,7 @@ export default function ProfileScreen() {
               >
                 <View style={styles.row}>
                   <Text style={[styles.bookingTitle, { color: theme.text }]}>
-                    {item.business?.name ?? `#${item.booking_code}`}
+                    {item.business?.name ?? c.booking}
                   </Text>
                   <View
                     style={[styles.status, { backgroundColor: theme.goldSoft }]}
