@@ -13,6 +13,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { clientAccountApi } from "@/services/api/client-account";
+import { apiErrorMessage } from "@/services/api/client";
+import { publicApi } from "@/services/api/public";
+import { guestBookingStore } from "@/services/guest-booking-store";
 import { useApp } from "@/providers/app-provider";
 import { VizitIcon } from "@/components/vizit-icon";
 
@@ -36,6 +39,8 @@ const copy = {
     delete: "Ջնջել հաշիվը",
     deleteConfirm: "Հաստատե՞լ հաշվի և անձնական տվյալների ջնջման հայտը։",
     deletionSent: "Ջնջման հայտն ընդունված է",
+    manage: "Կառավարել",
+    retry: "Կրկին փորձել",
   },
   ru: {
     title: "Аккаунт клиента",
@@ -56,6 +61,8 @@ const copy = {
     delete: "Удалить аккаунт",
     deleteConfirm: "Отправить запрос на удаление аккаунта и личных данных?",
     deletionSent: "Запрос на удаление принят",
+    manage: "Управлять",
+    retry: "Повторить",
   },
   en: {
     title: "Client account",
@@ -76,6 +83,8 @@ const copy = {
     delete: "Delete account",
     deleteConfirm: "Request deletion of your account and personal data?",
     deletionSent: "Deletion request accepted",
+    manage: "Manage",
+    retry: "Try again",
   },
 };
 
@@ -85,6 +94,7 @@ export default function ProfileScreen() {
   const queryClient = useQueryClient();
   const [identity, setIdentity] = useState("");
   const [password, setPassword] = useState("");
+  const [openingBookingId, setOpeningBookingId] = useState<number | null>(null);
   const me = useQuery({
     queryKey: ["client-me"],
     queryFn: clientAccountApi.me,
@@ -109,6 +119,38 @@ export default function ProfileScreen() {
     onSuccess: () => Alert.alert(c.resend),
     onError: () => Alert.alert(c.failed),
   });
+  const openBooking = async (bookingId: number) => {
+    if (openingBookingId !== null) return;
+    setOpeningBookingId(bookingId);
+    try {
+      let reference = await guestBookingStore.restoreClientBookingReference(bookingId);
+      if (!reference) {
+        await bookings.refetch();
+        reference = await guestBookingStore.restoreClientBookingReference(bookingId);
+      }
+      if (!reference) throw new Error("Booking reference is unavailable on this device");
+
+      const saved = await guestBookingStore.restore(reference);
+      if (saved) {
+        await guestBookingStore.rememberCode(reference);
+        router.push("/(customer)/bookings");
+        return;
+      }
+
+      const recovery = await publicApi.resendBookingOtp(reference);
+      const manageToken = recovery.manage_token ?? recovery.guest_token;
+      if (typeof manageToken === "string" && manageToken) {
+        await guestBookingStore.save(reference, manageToken);
+      } else {
+        await guestBookingStore.rememberCode(reference);
+      }
+      router.push("/(customer)/bookings");
+    } catch (error) {
+      Alert.alert(t("loadError"), apiErrorMessage(error));
+    } finally {
+      setOpeningBookingId(null);
+    }
+  };
   const requestDeletion = () =>
     Alert.alert(c.delete, c.deleteConfirm, [
       { text: t("back"), style: "cancel" },
@@ -288,39 +330,61 @@ export default function ProfileScreen() {
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={styles.list}
             ListEmptyComponent={
-              <Text style={{ color: theme.muted }}>{c.empty}</Text>
+              bookings.isLoading ? (
+                <ActivityIndicator color={theme.plum} />
+              ) : bookings.isError ? (
+                <Pressable onPress={() => bookings.refetch()} style={styles.retry}>
+                  <Text style={{ color: theme.plum, fontWeight: "900" }}>{c.retry}</Text>
+                </Pressable>
+              ) : (
+                <Text style={{ color: theme.muted }}>{c.empty}</Text>
+              )
             }
-            renderItem={({ item }) => (
-              <View
-                style={[
-                  styles.booking,
-                  { backgroundColor: theme.surface, borderColor: theme.border },
-                ]}
-              >
-                <View style={styles.row}>
-                  <Text style={[styles.bookingTitle, { color: theme.text }]}>
-                    {item.business?.name ?? c.booking}
-                  </Text>
-                  <View
-                    style={[styles.status, { backgroundColor: theme.goldSoft }]}
-                  >
-                    <Text
-                      style={{
-                        color: theme.gold,
-                        fontWeight: "800",
-                        fontSize: 11,
-                      }}
-                    >
-                      {item.status}
+            renderItem={({ item }) => {
+              const opening = openingBookingId === item.id;
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={openingBookingId !== null}
+                  onPress={() => void openBooking(item.id)}
+                  style={({ pressed }) => [
+                    styles.booking,
+                    {
+                      backgroundColor: theme.surface,
+                      borderColor: theme.border,
+                      opacity: pressed ? 0.8 : 1,
+                    },
+                  ]}
+                >
+                  <View style={styles.row}>
+                    <Text style={[styles.bookingTitle, { color: theme.text }]}>
+                      {item.business?.name ?? c.booking}
                     </Text>
+                    <View
+                      style={[styles.status, { backgroundColor: theme.goldSoft }]}
+                    >
+                      <Text
+                        style={{
+                          color: theme.gold,
+                          fontWeight: "800",
+                          fontSize: 11,
+                        }}
+                      >
+                        {item.status}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-                <Text style={{ color: theme.muted }}>{item.starts_at}</Text>
-                <Text style={{ color: theme.plum, fontWeight: "700" }}>
-                  {item.service?.name} · {item.staff?.name}
-                </Text>
-              </View>
-            )}
+                  <Text style={{ color: theme.muted }}>{item.starts_at}</Text>
+                  <Text style={{ color: theme.plum, fontWeight: "700" }}>
+                    {item.service?.name} · {item.staff?.name}
+                  </Text>
+                  <View style={styles.manageRow}>
+                    {opening ? <ActivityIndicator size="small" color={theme.plum} /> : <Text style={{ color: theme.plum, fontWeight: "900" }}>{c.manage}</Text>}
+                    <VizitIcon ios="chevron.right" android="chevron_right" color={theme.plum} size={18} />
+                  </View>
+                </Pressable>
+              );
+            }}
           />
         </>
       )}
@@ -352,14 +416,14 @@ const styles = StyleSheet.create({
   avatarHero: {
     width: 68,
     height: 68,
-    borderRadius: 16,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
   },
   card: {
     padding: 18,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     gap: 12,
     shadowOpacity: 0.07,
@@ -424,7 +488,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  verify: { marginHorizontal: 20, padding: 15, borderRadius: 12 },
+  verify: { marginHorizontal: 20, padding: 15, borderRadius: 10 },
   sectionTitle: {
     fontSize: 21,
     fontWeight: "900",
@@ -432,7 +496,7 @@ const styles = StyleSheet.create({
     marginTop: 25,
   },
   list: { padding: 20, gap: 10 },
-  booking: { padding: 16, borderWidth: 1, borderRadius: 12, gap: 7 },
+  booking: { padding: 16, borderWidth: 1, borderRadius: 10, gap: 7 },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -441,4 +505,6 @@ const styles = StyleSheet.create({
   },
   bookingTitle: { fontSize: 17, fontWeight: "800", flex: 1 },
   status: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999 },
+  manageRow: { marginTop: 4, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 },
+  retry: { minHeight: 46, alignItems: "center", justifyContent: "center" },
 });
