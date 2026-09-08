@@ -15,19 +15,27 @@ function assertClientAudience(data: { user?: { audience?: unknown } }) {
 
 const stripInternalReference = ({ booking_code: _bookingCode, ...booking }: CabinetBooking): ClientBooking => booking;
 
+async function activateClientSession(token: string) {
+  await guestBookingStore.clearClientBookingReferences();
+  await tokenStore.set('client', token);
+  void synchronizePushDevice('client');
+}
+
+async function clearClientSession() {
+  await Promise.all([guestBookingStore.clearClientBookingReferences(), tokenStore.remove('client')]);
+}
+
 export const clientAccountApi = {
   async login(identity: string, password: string): Promise<ClientUser> {
     const { data } = await clientAuthClient.post('/client/auth/login', { identity, password });
     assertClientAudience(data);
-    await tokenStore.set('client', data.token);
-    void synchronizePushDevice('client');
+    await activateClientSession(data.token);
     return data.user as ClientUser;
   },
   async register(payload: { name: string; email?: string | null; phone?: string | null; password: string; password_confirmation: string }): Promise<ClientUser> {
     const { data } = await clientAuthClient.post('/client/auth/register', payload);
     assertClientAudience(data);
-    await tokenStore.set('client', data.token);
-    void synchronizePushDevice('client');
+    await activateClientSession(data.token);
     return data.user as ClientUser;
   },
   async forgotPassword(email: string) { return (await clientAuthClient.post('/client/auth/forgot-password', { email })).data; },
@@ -44,15 +52,33 @@ export const clientAccountApi = {
     const upcoming = normalizeList<CabinetBooking>(payload.upcoming, ['upcoming']);
     const past = normalizeList<CabinetBooking>(payload.past, ['past']);
     const raw = [...upcoming, ...past];
-    await Promise.all(raw.map((booking) => {
-      if (typeof booking.booking_code !== 'string' || !booking.booking_code.trim()) return Promise.resolve();
-      return guestBookingStore.rememberClientBookingReference(booking.id, booking.booking_code);
-    }));
+    await guestBookingStore.rememberClientBookingReferences(raw.flatMap((booking) =>
+      typeof booking.booking_code === 'string' && booking.booking_code.trim()
+        ? [{ bookingId: booking.id, code: booking.booking_code }]
+        : [],
+    ));
     const list = raw.map(stripInternalReference);
     debugEmptyList('client.cabinet.bookings', response, list);
     return list;
   },
   async resendVerification() { return (await clientAuthClient.post('/client/auth/email/verification-notification')).data; },
-  async requestAccountDeletion(reason?: string) { try { return (await clientAuthClient.post('/mobile/account-deletion-request', { reason })).data; } finally { await tokenStore.remove('client'); } },
-  async logout(): Promise<void> { try { await revokePushDevice('client'); try { await clientAuthClient.post('/client/auth/logout'); } catch { /* Expired or already-revoked sessions are already logged out. */ } } finally { await tokenStore.remove('client'); } },
+  async requestAccountDeletion(reason?: string) {
+    try {
+      return (await clientAuthClient.post('/mobile/account-deletion-request', { reason })).data;
+    } finally {
+      await clearClientSession();
+    }
+  },
+  async logout(): Promise<void> {
+    try {
+      await revokePushDevice('client');
+      try {
+        await clientAuthClient.post('/client/auth/logout');
+      } catch {
+        // Expired or already-revoked sessions are already logged out.
+      }
+    } finally {
+      await clearClientSession();
+    }
+  },
 };
