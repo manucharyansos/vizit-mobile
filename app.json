@@ -11,6 +11,9 @@
         "privacyPolicyUrl": "https://vizit.am/privacy-policy",
         "termsUrl": "https://vizit.am/terms",
         "supportUrl": "https://vizit.am/contact"
+      },
+      "eas": {
+        "projectId": "daba86b7-e281-425d-af78-f63ebfd9d21e"
       }
     },
     "userInterfaceStyle": "automatic",
@@ -27,7 +30,6 @@
     },
     "android": {
       "package": "am.vizit.mobile",
-      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#071624",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
