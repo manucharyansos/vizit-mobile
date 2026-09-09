@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PublicBusiness } from '@/services/api/public';
 import { useApp } from '@/providers/app-provider';
 
-type MapKitModule = typeof import('react-native-yamap');
+type MapKitModule = typeof import('expo-yandex-mapkit');
 
 export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusiness[]; onSelect: (business: PublicBusiness) => void }) {
   const { locale, mode, theme } = useApp();
@@ -17,12 +17,13 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
 
     if (!apiKey || isExpoGo) return () => { active = false; };
 
-    void import('react-native-yamap')
+    void import('expo-yandex-mapkit')
       .then(async (module) => {
-        await module.default.init(apiKey);
+        await module.initialize(apiKey);
         if (active) setMapKit(module);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        if (__DEV__) console.warn('[Vizit MapKit] business map unavailable', error);
         if (active) setMapKit(null);
       });
 
@@ -32,7 +33,7 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
   const pins = businesses.flatMap((business) => {
     const location = business.locations[0];
     return Number.isFinite(location?.lat) && Number.isFinite(location?.lng)
-      ? [{ business, lat: Number(location.lat), lon: Number(location.lng) }]
+      ? [{ business, latitude: Number(location.lat), longitude: Number(location.lng) }]
       : [];
   });
 
@@ -63,23 +64,27 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
     );
   }
 
-  const YaMap = mapKit.default;
-  const Marker = mapKit.Marker;
+  const { YandexMapView, Marker } = mapKit;
 
   return (
-    <YaMap
+    <YandexMapView
       style={StyleSheet.absoluteFill}
       nightMode={mode === 'dark'}
-      initialRegion={{ lat: pins[0]?.lat ?? 40.1872, lon: pins[0]?.lon ?? 44.5152, zoom: 12, azimuth: 0, tilt: 0 }}
+      cameraPosition={{ latitude: pins[0]?.latitude ?? 40.1872, longitude: pins[0]?.longitude ?? 44.5152, zoom: 12, azimuth: 0, tilt: 0 }}
     >
-      {pins.map(({ business, lat, lon }) => (
-        <Marker key={`${business.business_id}-${lat}-${lon}`} point={{ lat, lon }} onPress={() => onSelect(business)}>
+      {pins.map(({ business, latitude, longitude }) => (
+        <Marker
+          key={`${business.business_id}-${latitude}-${longitude}`}
+          point={{ latitude, longitude }}
+          handled
+          onPress={() => onSelect(business)}
+        >
           <Pressable style={[styles.pin, { backgroundColor: theme.plum }]}>
             <Text style={styles.pinText}>V</Text>
           </Pressable>
         </Marker>
       ))}
-    </YaMap>
+    </YandexMapView>
   );
 }
 

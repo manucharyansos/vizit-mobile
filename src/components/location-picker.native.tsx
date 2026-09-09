@@ -3,13 +3,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useApp } from '@/providers/app-provider';
 
-type MapKitModule = typeof import('react-native-yamap');
-type Point = { lat: number; lon: number };
+type MapKitModule = typeof import('expo-yandex-mapkit');
+type Point = { latitude: number; longitude: number };
 
 type Props = {
   latitude?: number | null;
   longitude?: number | null;
-  onChange: (point: { latitude: number; longitude: number }) => void;
+  onChange: (point: Point) => void;
   height?: number;
 };
 
@@ -25,9 +25,9 @@ function pointFromEvent(value: unknown): Point | null {
   const nested = candidate.point && typeof candidate.point === 'object'
     ? candidate.point as Record<string, unknown>
     : candidate;
-  const lat = nested.lat;
-  const lon = nested.lon;
-  return finite(lat) && finite(lon) ? { lat, lon } : null;
+  const latitude = nested.latitude;
+  const longitude = nested.longitude;
+  return finite(latitude) && finite(longitude) ? { latitude, longitude } : null;
 }
 
 export function LocationPicker({ latitude, longitude, onChange, height = 238 }: Props) {
@@ -37,17 +37,17 @@ export function LocationPicker({ latitude, longitude, onChange, height = 238 }: 
   const [mapKit, setMapKit] = useState<MapKitModule | null>(null);
 
   const point = useMemo<Point>(() => ({
-    lat: finite(latitude) ? latitude : 40.1772,
-    lon: finite(longitude) ? longitude : 44.50349,
+    latitude: finite(latitude) ? latitude : 40.1772,
+    longitude: finite(longitude) ? longitude : 44.50349,
   }), [latitude, longitude]);
 
   useEffect(() => {
     let active = true;
     if (!apiKey || isExpoGo) return () => { active = false; };
 
-    void import('react-native-yamap')
+    void import('expo-yandex-mapkit')
       .then(async (module) => {
-        await module.default.init(apiKey);
+        await module.initialize(apiKey);
         if (active) setMapKit(module);
       })
       .catch((error: unknown) => {
@@ -68,27 +68,26 @@ export function LocationPicker({ latitude, longitude, onChange, height = 238 }: 
     return <View style={[styles.fallback, { height, backgroundColor: theme.map, borderColor: theme.border }]}><Text style={[styles.brand, { color: theme.plum }]}>Yandex MapKit</Text><Text style={[styles.hint, { color: theme.muted }]}>{fallback}</Text>{finite(latitude) && finite(longitude) ? <Text style={[styles.coords, { color: theme.text }]}>{latitude.toFixed(6)}, {longitude.toFixed(6)}</Text> : null}</View>;
   }
 
-  const YaMap = mapKit.default;
-  const Marker = mapKit.Marker;
+  const { YandexMapView, Marker } = mapKit;
   const select = (event: unknown) => {
     const selected = pointFromEvent(event);
-    if (selected) onChange({ latitude: selected.lat, longitude: selected.lon });
+    if (selected) onChange(selected);
   };
   const instruction = locale === 'hy' ? 'Սեղմեք քարտեզի վրա՝ կետը ընտրելու համար' : locale === 'ru' ? 'Нажмите на карту, чтобы выбрать точку' : 'Tap the map to choose the exact point';
 
   return <View style={[styles.mapWrap, { height, borderColor: theme.border }]}>
-    <YaMap
+    <YandexMapView
       style={StyleSheet.absoluteFill}
       nightMode={mode === 'dark'}
       showUserPosition={false}
       followUser={false}
-      initialRegion={{ lat: point.lat, lon: point.lon, zoom: 15, azimuth: 0, tilt: 0 }}
+      cameraPosition={{ latitude: point.latitude, longitude: point.longitude, zoom: 15, azimuth: 0, tilt: 0 }}
       onMapPress={select}
     >
       <Marker point={point}>
         <View style={[styles.pin, { backgroundColor: theme.plum }]}><Text style={styles.pinText}>V</Text></View>
       </Marker>
-    </YaMap>
+    </YandexMapView>
     <View pointerEvents="none" style={[styles.instruction, { backgroundColor: theme.surfaceRaised }]}><Text style={[styles.instructionText, { color: theme.text }]}>{instruction}</Text></View>
   </View>;
 }
