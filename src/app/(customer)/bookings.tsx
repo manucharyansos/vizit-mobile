@@ -19,6 +19,7 @@ import { publicApi } from "@/services/api/public";
 import { VizitIcon } from "@/components/vizit-icon";
 import { guestBookingStore } from "@/services/guest-booking-store";
 import { checkoutUrlFrom, openIdBankCheckout } from "@/services/payments";
+import { formatApiDateTime, formatApiTime, localDateKey, localDateKeyFromApi, localDateTimeInputFromApi } from "@/services/date-time";
 
 const copy = {
   hy: {
@@ -291,7 +292,7 @@ export default function BookingsScreen() {
             </Text>
             <Info
               label={c.date}
-              value={booking.starts_at ?? booking.start_at ?? "—"}
+              value={formatApiDateTime(booking.starts_at ?? booking.start_at, locale)}
             />
             <Info
               label={t("services")}
@@ -437,12 +438,8 @@ function ReschedulePanel({
   onUpdated: () => void;
   labels: typeof copy.hy;
 }) {
-  const { theme } = useApp();
-  const [date, setDate] = useState(() => {
-    const value = new Date();
-    value.setDate(value.getDate() + 1);
-    return value.toISOString().slice(0, 10);
-  });
+  const { theme, locale } = useApp();
+  const [date, setDate] = useState(() => localDateKeyFromApi(booking.starts_at) ?? localDateKey(0));
   const [selected, setSelected] = useState<{
     starts_at: string;
     staff_id: number;
@@ -466,7 +463,7 @@ function ReschedulePanel({
       publicApi.rescheduleBooking(bookingCode, token, {
         booking_id: bookingId,
         staff_id: selected!.staff_id,
-        starts_at: selected!.starts_at.slice(0, 16),
+        starts_at: localDateTimeInputFromApi(selected!.starts_at),
       }),
     onSuccess: onUpdated,
     onError: () => Alert.alert("Error"),
@@ -523,7 +520,7 @@ function ReschedulePanel({
                   ]}
                 >
                   <Text style={{ color: theme.text, fontWeight: "800" }}>
-                    {slot.starts_at.slice(11, 16)}
+                    {formatApiTime(slot.starts_at, locale)}
                   </Text>
                 </Pressable>
               ),

@@ -9,14 +9,7 @@ import { checkoutUrlFrom, openIdBankCheckout } from '@/services/payments';
 import { VizitIcon } from '@/components/vizit-icon';
 import { apiErrorMessage } from '@/services/api/client';
 import { guestBookingStore } from '@/services/guest-booking-store';
-
-const localDate = (days = 0) => {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
-};
-const time = (value: string) => value.slice(11, 16);
+import { formatApiTime, localDateKey, localDateTimeInputFromApi } from '@/services/date-time';
 
 const copy = {
   hy: { location: 'Մասնաճյուղ', noServices: 'Այս մասնաճյուղում ծառայություններ չկան', noStaff: 'Այս մասնաճյուղում հասանելի աշխատակիցներ չկան', noSlots: 'Այս օրվա համար ազատ ժամ չկա', retry: 'Կրկին փորձել' },
@@ -32,7 +25,7 @@ export default function BookingScreen() {
   const [locationId, setLocationId] = useState<number | undefined>(requestedLocationId);
   const [service, setService] = useState<Service>();
   const [staff, setStaff] = useState<Staff>();
-  const [date, setDate] = useState(localDate(1));
+  const [date, setDate] = useState(localDateKey(0));
   const [slot, setSlot] = useState<Slot>();
   const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' });
 
@@ -56,13 +49,13 @@ export default function BookingScreen() {
   const services = useQuery({ queryKey: ['services', slug, locationId], queryFn: () => publicApi.services(slug, locationId), enabled: Boolean(slug && locationId), retry: false });
   const staffList = useQuery({ queryKey: ['staff', slug, locationId], queryFn: () => publicApi.staff(slug, locationId), enabled: Boolean(slug && locationId), retry: false });
   const slots = useQuery({ queryKey: ['availability', slug, service?.id, staff?.id, date, locationId], queryFn: () => publicApi.availability(slug, { date, service_id: service!.id, staff_id: staff?.id, location_id: locationId }), enabled: Boolean(slug && locationId && service && date), retry: false });
-  const dates = useMemo(() => Array.from({ length: 10 }, (_, index) => localDate(index + 1)), []);
+  const dates = useMemo(() => Array.from({ length: 10 }, (_, index) => localDateKey(index)), []);
 
   const booking = useMutation({
     mutationFn: () => publicApi.createBooking(slug, {
       service_id: service!.id,
       staff_id: slot?.staff_id ?? staff?.id,
-      starts_at: slot!.starts_at.slice(0, 16),
+      starts_at: localDateTimeInputFromApi(slot!.starts_at),
       client_name: form.name.trim(),
       client_phone: form.phone.trim(),
       client_email: form.email.trim(),
@@ -103,7 +96,7 @@ export default function BookingScreen() {
 
       {service ? <ChoiceSection step="2" title={t('chooseStaff')} loading={staffList.isLoading} error={staffList.isError} retry={() => staffList.refetch()} empty={staffList.data && !staffList.data.length ? c.noStaff : undefined}><Choice selected={!staff} label={t('anyStaff')} icon="person.2.fill" onPress={() => { setStaff(undefined); setSlot(undefined); }} />{staffList.data?.map((item) => <Choice key={item.id} selected={staff?.id === item.id} label={item.name} icon="person.fill" onPress={() => { setStaff(item); setSlot(undefined); }} />)}</ChoiceSection> : null}
 
-      {service ? <Section step="3" title={t('chooseDate')}><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}>{dates.map((item) => <DateChoice key={item} value={item} selected={date === item} locale={locale} onPress={() => { setDate(item); setSlot(undefined); }} />)}</ScrollView><Text style={[styles.timeTitle, { color: theme.text }]}>{t('chooseTime')}</Text>{slots.isFetching ? <ActivityIndicator color={theme.plum} /> : slots.isError ? <ErrorState onRetry={() => slots.refetch()} /> : !slots.data?.length ? <Text style={[styles.emptyText, { color: theme.muted }]}>{c.noSlots}</Text> : <View style={styles.slotGrid}>{slots.data.map((item) => <Choice key={`${item.starts_at}-${item.staff_id}`} compact selected={slot?.starts_at === item.starts_at && slot.staff_id === item.staff_id} label={`${time(item.starts_at)}–${time(item.ends_at)}`} detail={!staff ? item.staff_name : item.is_recommended ? t('recommended') : undefined} onPress={() => setSlot(item)} />)}</View>}</Section> : null}
+      {service ? <Section step="3" title={t('chooseDate')}><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}>{dates.map((item) => <DateChoice key={item} value={item} selected={date === item} locale={locale} onPress={() => { setDate(item); setSlot(undefined); }} />)}</ScrollView><Text style={[styles.timeTitle, { color: theme.text }]}>{t('chooseTime')}</Text>{slots.isFetching ? <ActivityIndicator color={theme.plum} /> : slots.isError ? <ErrorState onRetry={() => slots.refetch()} /> : !slots.data?.length ? <Text style={[styles.emptyText, { color: theme.muted }]}>{c.noSlots}</Text> : <View style={styles.slotGrid}>{slots.data.map((item) => <Choice key={`${item.starts_at}-${item.staff_id}`} compact selected={slot?.starts_at === item.starts_at && slot.staff_id === item.staff_id} label={`${formatApiTime(item.starts_at, locale)}–${formatApiTime(item.ends_at, locale)}`} detail={!staff ? item.staff_name : item.is_recommended ? t('recommended') : undefined} onPress={() => setSlot(item)} />)}</View>}</Section> : null}
 
       {slot ? <Section step="4" title={t('customerDetails')}><View style={[styles.formCard, { backgroundColor: theme.surface, shadowColor: theme.shadow }]}><Field placeholder={t('fullName')} value={form.name} onChangeText={(name) => setForm({ ...form, name })} /><Field placeholder={t('phone')} value={form.phone} keyboardType="phone-pad" onChangeText={(phone) => setForm({ ...form, phone })} /><Field placeholder={t('email')} value={form.email} keyboardType="email-address" autoCapitalize="none" onChangeText={(email) => setForm({ ...form, email })} /><Field placeholder={t('notes')} value={form.notes} multiline onChangeText={(notes) => setForm({ ...form, notes })} /></View></Section> : null}
 

@@ -18,6 +18,7 @@ import { publicApi } from "@/services/api/public";
 import { guestBookingStore } from "@/services/guest-booking-store";
 import { useApp } from "@/providers/app-provider";
 import { VizitIcon } from "@/components/vizit-icon";
+import { formatApiDateTime } from "@/services/date-time";
 
 const copy = {
   hy: {
@@ -374,7 +375,7 @@ export default function ProfileScreen() {
                       </Text>
                     </View>
                   </View>
-                  <Text style={{ color: theme.muted }}>{item.starts_at}</Text>
+                  <Text style={{ color: theme.muted }}>{formatApiDateTime(item.starts_at, locale)}</Text>
                   <Text style={{ color: theme.plum, fontWeight: "700" }}>
                     {item.service?.name} · {item.staff?.name}
                   </Text>
