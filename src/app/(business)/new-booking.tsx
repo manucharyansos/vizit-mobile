@@ -20,12 +20,12 @@ const copy = {
     title: 'New booking', location: 'Choose a location', service: 'Choose a service', staff: 'Choose a team member', client: 'Choose an existing client or enter a new one', newClient: 'New client', name: 'Client name', phone: 'Phone', email: 'Email (optional)', date: 'Choose a date', time: 'Times', chooseFirst: 'Choose a service and team member first', noSlots: 'No available times on this date', notes: 'Notes', save: 'Create and confirm', required: 'Complete the required fields', success: 'Booking created', loadError: 'Could not load booking data', slotsError: 'Could not load times', retry: 'Try again', available: 'Free', occupied: 'Busy', recommended: 'Recommended', occupiedTitle: 'Occupied time', customer: 'Client', status: 'Status', close: 'Close' },
 };
 
-const blockingStatuses = new Set(['pending', 'confirmed', 'in_progress']);
+const terminalStatuses = new Set(['cancelled', 'done', 'no_show']);
 const minutes = (time: string) => {
   const match = time.match(/(\d{2}):(\d{2})/);
   return match ? Number(match[1]) * 60 + Number(match[2]) : 0;
 };
-const localSlotMinutes = (value: string) => minutes(value.slice(11, 16));
+const bookingStaffId = (booking: CalendarBooking) => booking.staff?.id ?? Number((booking as unknown as { staff_id?: number }).staff_id ?? 0);
 
 type ScheduleItem =
   | { type: 'free'; key: string; start: number; slot: AvailabilitySlot }
@@ -54,12 +54,10 @@ export default function NewBooking() {
 
   useEffect(() => {
     if (serviceId && !visibleServices.some((item) => item.id === serviceId)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setServiceId(undefined);
       setSelectedStart(undefined);
     }
     if (staffId && !visibleStaff.some((item) => item.id === staffId)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStaffId(undefined);
       setSelectedStart(undefined);
     }
@@ -71,6 +69,7 @@ export default function NewBooking() {
     enabled: Boolean(serviceId && staffId),
     retry: false,
     refetchOnMount: 'always',
+    refetchInterval: 10_000,
     staleTime: 0,
   });
   const dayBookings = useQuery({
@@ -79,10 +78,11 @@ export default function NewBooking() {
     enabled: Boolean(staffId),
     retry: false,
     refetchOnMount: 'always',
+    refetchInterval: 10_000,
     staleTime: 0,
   });
 
-  const busyBookings = useMemo(() => (dayBookings.data ?? []).filter((booking) => booking.staff?.id === staffId && blockingStatuses.has(booking.status)), [dayBookings.data, staffId]);
+  const busyBookings = useMemo(() => (dayBookings.data ?? []).filter((booking) => bookingStaffId(booking) === staffId && !terminalStatuses.has(booking.status)), [dayBookings.data, staffId]);
 
   const schedule = useMemo<ScheduleItem[]>(() => {
     const busyRanges = busyBookings.map((booking) => ({
@@ -91,19 +91,16 @@ export default function NewBooking() {
       end: minutes(formatApiTime(booking.ends_at, locale)),
     }));
     const free = (slots.data ?? []).filter((slot) => {
-      const start = localSlotMinutes(slot.starts_at);
-      const end = localSlotMinutes(slot.ends_at);
+      const start = minutes(formatApiTime(slot.starts_at, locale));
+      const end = minutes(formatApiTime(slot.ends_at, locale));
       return !busyRanges.some((busy) => busy.start < end && busy.end > start);
-    }).map((slot): ScheduleItem => ({ type: 'free', key: `free-${slot.staff_id}-${slot.starts_at}`, start: localSlotMinutes(slot.starts_at), slot }));
+    }).map((slot): ScheduleItem => ({ type: 'free', key: `free-${slot.staff_id}-${slot.starts_at}`, start: minutes(formatApiTime(slot.starts_at, locale)), slot }));
     const busy = busyRanges.map(({ booking, start }): ScheduleItem => ({ type: 'busy', key: `busy-${booking.id}`, start, booking }));
     return [...free, ...busy].sort((a, b) => a.start - b.start || (a.type === 'busy' ? -1 : 1));
   }, [busyBookings, locale, slots.data]);
 
   useEffect(() => {
-    if (selectedStart && schedule.length && !schedule.some((item) => item.type === 'free' && item.slot.starts_at === selectedStart)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedStart(undefined);
-    }
+    if (selectedStart && schedule.length && !schedule.some((item) => item.type === 'free' && item.slot.starts_at === selectedStart)) setSelectedStart(undefined);
   }, [selectedStart, schedule]);
 
   const valid = Boolean(serviceId && staffId && selectedStart && (locations.length <= 1 || effectiveLocationId) && form.name.trim().length > 1 && form.phone.trim().length > 3);
@@ -121,12 +118,14 @@ export default function NewBooking() {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['calendar'] }),
         qc.invalidateQueries({ queryKey: ['business-clients'] }),
+        qc.invalidateQueries({ queryKey: ['business-client'] }),
         qc.invalidateQueries({ queryKey: ['business-dashboard'] }),
         qc.invalidateQueries({ queryKey: ['business-availability'] }),
       ]);
       Alert.alert(c.success, '', [{ text: 'OK', onPress: () => safeBack('/(business)/today') }]);
     },
     onError: async (error) => {
+      setSelectedStart(undefined);
       await Promise.all([slots.refetch(), dayBookings.refetch()]);
       Alert.alert(c.required, apiErrorMessage(error));
     },
@@ -173,7 +172,7 @@ export default function NewBooking() {
     {input('name', c.name)}{input('phone', c.phone, 'phone-pad')}{input('email', c.email, 'email-address')}
     <Text style={[styles.label, { color: theme.text }]}>{c.date}</Text><CalendarDatePicker value={form.date} onChange={selectDate} />
     <View style={styles.timeHeader}><Text style={[styles.label, { color: theme.text }]}>{c.time}</Text><View style={styles.legend}><View style={[styles.dot, { backgroundColor: theme.success }]} /><Text style={{ color: theme.muted, fontSize: 11 }}>{c.available}</Text><View style={[styles.dot, { backgroundColor: theme.danger }]} /><Text style={{ color: theme.muted, fontSize: 11 }}>{c.occupied}</Text></View></View>
-    {!serviceId || !staffId ? <Text style={{ color: theme.muted }}>{c.chooseFirst}</Text> : timesLoading ? <ActivityIndicator color={theme.plum} /> : timesError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.slotsError}</Text><Pressable onPress={() => void Promise.all([slots.refetch(), dayBookings.refetch()])}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : schedule.length ? <View style={styles.slotGrid}>{schedule.map((item) => item.type === 'free' ? <FreeSlot key={item.key} slot={item.slot} selected={selectedStart === item.slot.starts_at} label={c.recommended} onPress={() => setSelectedStart(item.slot.starts_at)} /> : <BusySlot key={item.key} booking={item.booking} locale={locale} onPress={() => showBusy(item.booking)} />)}</View> : <Text style={{ color: theme.muted }}>{c.noSlots}</Text>}
+    {!serviceId || !staffId ? <Text style={{ color: theme.muted }}>{c.chooseFirst}</Text> : timesLoading ? <ActivityIndicator color={theme.plum} /> : timesError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.slotsError}</Text><Pressable onPress={() => void Promise.all([slots.refetch(), dayBookings.refetch()])}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : schedule.length ? <View style={styles.slotGrid}>{schedule.map((item) => item.type === 'free' ? <FreeSlot key={item.key} slot={item.slot} selected={selectedStart === item.slot.starts_at} label={c.recommended} locale={locale} onPress={() => setSelectedStart(item.slot.starts_at)} /> : <BusySlot key={item.key} booking={item.booking} locale={locale} onPress={() => showBusy(item.booking)} />)}</View> : <Text style={{ color: theme.muted }}>{c.noSlots}</Text>}
     {input('notes', c.notes)}
     <Pressable disabled={!valid || create.isPending || anyLoadError} onPress={() => create.mutate()} style={[styles.primary, { backgroundColor: theme.plum, opacity: valid && !anyLoadError ? 1 : 0.4 }]}>{create.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryText}>{c.save}</Text>}</Pressable>
   </ScrollView></SafeAreaView>;
@@ -183,10 +182,10 @@ function Choice({ selected, title, onPress }: { selected: boolean; title: string
   const { theme } = useApp();
   return <Pressable onPress={onPress} style={[styles.chip, { borderColor: selected ? theme.plum : theme.border, backgroundColor: selected ? theme.plumSoft : theme.surfaceRaised }]}><Text style={{ color: selected ? theme.plum : theme.text, fontWeight: '800' }}>{title}</Text></Pressable>;
 }
-function FreeSlot({ slot, selected, label, onPress }: { slot: AvailabilitySlot; selected: boolean; label: string; onPress: () => void }) {
+function FreeSlot({ slot, selected, label, locale, onPress }: { slot: AvailabilitySlot; selected: boolean; label: string; locale: 'hy' | 'ru' | 'en'; onPress: () => void }) {
   const { theme } = useApp();
-  const start = slot.starts_at.slice(11, 16);
-  const end = slot.ends_at.slice(11, 16);
+  const start = formatApiTime(slot.starts_at, locale);
+  const end = formatApiTime(slot.ends_at, locale);
   const recommended = !!slot.is_recommended;
   return <Pressable onPress={onPress} style={[styles.slot, { borderColor: selected || recommended ? theme.success : theme.border, backgroundColor: selected ? theme.success : theme.successSoft }]}><Text style={{ color: selected ? '#FFF' : theme.success, fontWeight: '900', fontSize: 14 }}>{start}–{end}</Text>{recommended ? <Text numberOfLines={1} style={{ color: selected ? '#FFF' : theme.success, fontSize: 9, fontWeight: '900', marginTop: 3 }}>★ {label}</Text> : null}</Pressable>;
 }
