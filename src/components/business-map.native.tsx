@@ -1,4 +1,3 @@
-import Constants from 'expo-constants';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PublicBusiness } from '@/services/api/public';
@@ -9,13 +8,12 @@ type MapKitModule = typeof import('expo-yandex-mapkit');
 export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusiness[]; onSelect: (business: PublicBusiness) => void }) {
   const { locale, mode, theme } = useApp();
   const apiKey = process.env.EXPO_PUBLIC_YANDEX_MAPKIT_API_KEY;
-  const isExpoGo = Constants.expoGoConfig != null;
   const [mapKit, setMapKit] = useState<MapKitModule | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    if (!apiKey || isExpoGo) return () => { active = false; };
+    if (!apiKey) return () => { active = false; };
 
     void import('expo-yandex-mapkit')
       .then(async (module) => {
@@ -32,39 +30,36 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
       });
 
     return () => { active = false; };
-  }, [apiKey, isExpoGo]);
+  }, [apiKey]);
 
   const pins = businesses.flatMap((business) => {
-    const location = business.locations[0];
-    return Number.isFinite(location?.lat) && Number.isFinite(location?.lng)
-      ? [{ business, latitude: Number(location.lat), longitude: Number(location.lng) }]
-      : [];
+    const locations = business.locations.filter((location) => Number.isFinite(location.lat) && Number.isFinite(location.lng));
+    return locations.map((location) => ({
+      business,
+      latitude: Number(location.lat),
+      longitude: Number(location.lng),
+      locationId: location.id,
+    }));
   });
 
-  if (!apiKey || isExpoGo || !mapKit) {
-    const hint = isExpoGo
+  if (!apiKey || !mapKit) {
+    const hint = !apiKey
       ? locale === 'hy'
-        ? 'Քարտեզը հասանելի է Vizit development build-ում, ոչ Expo Go-ում։'
+        ? 'Ավելացրեք Yandex MapKit Mobile SDK բանալին։'
         : locale === 'ru'
-          ? 'Карта доступна в development build Vizit, но не в Expo Go.'
-          : 'The map is available in the Vizit development build, not Expo Go.'
-      : !apiKey
+          ? 'Добавьте ключ Yandex MapKit Mobile SDK.'
+          : 'Add the Yandex MapKit Mobile SDK key.'
+      : mapError
         ? locale === 'hy'
-          ? 'Ավելացրեք Yandex MapKit Mobile SDK բանալին։'
+          ? `Yandex MapKit-ը չբացվեց․ ${mapError}`
           : locale === 'ru'
-            ? 'Добавьте ключ Yandex MapKit Mobile SDK.'
-            : 'Add the Yandex MapKit Mobile SDK key.'
-        : mapError
-          ? locale === 'hy'
-            ? `Yandex MapKit-ը չբացվեց․ ${mapError}`
-            : locale === 'ru'
-              ? `Yandex MapKit не открылся: ${mapError}`
-              : `Yandex MapKit failed to open: ${mapError}`
-          : locale === 'hy'
-            ? 'Քարտեզը նախապատրաստվում է…'
-            : locale === 'ru'
-              ? 'Карта загружается…'
-              : 'Preparing the map…';
+            ? `Yandex MapKit не открылся: ${mapError}`
+            : `Yandex MapKit failed to open: ${mapError}`
+        : locale === 'hy'
+          ? 'Քարտեզը նախապատրաստվում է…'
+          : locale === 'ru'
+            ? 'Карта загружается…'
+            : 'Preparing the map…';
 
     return (
       <View style={[styles.fallback, { backgroundColor: theme.map }]}>
@@ -82,9 +77,9 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
       nightMode={mode === 'dark'}
       cameraPosition={{ latitude: pins[0]?.latitude ?? 40.1872, longitude: pins[0]?.longitude ?? 44.5152, zoom: 12, azimuth: 0, tilt: 0 }}
     >
-      {pins.map(({ business, latitude, longitude }) => (
+      {pins.map(({ business, latitude, longitude, locationId }) => (
         <Marker
-          key={`${business.business_id}-${latitude}-${longitude}`}
+          key={`${business.business_id}-${locationId}-${latitude}-${longitude}`}
           point={{ latitude, longitude }}
           handled
           onPress={() => onSelect(business)}
