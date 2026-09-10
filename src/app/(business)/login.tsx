@@ -1,9 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import { Href, router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { VizitIcon } from '@/components/vizit-icon';
+import { useExistingBusinessSession } from '@/hooks/use-existing-business-session';
 import { useApp } from '@/providers/app-provider';
 import { businessApi } from '@/services/api/business';
 
@@ -16,13 +17,26 @@ const copy = {
 export default function BusinessLogin() {
   const { locale, theme } = useApp();
   const c = copy[locale];
+  const existingSession = useExistingBusinessSession();
+  const redirected = useRef(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    if (!existingSession.data || redirected.current) return;
+    redirected.current = true;
+    router.replace((existingSession.data.needs_onboarding ? '/(business)/admin' : '/(business)/today') as Href);
+  }, [existingSession.data]);
+
   const login = useMutation({
     mutationFn: () => businessApi.login(email.trim(), password),
     onSuccess: (user) => router.replace((user.needs_onboarding ? '/(business)/admin' : '/(business)/today') as Href),
     onError: () => Alert.alert(c.error),
   });
+
+  if (existingSession.isLoading || existingSession.data) {
+    return <SafeAreaView style={[styles.loading, { backgroundColor: theme.background }]}><ActivityIndicator color={theme.plum} /></SafeAreaView>;
+  }
 
   return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
     <View style={[styles.glow, { backgroundColor: theme.plumSoft }]} />
@@ -34,4 +48,4 @@ export default function BusinessLogin() {
   </SafeAreaView>;
 }
 
-const styles = StyleSheet.create({ screen: { flex: 1, justifyContent: 'center', padding: 20, overflow: 'hidden' }, glow: { position: 'absolute', width: 280, height: 280, borderRadius: 140, top: -130, right: -100 }, back: { position: 'absolute', top: 55, left: 20, width: 43, height: 43, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }, intro: { alignItems: 'center', marginBottom: 24 }, brandMark: { width: 62, height: 62, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 13 }, brand: { fontSize: 10, fontWeight: '900', letterSpacing: 1.6 }, title: { fontSize: 29, fontWeight: '900', letterSpacing: -0.55, marginTop: 8 }, subtitle: { fontSize: 14, marginTop: 7 }, card: { padding: 18, borderRadius: 24, gap: 12, borderWidth: 1, shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 3 }, field: { height: 54, borderWidth: 1, borderRadius: 16, paddingHorizontal: 15, fontSize: 16 }, button: { height: 55, borderRadius: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 5 }, buttonText: { color: '#FFF', fontSize: 16, fontWeight: '900' }, registerHint: { textAlign: 'center', marginTop: 21, fontSize: 13 }, registerButton: { height: 52, borderWidth: 1.5, borderRadius: 17, marginTop: 9, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' }, registerText: { fontSize: 15, fontWeight: '900' } });
+const styles = StyleSheet.create({ loading: { flex: 1, alignItems: 'center', justifyContent: 'center' }, screen: { flex: 1, justifyContent: 'center', padding: 20, overflow: 'hidden' }, glow: { position: 'absolute', width: 280, height: 280, borderRadius: 140, top: -130, right: -100 }, back: { position: 'absolute', top: 55, left: 20, width: 43, height: 43, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }, intro: { alignItems: 'center', marginBottom: 24 }, brandMark: { width: 62, height: 62, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 13 }, brand: { fontSize: 10, fontWeight: '900', letterSpacing: 1.6 }, title: { fontSize: 29, fontWeight: '900', letterSpacing: -0.55, marginTop: 8 }, subtitle: { fontSize: 14, marginTop: 7 }, card: { padding: 18, borderRadius: 12, gap: 12, borderWidth: 1, shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 3 }, field: { height: 54, borderWidth: 1, borderRadius: 10, paddingHorizontal: 15, fontSize: 16 }, button: { height: 55, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 5 }, buttonText: { color: '#FFF', fontSize: 16, fontWeight: '900' }, registerHint: { textAlign: 'center', marginTop: 21, fontSize: 13 }, registerButton: { height: 52, borderWidth: 1.5, borderRadius: 10, marginTop: 9, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' }, registerText: { fontSize: 15, fontWeight: '900' } });
