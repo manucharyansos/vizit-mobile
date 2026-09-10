@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { VizitIcon } from "@/components/vizit-icon";
 import { useApp } from "@/providers/app-provider";
 import { businessApi } from "@/services/api/business";
+import { APP_TIME_ZONE } from "@/services/date-time";
 
 const copy = {
   hy: [
@@ -45,7 +46,7 @@ const copy = {
     "Revenue",
   ],
 };
-const dashboardOpenedAt = new Date();
+
 const pickNumber = (
   root: Record<string, unknown> | undefined,
   keys: string[],
@@ -72,13 +73,18 @@ export default function BusinessDashboard() {
     queryKey: ["business-dashboard"],
     queryFn: businessApi.dashboard,
     retry: false,
+    refetchOnMount: "always",
   });
   const data = query.data;
-  const dateLabel = new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(dashboardOpenedAt);
+  const dateLabel = new Intl.DateTimeFormat(
+    locale === "hy" ? "hy-AM" : locale === "ru" ? "ru-RU" : "en-US",
+    { weekday: "long", day: "numeric", month: "long", timeZone: APP_TIME_ZONE },
+  ).format(new Date());
   const cards = [
     [
       c[3],
       pickNumber(data, [
+        "today.total",
         "today.bookings",
         "stats.today_bookings",
         "bookings.today",
