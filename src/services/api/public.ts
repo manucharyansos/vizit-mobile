@@ -1,4 +1,4 @@
-import { publicClient } from './client';
+import { API_BASE_URL, publicClient } from './client';
 import { debugEmptyList, normalizeList, normalizeResource } from './normalize';
 
 export type Location = { id: number; name: string; address?: string | null; lat?: number; lng?: number };
@@ -7,7 +7,13 @@ export type Service = { id: number; name: string; description?: string | null; d
 export type Staff = { id: number; name: string; role?: string; avatar_url?: string | null; bio?: string | null; location_id?: number | null };
 export type Slot = { starts_at: string; ends_at: string; staff_id: number; staff_name: string; is_recommended?: boolean };
 
-const mediaUrl = (value?: string | null) => value?.startsWith('/') ? `https://api.vizit.am${value}` : value ?? null;
+const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, '');
+const mediaUrl = (value?: string | null): string | null => {
+  const path = value?.trim();
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${apiOrigin}/${path.replace(/^\/+/, '')}`;
+};
 
 function normalizeBusiness(v: Record<string, unknown>): PublicBusiness {
   const rawLocations = normalizeList<Record<string, unknown>>(v.locations, ['locations']);
@@ -54,13 +60,13 @@ export const publicApi = {
   },
   business: async (slug: string) => normalizeBusiness(normalizeResource<Record<string, unknown>>((await publicClient.get(`/v1/public/businesses/${slug}`)).data, ['business'])),
   services: async (slug: string, locationId?: number): Promise<Service[]> => {
-    const response = await publicClient.get(`/public/businesses/${slug}/services`, { params: { location_id: locationId } });
+    const response = await publicClient.get(`/public/businesses/${slug}/services`, { params: { location_id: locationId, _t: Date.now() } });
     const list = normalizeList<Service>(response.data, ['services']).map((item) => ({ ...item, image_url: mediaUrl(item.image_url) }));
     debugEmptyList('public.services', response, list);
     return list;
   },
   staff: async (slug: string, locationId?: number): Promise<Staff[]> => {
-    const response = await publicClient.get(`/public/businesses/${slug}/staff`, { params: { location_id: locationId, bookable_only: true } });
+    const response = await publicClient.get(`/public/businesses/${slug}/staff`, { params: { location_id: locationId, bookable_only: true, _t: Date.now() } });
     const list = normalizeList<Staff>(response.data, ['staff', 'users']).map((item) => ({ ...item, avatar_url: mediaUrl(item.avatar_url) }));
     debugEmptyList('public.staff', response, list);
     return list;
@@ -77,7 +83,7 @@ export const publicApi = {
   booking: async (bookingCode: string, guestToken: string) => (await publicClient.get(`/public/bookings/${bookingCode}`, { headers: { 'X-Guest-Token': guestToken } })).data,
   telegramLink: async (bookingCode: string, guestToken: string): Promise<{ url: string }> => normalizeResource<{ url: string }>((await publicClient.post(`/public/bookings/${bookingCode}/telegram-link`, {}, { headers: { 'X-Guest-Token': guestToken } })).data),
   cancelBooking: async (bookingCode: string, guestToken: string) => (await publicClient.post(`/public/bookings/${bookingCode}/cancel`, {}, { headers: { 'X-Guest-Token': guestToken } })).data,
-  rescheduleOptions: async (bookingCode: string, guestToken: string, params: { booking_id: number; date: string; staff_id?: number }) => (await publicClient.get(`/public/bookings/${bookingCode}/reschedule-options`, { params, headers: { 'X-Guest-Token': guestToken } })).data,
+  rescheduleOptions: async (bookingCode: string, guestToken: string, params: { booking_id: number; date: string; staff_id?: number }) => (await publicClient.get(`/public/bookings/${bookingCode}/reschedule-options`, { params: { ...params, _t: Date.now() }, headers: { 'X-Guest-Token': guestToken } })).data,
   rescheduleBooking: async (bookingCode: string, guestToken: string, payload: { booking_id: number; staff_id: number; starts_at: string }) => (await publicClient.post(`/public/bookings/${bookingCode}/reschedule`, payload, { headers: { 'X-Guest-Token': guestToken } })).data,
   createDepositSession: async (bookingCode: string, guestToken: string, payload: { return_url: string; cancel_url: string }) => (await publicClient.post(`/public/bookings/${bookingCode}/payments/idbank/session`, payload, { headers: { 'X-Guest-Token': guestToken } })).data,
   paymentCapabilities: async (bookingCode: string, guestToken: string) => (await publicClient.get(`/public/bookings/${bookingCode}/payments/capabilities`, { headers: { 'X-Guest-Token': guestToken } })).data,
