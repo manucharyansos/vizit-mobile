@@ -42,7 +42,7 @@ export const publicApi = {
   async businesses(params?: { locale?: string; search?: string }) {
     for (const path of ['/v1/public/businesses', '/public/businesses']) {
       try {
-        const response = await publicClient.get(path, { params });
+        const response = await publicClient.get(path, { params: { ...params, _t: Date.now() } });
         const list = normalizeBusinesses(response.data);
         debugEmptyList('public.businesses', response, list);
         return list;
