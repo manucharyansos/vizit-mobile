@@ -6,6 +6,7 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { AppProvider, useApp } from '@/providers/app-provider';
+import { NoticeProvider } from '@/providers/notice-provider';
 import { useNotificationNavigation } from '@/hooks/use-notification-navigation';
 import { appQueryClient } from '@/services/query-client';
 
@@ -21,5 +22,5 @@ function Navigator() {
 }
 
 export default function RootLayout() {
-  return <QueryClientProvider client={appQueryClient}><AppProvider><Navigator /></AppProvider></QueryClientProvider>;
+  return <QueryClientProvider client={appQueryClient}><AppProvider><NoticeProvider><Navigator /></NoticeProvider></AppProvider></QueryClientProvider>;
 }
