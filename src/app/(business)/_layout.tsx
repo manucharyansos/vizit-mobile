@@ -1,5 +1,6 @@
+import { useQuery } from '@tanstack/react-query';
 import { Href, Tabs, router, useSegments } from 'expo-router';
-import { useEffect } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VizitIcon } from '@/components/vizit-icon';
 import { useApp } from '@/providers/app-provider';
@@ -13,34 +14,43 @@ export default function BusinessLayout() {
   const routeName = segments[segments.length - 1];
   const isAuthScreen = routeName === 'login' || routeName === 'register';
 
-  useEffect(() => {
-    let cancelled = false;
+  const storedToken = useQuery({
+    queryKey: ['business-protected-token'],
+    queryFn: () => tokenStore.get('business'),
+    enabled: !isAuthScreen,
+    retry: false,
+    staleTime: 0,
+  });
+  const hasStoredToken = Boolean(storedToken.data);
+  const session = useQuery({
+    queryKey: ['business-protected-session'],
+    queryFn: businessApi.me,
+    enabled: !isAuthScreen && storedToken.isSuccess && hasStoredToken,
+    retry: false,
+    staleTime: 0,
+  });
 
-    void (async () => {
-      const token = await tokenStore.get('business').catch(() => null);
-      if (cancelled) return;
+  if (!isAuthScreen && (storedToken.isLoading || (hasStoredToken && session.isLoading))) {
+    return <View style={[styles.center, { backgroundColor: theme.background }]}><ActivityIndicator color={theme.plum} /></View>;
+  }
 
-      if (!token) {
-        if (!isAuthScreen) router.replace('/(business)/login' as Href);
-        return;
-      }
-
-      if (!isAuthScreen) return;
-
-      try {
-        const user = await businessApi.me();
-        if (!cancelled) {
-          router.replace((user.needs_onboarding ? '/(business)/admin' : '/(business)/today') as Href);
-        }
-      } catch {
-        // Invalid/stale token is cleared by the API auth interceptor; stay on auth screen.
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthScreen, routeName]);
+  if (!isAuthScreen && (!hasStoredToken || session.isError)) {
+    return (
+      <View style={[styles.center, { backgroundColor: theme.background }]}>
+        <VizitIcon ios="lock.fill" android="lock" color={theme.plum} size={32} />
+        <Text style={[styles.gateTitle, { color: theme.text }]}>{locale === 'hy' ? 'Մուտք գործեք բիզնես հաշիվ' : locale === 'ru' ? 'Войдите в бизнес-аккаунт' : 'Sign in to your business account'}</Text>
+        <Pressable
+          onPress={async () => {
+            await tokenStore.remove('business');
+            router.replace('/(business)/login' as Href);
+          }}
+          style={[styles.gateButton, { backgroundColor: theme.plum }]}
+        >
+          <Text style={styles.gateButtonText}>{locale === 'hy' ? 'Մուտք գործել' : locale === 'ru' ? 'Войти' : 'Sign in'}</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   const labels = {
     hy: ['Գլխավոր', 'Օրացույց', 'Հաճախորդներ', 'Ավելին'],
@@ -94,3 +104,10 @@ export default function BusinessLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
+  gateTitle: { fontSize: 18, fontWeight: '900', textAlign: 'center' },
+  gateButton: { minHeight: 50, paddingHorizontal: 24, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  gateButtonText: { color: '#FFFFFF', fontWeight: '900' },
+});
