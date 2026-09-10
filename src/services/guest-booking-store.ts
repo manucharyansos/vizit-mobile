@@ -34,7 +34,7 @@ export const guestBookingStore = {
   async restoreLastCode() {
     return SecureStore.getItemAsync(lastCodeKey);
   },
-  async rememberClientBookingReferences(entries: Array<{ bookingId: number; code: string }>) {
+  async rememberClientBookingReferences(entries: { bookingId: number; code: string }[]) {
     const valid = entries
       .map(({ bookingId, code }) => ({ bookingId, code: normalizeCode(code) }))
       .filter(({ bookingId, code }) => Number.isInteger(bookingId) && bookingId > 0 && Boolean(code));
