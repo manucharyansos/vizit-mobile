@@ -44,7 +44,6 @@ export function LocationPicker({ latitude, longitude, onChange, height = 238 }: 
 
   useEffect(() => {
     let active = true;
-    setMapError(null);
     if (!apiKey || isExpoGo) return () => { active = false; };
 
     void import('expo-yandex-mapkit')
