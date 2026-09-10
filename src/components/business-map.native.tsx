@@ -9,9 +9,10 @@ type MapKitModule = typeof import('expo-yandex-mapkit');
 export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusiness[]; onSelect: (business: PublicBusiness) => void }) {
   const { locale, mode, theme } = useApp();
   const apiKey = process.env.EXPO_PUBLIC_YANDEX_MAPKIT_API_KEY;
-  // expoGoConfig can also be present in expo-dev-client. appOwnership === 'expo'
-  // is the reliable Expo Go-only signal in expo-constants.
-  const isExpoGo = Constants.appOwnership === 'expo';
+  // expoGoConfig is populated by Expo Go. appOwnership/executionEnvironment are
+  // not suitable here because a development client can share StoreClient-style
+  // execution metadata while still supporting custom native modules.
+  const isExpoGo = Constants.expoGoConfig != null;
   const [mapKit, setMapKit] = useState<MapKitModule | null>(null);
 
   useEffect(() => {
@@ -42,10 +43,10 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
   if (!apiKey || isExpoGo || !mapKit) {
     const hint = isExpoGo
       ? locale === 'hy'
-        ? 'Քարտեզը հասանելի է development build-ում։'
+        ? 'Քարտեզը հասանելի է Vizit development build-ում, ոչ Expo Go-ում։'
         : locale === 'ru'
-          ? 'Карта доступна в development build.'
-          : 'The map is available in a development build.'
+          ? 'Карта доступна в development build Vizit, но не в Expo Go.'
+          : 'The map is available in the Vizit development build, not Expo Go.'
       : !apiKey
         ? locale === 'hy'
           ? 'Ավելացրեք Yandex MapKit Mobile SDK բանալին։'
