@@ -4,15 +4,15 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '@/providers/app-provider';
 import { businessApi, CalendarBooking } from '@/services/api/business';
-import { tokenStore } from '@/services/api/client';
+import { apiErrorMessage, tokenStore } from '@/services/api/client';
 import { localDateKey, formatApiTime } from '@/services/date-time';
 import { bookingStatusLabel, isBookingTerminal } from '@/services/booking-status';
 import { VizitIcon } from '@/components/vizit-icon';
 
 const copy = {
-  hy: { title: 'Այսօրվա օրացույց', empty: 'Այսօր ամրագրումներ չկան', client: 'Հաճախորդ', confirm: 'Հաստատել', done: 'Ավարտել', noShow: 'Նշել՝ չի ներկայացել', cancel: 'Չեղարկել', add: 'Նոր ամրագրում', logout: 'Դուրս գալ', delete: 'Ջնջել հաշիվը', deleteConfirm: 'Ուղարկե՞լ բիզնես հաշվի և տվյալների ջնջման հայտը։', auth: 'Մուտք գործիր բիզնես հաշվով', loadError: 'Չհաջողվեց բեռնել օրացույցը', retry: 'Կրկին փորձել', phone: 'Հեռախոս', notes: 'Նշումներ', actionConfirm: 'Հաստատե՞լ այս գործողությունը։', close: 'Փակել' },
-  ru: { title: 'Календарь на сегодня', empty: 'На сегодня записей нет', client: 'Клиент', confirm: 'Подтвердить', done: 'Завершить', noShow: 'Отметить неявку', cancel: 'Отменить', add: 'Новая запись', logout: 'Выйти', delete: 'Удалить аккаунт', deleteConfirm: 'Отправить запрос на удаление бизнес-аккаунта и данных?', auth: 'Войдите в аккаунт бизнеса', loadError: 'Не удалось загрузить календарь', retry: 'Повторить', phone: 'Телефон', notes: 'Заметки', actionConfirm: 'Подтвердить это действие?', close: 'Закрыть' },
-  en: { title: "Today's calendar", empty: 'No bookings today', client: 'Client', confirm: 'Confirm', done: 'Complete', noShow: 'Mark no-show', cancel: 'Cancel', add: 'New booking', logout: 'Sign out', delete: 'Delete account', deleteConfirm: 'Request deletion of the business account and its data?', auth: 'Sign in with a business account', loadError: 'Could not load calendar', retry: 'Try again', phone: 'Phone', notes: 'Notes', actionConfirm: 'Confirm this action?', close: 'Close' },
+  hy: { title: 'Այսօրվա օրացույց', empty: 'Այսօր ամրագրումներ չկան', client: 'Հաճախորդ', confirm: 'Հաստատել', done: 'Ավարտել', noShow: 'Նշել՝ չի ներկայացել', cancel: 'Չեղարկել', add: 'Նոր ամրագրում', logout: 'Դուրս գալ', delete: 'Ջնջել հաշիվը', deleteConfirm: 'Ուղարկե՞լ բիզնես հաշվի և տվյալների ջնջման հայտը։', auth: 'Մուտք գործիր բիզնես հաշվով', loadError: 'Չհաջողվեց բեռնել օրացույցը', actionError: 'Գործողությունը չհաջողվեց', retry: 'Կրկին փորձել', phone: 'Հեռախոս', notes: 'Նշումներ', actionConfirm: 'Հաստատե՞լ այս գործողությունը։', close: 'Փակել' },
+  ru: { title: 'Календарь на сегодня', empty: 'На сегодня записей нет', client: 'Клиент', confirm: 'Подтвердить', done: 'Завершить', noShow: 'Отметить неявку', cancel: 'Отменить', add: 'Новая запись', logout: 'Выйти', delete: 'Удалить аккаунт', deleteConfirm: 'Отправить запрос на удаление бизнес-аккаунта и данных?', auth: 'Войдите в аккаунт бизнеса', loadError: 'Не удалось загрузить календарь', actionError: 'Не удалось выполнить действие', retry: 'Повторить', phone: 'Телефон', notes: 'Заметки', actionConfirm: 'Подтвердить это действие?', close: 'Закрыть' },
+  en: { title: "Today's calendar", empty: 'No bookings today', client: 'Client', confirm: 'Confirm', done: 'Complete', noShow: 'Mark no-show', cancel: 'Cancel', add: 'New booking', logout: 'Sign out', delete: 'Delete account', deleteConfirm: 'Request deletion of the business account and its data?', auth: 'Sign in with a business account', loadError: 'Could not load calendar', actionError: 'Action failed', retry: 'Try again', phone: 'Phone', notes: 'Notes', actionConfirm: 'Confirm this action?', close: 'Close' },
 };
 export default function TodayScreen() {
   const { locale, theme } = useApp();
@@ -20,15 +20,18 @@ export default function TodayScreen() {
   const queryClient = useQueryClient();
   const date = localDateKey();
   const me = useQuery({ queryKey: ['business-me'], queryFn: businessApi.me, retry: false, refetchOnMount: 'always' });
-  const bookings = useQuery({ queryKey: ['calendar', date], queryFn: () => businessApi.calendar(date, date), enabled: me.isSuccess, retry: false, refetchOnMount: 'always', staleTime: 0 });
+  const bookings = useQuery({ queryKey: ['calendar', date], queryFn: () => businessApi.calendar(date, date), enabled: me.isSuccess, retry: false, refetchOnMount: 'always', staleTime: 0, refetchInterval: 15_000 });
   const status = useMutation({
     mutationFn: ({ id, action }: { id: number; action: 'confirm' | 'done' | 'no-show' | 'cancel' }) => businessApi.updateStatus(id, action),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['calendar'] });
       await queryClient.refetchQueries({ queryKey: ['calendar', date], type: 'active' });
       await queryClient.invalidateQueries({ queryKey: ['business-dashboard'] });
+      await queryClient.invalidateQueries({ queryKey: ['business-clients'] });
+      await queryClient.invalidateQueries({ queryKey: ['business-client'] });
+      await queryClient.invalidateQueries({ queryKey: ['business-availability'] });
     },
-    onError: (error) => Alert.alert(c.loadError, String((error as { message?: string })?.message ?? '')),
+    onError: (error) => Alert.alert(c.actionError, apiErrorMessage(error)),
   });
   const runAction = (item: CalendarBooking, action: 'confirm' | 'done' | 'no-show' | 'cancel') => {
     if (action === 'cancel' || action === 'no-show') {
@@ -56,29 +59,37 @@ export default function TodayScreen() {
       <Pressable accessibilityLabel={c.logout} onPress={logout} style={[styles.logout, { backgroundColor: theme.plumSoft }]}><VizitIcon ios="rectangle.portrait.and.arrow.right" android="logout" color={theme.plum} size={19} /></Pressable>
     </View>
     <View style={[styles.dateCard, { backgroundColor: theme.plumSoft }]}><View style={[styles.dateIcon, { backgroundColor: theme.surface }]}><VizitIcon ios="calendar" android="calendar_month" color={theme.plum} size={23} /></View><Text style={[styles.dateText, { color: theme.plumStrong }]}>{dateLabel}</Text><View style={[styles.countBadge, { backgroundColor: theme.plum }]}><Text style={styles.countText}>{bookings.data?.length ?? 0}</Text></View></View>
-    {bookings.isLoading ? <ActivityIndicator color={theme.plum} /> : bookings.isError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.loadError}</Text><Pressable onPress={() => bookings.refetch()}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : <FlatList data={bookings.data} keyExtractor={(item) => String(item.id)} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false} ListEmptyComponent={<View style={styles.emptyWrap}><VizitIcon ios="calendar.badge.checkmark" android="event_available" color={theme.muted} size={42} /><Text style={[styles.empty, { color: theme.muted }]}>{c.empty}</Text></View>} renderItem={({ item }) => <BookingCard item={item} onStatus={(action) => runAction(item, action)} labels={c} locale={locale} />} />}
+    {bookings.isLoading ? <ActivityIndicator color={theme.plum} /> : bookings.isError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.loadError}</Text><Pressable onPress={() => bookings.refetch()}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : <FlatList data={bookings.data} keyExtractor={(item) => String(item.id)} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false} ListEmptyComponent={<View style={styles.emptyWrap}><VizitIcon ios="calendar.badge.checkmark" android="event_available" color={theme.muted} size={42} /><Text style={[styles.empty, { color: theme.muted }]}>{c.empty}</Text></View>} renderItem={({ item }) => <BookingCard item={item} onStatus={(action) => runAction(item, action)} labels={c} locale={locale} pending={status.isPending} />} />}
   </SafeAreaView>;
 }
-function BookingCard({ item, onStatus, labels, locale }: { item: CalendarBooking; onStatus: (action: 'confirm' | 'done' | 'no-show' | 'cancel') => void; labels: typeof copy.hy; locale: 'hy' | 'ru' | 'en' }) {
+function BookingCard({ item, onStatus, labels, locale, pending }: { item: CalendarBooking; onStatus: (action: 'confirm' | 'done' | 'no-show' | 'cancel') => void; labels: typeof copy.hy; locale: 'hy' | 'ru' | 'en'; pending: boolean }) {
   const { theme } = useApp();
   const starts = formatApiTime(item.starts_at, locale);
   const ends = formatApiTime(item.ends_at, locale);
   const terminal = isBookingTerminal(item.status);
   const client = item.client_name ?? item.customer_name ?? item.client?.name ?? labels.client;
   const phone = item.client_phone ?? item.client?.phone;
+  const canConfirm = item.status === 'pending';
+  const canComplete = item.status === 'confirmed';
+  const canNoShowOrCancel = item.status === 'pending' || item.status === 'confirmed';
   return <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
     <View style={styles.cardTop}><View style={[styles.timeBadge, { backgroundColor: theme.plumSoft }]}><Text style={[styles.time, { color: theme.plum }]}>{starts}</Text><Text style={[styles.timeEnd, { color: theme.muted }]}>– {ends}</Text></View><View style={[styles.statusBadge, { backgroundColor: terminal ? theme.plumSoft : theme.successSoft }]}><Text style={[styles.status, { color: terminal ? theme.muted : theme.success }]}>{bookingStatusLabel(item.status, locale)}</Text></View></View>
     <Text style={[styles.client, { color: theme.text }]}>{client}</Text>
     {phone ? <Text style={{ color: theme.muted, fontSize: 12 }}>{labels.phone}: {phone}</Text> : null}
     <View style={styles.detailRow}><VizitIcon ios="sparkles" android="spa" color={theme.muted} size={15} /><Text style={{ color: theme.muted, flex: 1 }}>{item.service?.name ?? '—'} · {item.staff?.name ?? '—'}</Text></View>
     {item.notes ? <Text style={{ color: theme.muted, fontSize: 12 }}>{labels.notes}: {item.notes}</Text> : null}
-    {!terminal ? <View style={styles.actions}><Action title={labels.confirm} onPress={() => onStatus('confirm')} tone="primary" /><Action title={labels.done} onPress={() => onStatus('done')} tone="success" /><Action title={labels.noShow} onPress={() => onStatus('no-show')} /><Action title={labels.cancel} onPress={() => onStatus('cancel')} tone="danger" /></View> : null}
+    {canConfirm || canComplete || canNoShowOrCancel ? <View style={styles.actions}>
+      {canConfirm ? <Action title={labels.confirm} disabled={pending} onPress={() => onStatus('confirm')} tone="primary" /> : null}
+      {canComplete ? <Action title={labels.done} disabled={pending} onPress={() => onStatus('done')} tone="success" /> : null}
+      {canNoShowOrCancel ? <Action title={labels.noShow} disabled={pending} onPress={() => onStatus('no-show')} /> : null}
+      {canNoShowOrCancel ? <Action title={labels.cancel} disabled={pending} onPress={() => onStatus('cancel')} tone="danger" /> : null}
+    </View> : null}
   </View>;
 }
-function Action({ title, onPress, tone }: { title: string; onPress: () => void; tone?: 'primary' | 'success' | 'danger' }) {
+function Action({ title, onPress, tone, disabled = false }: { title: string; onPress: () => void; tone?: 'primary' | 'success' | 'danger'; disabled?: boolean }) {
   const { theme } = useApp();
   const background = tone === 'primary' ? theme.plumSoft : tone === 'success' ? theme.successSoft : tone === 'danger' ? theme.dangerSoft : theme.background;
   const color = tone === 'primary' ? theme.plum : tone === 'success' ? theme.success : tone === 'danger' ? theme.danger : theme.muted;
-  return <Pressable onPress={onPress} style={[styles.action, { backgroundColor: background }]}><Text style={{ color, fontSize: 10, fontWeight: '800', textAlign: 'center' }}>{title}</Text></Pressable>;
+  return <Pressable disabled={disabled} onPress={onPress} style={[styles.action, { backgroundColor: background, opacity: disabled ? 0.5 : 1 }]}><Text style={{ color, fontSize: 10, fontWeight: '800', textAlign: 'center' }}>{title}</Text></Pressable>;
 }
 const styles = StyleSheet.create({ screen: { flex: 1 }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 18 }, header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, eyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.5, marginBottom: 4 }, title: { fontSize: 27, fontWeight: '900', letterSpacing: -0.5 }, logout: { width: 43, height: 43, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, dateCard: { marginHorizontal: 18, padding: 13, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 11 }, dateIcon: { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, dateText: { flex: 1, fontSize: 14, fontWeight: '800', textTransform: 'capitalize' }, countBadge: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, countText: { color: '#FFF', fontWeight: '900', fontSize: 12 }, list: { padding: 18, gap: 12 }, emptyWrap: { alignItems: 'center', paddingTop: 70, gap: 12 }, empty: { textAlign: 'center' }, card: { padding: 14, borderRadius: 11, borderWidth: 1, gap: 8 }, cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, timeBadge: { paddingHorizontal: 11, height: 35, borderRadius: 9, flexDirection: 'row', alignItems: 'baseline' }, time: { fontSize: 18, fontWeight: '900' }, timeEnd: { fontSize: 12, fontWeight: '700', marginLeft: 3 }, statusBadge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 9, maxWidth: 130 }, status: { fontWeight: '900', fontSize: 9, textAlign: 'center' }, client: { fontSize: 17, fontWeight: '900', marginTop: 2 }, detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 }, actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }, action: { flexGrow: 1, flexBasis: '46%', minHeight: 39, borderRadius: 8, alignItems: 'center', justifyContent: 'center', padding: 5 }, primary: { paddingHorizontal: 18, paddingVertical: 13, borderRadius: 9 }, white: { color: '#FFF', fontWeight: '800' }, error: { margin: 18, borderWidth: 1, borderRadius: 9, padding: 14, gap: 8 } });
