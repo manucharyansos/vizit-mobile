@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +7,7 @@ import { useApp } from '@/providers/app-provider';
 import { businessApi } from '@/services/api/business';
 import { apiErrorMessage } from '@/services/api/client';
 import { calendarBlocksApi } from '@/services/api/calendar-blocks';
+import { safeBack } from '@/services/navigation';
 
 const localDate = (offsetDays = 0) => {
   const date = new Date();
@@ -52,7 +52,7 @@ export default function CalendarBlocksScreen() {
 
   return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <View style={styles.header}><Pressable onPress={() => router.back()} style={[styles.back, { borderColor: theme.border }]}><VizitIcon ios="chevron.left" android="arrow_back" color={theme.text} size={21} /></Pressable><View style={styles.flex}><Text style={[styles.title, { color: theme.text }]}>{c.title}</Text><Text style={[styles.subtitle, { color: theme.muted }]}>{c.subtitle}</Text></View><Pressable onPress={() => setShowForm((value) => !value)} style={[styles.addIcon, { backgroundColor: theme.plum }]}><VizitIcon ios={showForm ? 'xmark' : 'plus'} android={showForm ? 'close' : 'add'} color="#FFF" size={21} /></Pressable></View>
+      <View style={styles.header}><Pressable onPress={() => safeBack('/(business)/more')} style={[styles.back, { borderColor: theme.border }]}><VizitIcon ios="chevron.left" android="arrow_back" color={theme.text} size={21} /></Pressable><View style={styles.flex}><Text style={[styles.title, { color: theme.text }]}>{c.title}</Text><Text style={[styles.subtitle, { color: theme.muted }]}>{c.subtitle}</Text></View><Pressable onPress={() => setShowForm((value) => !value)} style={[styles.addIcon, { backgroundColor: theme.plum }]}><VizitIcon ios={showForm ? 'xmark' : 'plus'} android={showForm ? 'close' : 'add'} color="#FFF" size={21} /></Pressable></View>
 
       {showForm ? <View style={[styles.card, { backgroundColor: theme.surfaceRaised, borderColor: theme.plum }]}><Text style={[styles.cardTitle, { color: theme.text }]}>{c.add}</Text><Field value={form.starts_at} onChangeText={(starts_at) => setForm((value) => ({ ...value, starts_at }))} placeholder={c.start} /><Field value={form.ends_at} onChangeText={(ends_at) => setForm((value) => ({ ...value, ends_at }))} placeholder={c.end} /><Field value={form.reason} onChangeText={(reason) => setForm((value) => ({ ...value, reason }))} placeholder={c.reason} /><Text style={[styles.smallLabel, { color: theme.muted }]}>{c.staff}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}><Pressable onPress={() => setStaffId(undefined)} style={[styles.chip, { borderColor: !staffId ? theme.plum : theme.border, backgroundColor: !staffId ? theme.plumSoft : theme.background }]}><Text style={{ color: !staffId ? theme.plum : theme.text, fontWeight: '800' }}>{c.all}</Text></Pressable>{staff.data?.filter((item) => item.is_active).map((item) => <Pressable key={item.id} onPress={() => setStaffId(item.id)} style={[styles.chip, { borderColor: staffId === item.id ? theme.plum : theme.border, backgroundColor: staffId === item.id ? theme.plumSoft : theme.background }]}><Text style={{ color: staffId === item.id ? theme.plum : theme.text, fontWeight: '800' }}>{item.name}</Text></Pressable>)}</ScrollView><View style={styles.actions}><Pressable onPress={() => setShowForm(false)} style={[styles.button, { borderColor: theme.border }]}><Text style={{ color: theme.text, fontWeight: '800' }}>{c.cancel}</Text></Pressable><Pressable disabled={!valid || create.isPending} onPress={() => create.mutate()} style={[styles.button, { backgroundColor: theme.plum, borderColor: theme.plum, opacity: valid ? 1 : 0.4 }]}>{create.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.white}>{c.save}</Text>}</Pressable></View></View> : null}
 
