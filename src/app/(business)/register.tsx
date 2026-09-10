@@ -25,7 +25,7 @@ export default function BusinessRegister() {
   useEffect(() => {
     if (!existingSession.data || redirected.current) return;
     redirected.current = true;
-    router.replace((existingSession.data.needs_onboarding ? '/(business)/admin' : '/(business)/today') as Href);
+    router.replace('/(business)/today' as Href);
   }, [existingSession.data]);
 
   const valid = form.business.trim().length > 1 && form.owner.trim().length > 1 && form.phone.trim().length > 4 && form.address.trim().length > 2 && /\S+@\S+\.\S+/.test(form.email) && form.password.length >= 8 && form.password === form.confirmation;
