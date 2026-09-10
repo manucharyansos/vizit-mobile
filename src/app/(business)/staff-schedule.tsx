@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { VizitIcon } from '@/components/vizit-icon';
@@ -23,20 +23,26 @@ export default function StaffSchedule() {
   const { locale, theme } = useApp();
   const c = copy[locale];
   const cache = useQueryClient();
-  const [days, setDays] = useState<ScheduleDay[]>([]);
+  const [edits, setEdits] = useState<Record<number, Partial<ScheduleDay>>>({});
   const query = useQuery({ queryKey: ['staff-schedule', staffId], queryFn: () => businessApi.staffSchedule(staffId), enabled: Number.isInteger(staffId) && staffId > 0, retry: false, refetchOnMount: 'always' });
 
-  useEffect(() => {
-    if (!query.isSuccess) return;
+  const baseDays = useMemo(() => {
+    if (!query.isSuccess) return [];
     const remote = Array.isArray(query.data?.days) ? query.data.days : [];
-    setDays(remote.length ? defaults().map((fallback) => remote.find((item) => item.weekday === fallback.weekday) ?? fallback) : defaults());
+    return remote.length ? defaults().map((fallback) => remote.find((item) => item.weekday === fallback.weekday) ?? fallback) : defaults();
   }, [query.data, query.isSuccess]);
-
-  const update = (weekday: number, patch: Partial<ScheduleDay>) => setDays((current) => current.map((day) => day.weekday === weekday ? { ...day, ...patch } : day));
+  const days = useMemo(() => baseDays.map((day) => ({ ...day, ...(edits[day.weekday] ?? {}) })), [baseDays, edits]);
+  const update = (weekday: number, patch: Partial<ScheduleDay>) => setEdits((current) => ({ ...current, [weekday]: { ...(current[weekday] ?? {}), ...patch } }));
   const valid = days.length === 7 && days.every((day) => day.is_closed || (/^\d{2}:\d{2}$/.test(day.start ?? '') && /^\d{2}:\d{2}$/.test(day.end ?? '') && String(day.end) > String(day.start)));
   const save = useMutation({
     mutationFn: () => businessApi.updateStaffSchedule(staffId, days),
-    onSuccess: async () => { await cache.invalidateQueries({ queryKey: ['staff-schedule', staffId] }); await cache.invalidateQueries({ queryKey: ['calendar'] }); Alert.alert(c.saved); },
+    onSuccess: async () => {
+      await cache.invalidateQueries({ queryKey: ['staff-schedule', staffId] });
+      await cache.refetchQueries({ queryKey: ['staff-schedule', staffId], type: 'active' });
+      await cache.invalidateQueries({ queryKey: ['calendar'] });
+      setEdits({});
+      Alert.alert(c.saved);
+    },
     onError: (error) => Alert.alert(c.error, apiErrorMessage(error)),
   });
 
