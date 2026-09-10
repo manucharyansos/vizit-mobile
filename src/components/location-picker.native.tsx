@@ -33,7 +33,9 @@ function pointFromEvent(value: unknown): Point | null {
 export function LocationPicker({ latitude, longitude, onChange, height = 238 }: Props) {
   const { locale, mode, theme } = useApp();
   const apiKey = process.env.EXPO_PUBLIC_YANDEX_MAPKIT_API_KEY;
-  const isExpoGo = Constants.expoGoConfig != null;
+  // expoGoConfig may also exist in expo-dev-client; appOwnership === 'expo'
+  // means the actual Expo Go app.
+  const isExpoGo = Constants.appOwnership === 'expo';
   const [mapKit, setMapKit] = useState<MapKitModule | null>(null);
 
   const point = useMemo<Point>(() => ({
