@@ -15,7 +15,7 @@ export default function BusinessLayout() {
   const isAuthScreen = routeName === 'login' || routeName === 'register';
 
   const storedToken = useQuery({
-    queryKey: ['business-token-guard', routeName],
+    queryKey: ['business-token-guard'],
     queryFn: () => tokenStore.get('business'),
     retry: false,
     staleTime: 0,
@@ -45,7 +45,7 @@ export default function BusinessLayout() {
   }
 
   if (isAuthScreen && authenticated) {
-    return <Redirect href={'/(business)/today' as Href} />;
+    return <Redirect href={(session.data?.needs_onboarding ? '/(business)/admin' : '/(business)/today') as Href} />;
   }
 
   const labels = {
