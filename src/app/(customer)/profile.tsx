@@ -261,7 +261,7 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
           <Pressable
-            onPress={() => router.push("/(business)/login")}
+            onPress={() => router.replace("/(business)/login")}
             style={styles.businessLink}
           >
             <VizitIcon
