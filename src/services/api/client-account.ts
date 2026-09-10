@@ -19,7 +19,7 @@ export const clientAccountApi = {
   async login(identity: string, password: string): Promise<ClientUser> {
     const { data } = await clientAuthClient.post('/client/auth/login', { identity, password });
     assertClientAudience(data);
-    await guestBookingStore.clearClientBookingData();
+    await guestBookingStore.clearClientBookingReferences();
     await tokenStore.set('client', data.token);
     void synchronizePushDevice('client');
     return data.user as ClientUser;
@@ -27,7 +27,7 @@ export const clientAccountApi = {
   async register(payload: { name: string; email?: string | null; phone?: string | null; password: string; password_confirmation: string }): Promise<ClientUser> {
     const { data } = await clientAuthClient.post('/client/auth/register', payload);
     assertClientAudience(data);
-    await guestBookingStore.clearClientBookingData();
+    await guestBookingStore.clearClientBookingReferences();
     await tokenStore.set('client', data.token);
     void synchronizePushDevice('client');
     return data.user as ClientUser;
@@ -62,7 +62,7 @@ export const clientAccountApi = {
     try {
       return (await clientAuthClient.post('/mobile/account-deletion-request', { reason })).data;
     } finally {
-      await guestBookingStore.clearClientBookingData();
+      await guestBookingStore.clearClientBookingReferences();
       await tokenStore.remove('client');
     }
   },
@@ -71,7 +71,7 @@ export const clientAccountApi = {
       await revokePushDevice('client');
       try { await clientAuthClient.post('/client/auth/logout'); } catch { /* Expired or already-revoked sessions are already logged out. */ }
     } finally {
-      await guestBookingStore.clearClientBookingData();
+      await guestBookingStore.clearClientBookingReferences();
       await tokenStore.remove('client');
     }
   },
