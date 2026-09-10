@@ -1,181 +1,42 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { router as expoRouter } from "expo-router";
-import { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useApp } from "@/providers/app-provider";
-import { businessApi } from "@/services/api/business";
-import { VizitIcon } from "@/components/vizit-icon";
-import { apiErrorMessage } from "@/services/api/client";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { router as expoRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useApp } from '@/providers/app-provider';
+import { businessApi } from '@/services/api/business';
+import { VizitIcon } from '@/components/vizit-icon';
+import { apiErrorMessage } from '@/services/api/client';
 
 const router = { push: (href: unknown) => expoRouter.push(href as never) };
 
 export default function ClientsScreen() {
   const { locale, theme } = useApp();
   const c = {
-    hy: ["Հաճախորդներ", "Հաճախորդներ դեռ չկան", "ամրագրում", "Որոնել անունով կամ հեռախոսով", "Նոր հաճախորդ", "Անուն", "Հեռախոս", "Էլ․ փոստ", "Պահպանել", "Չեղարկել"],
-    ru: ["Клиенты", "Клиентов пока нет", "записей", "Поиск по имени или телефону", "Новый клиент", "Имя", "Телефон", "Email", "Сохранить", "Отмена"],
-    en: ["Clients", "No clients yet", "bookings", "Search by name or phone", "New client", "Name", "Phone", "Email", "Save", "Cancel"],
+    hy: ['Հաճախորդներ', 'Հաճախորդներ դեռ չկան', 'ամրագրում', 'Որոնել անունով կամ հեռախոսով', 'Նոր հաճախորդ', 'Անուն', 'Հեռախոս', 'Էլ․ փոստ', 'Պահպանել', 'Չեղարկել', 'Չհաջողվեց բեռնել հաճախորդներին', 'Կրկին փորձել'],
+    ru: ['Клиенты', 'Клиентов пока нет', 'записей', 'Поиск по имени или телефону', 'Новый клиент', 'Имя', 'Телефон', 'Email', 'Сохранить', 'Отмена', 'Не удалось загрузить клиентов', 'Повторить'],
+    en: ['Clients', 'No clients yet', 'bookings', 'Search by name or phone', 'New client', 'Name', 'Phone', 'Email', 'Save', 'Cancel', 'Could not load clients', 'Try again'],
   }[locale];
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", email: "" });
-  const query = useQuery({
-    queryKey: ["business-clients"],
-    queryFn: businessApi.clients,
-    retry: false,
+  const [form, setForm] = useState({ name: '', phone: '', email: '' });
+  const query = useQuery({ queryKey: ['business-clients'], queryFn: businessApi.clients, retry: false, refetchOnMount: 'always' });
+  const data = useMemo(() => {
+    const value = search.trim().toLocaleLowerCase(locale);
+    return value ? (query.data ?? []).filter((item) => [item.name, item.phone, item.email].some((field) => field?.toLocaleLowerCase(locale).includes(value))) : query.data;
+  }, [locale, query.data, search]);
+  const create = useMutation({
+    mutationFn: () => businessApi.createClient({ name: form.name.trim(), phone: form.phone.trim() || undefined, email: form.email.trim() || undefined }),
+    onSuccess: async () => { setAdding(false); setForm({ name: '', phone: '', email: '' }); await queryClient.invalidateQueries({ queryKey: ['business-clients'] }); await queryClient.invalidateQueries({ queryKey: ['business-dashboard'] }); await queryClient.refetchQueries({ queryKey: ['business-clients'], type: 'active' }); },
+    onError: (error) => Alert.alert(c[4], apiErrorMessage(error)),
   });
-  const data = useMemo(() => { const value = search.trim().toLocaleLowerCase(locale); return value ? (query.data ?? []).filter((item) => [item.name, item.phone, item.email].some((field) => field?.toLocaleLowerCase(locale).includes(value))) : query.data; }, [locale, query.data, search]);
-  const create = useMutation({ mutationFn: () => businessApi.createClient({ name: form.name.trim(), phone: form.phone.trim() || undefined, email: form.email.trim() || undefined }), onSuccess: () => { setAdding(false); setForm({ name: "", phone: "", email: "" }); void queryClient.invalidateQueries({ queryKey: ["business-clients"] }); }, onError: (error) => Alert.alert(c[4], apiErrorMessage(error)) });
-  return (
-    <SafeAreaView
-      style={[styles.screen, { backgroundColor: theme.background }]}
-    >
-      <View style={styles.header}>
-        <View style={[styles.headerIcon, { backgroundColor: theme.plumSoft }]}>
-          <VizitIcon
-            ios="person.2.fill"
-            android="group"
-            color={theme.plum}
-            size={27}
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: theme.text }]}>{c[0]}</Text>
-          <Text style={[styles.total, { color: theme.muted }]}>
-            {query.data?.length ?? 0}
-          </Text>
-        </View>
-        <Pressable onPress={() => setAdding((value) => !value)} style={[styles.add, { backgroundColor: theme.plum }]}><VizitIcon ios="plus" android="add" color="#FFF" size={22} /></Pressable>
-      </View>
-      <View style={styles.tools}><View style={[styles.search, { backgroundColor: theme.surface, borderColor: theme.border }]}><VizitIcon ios="magnifyingglass" android="search" color={theme.muted} size={21} /><TextInput value={search} onChangeText={setSearch} placeholder={c[3]} placeholderTextColor={theme.muted} style={[styles.searchInput, { color: theme.text }]} /></View></View>
-      {adding ? <View style={[styles.editor, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}><Text style={[styles.editorTitle, { color: theme.text }]}>{c[4]}</Text>{(["name", "phone", "email"] as const).map((key, index) => <TextInput key={key} value={form[key]} onChangeText={(value) => setForm((current) => ({ ...current, [key]: value }))} placeholder={c[5 + index]} placeholderTextColor={theme.muted} keyboardType={key === "phone" ? "phone-pad" : key === "email" ? "email-address" : "default"} autoCapitalize={key === "email" ? "none" : undefined} style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]} />)}<View style={styles.actions}><Pressable onPress={() => setAdding(false)} style={[styles.secondary, { borderColor: theme.border }]}><Text style={{ color: theme.text, fontWeight: "800" }}>{c[9]}</Text></Pressable><Pressable disabled={form.name.trim().length < 2 || create.isPending} onPress={() => create.mutate()} style={[styles.save, { backgroundColor: theme.plum, opacity: form.name.trim().length >= 2 ? 1 : 0.4 }]}>{create.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: "#FFF", fontWeight: "900" }}>{c[8]}</Text>}</Pressable></View></View> : null}
-      {query.isLoading ? (
-        <ActivityIndicator color={theme.plum} />
-      ) : (
-        <FlatList
-          data={data}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <Text style={{ color: theme.muted }}>{c[1]}</Text>
-          }
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: "/(business)/client-detail",
-                  params: { id: item.id },
-                })
-              }
-              style={({ pressed }) => [
-                styles.card,
-                {
-                  backgroundColor: theme.surface,
-                  borderColor: theme.border,
-                  opacity: pressed ? 0.75 : 1,
-                },
-              ]}
-            >
-              <View
-                style={[styles.avatar, { backgroundColor: theme.peachSoft }]}
-              >
-                <Text
-                  style={{ color: theme.plum, fontWeight: "900", fontSize: 17 }}
-                >
-                  {item.name?.slice(0, 1).toUpperCase()}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.name, { color: theme.text }]}>
-                  {item.name}
-                </Text>
-                <Text style={[styles.contact, { color: theme.muted }]}>
-                  {item.phone ?? item.email ?? "—"}
-                </Text>
-              </View>
-              <View
-                style={[styles.bookings, { backgroundColor: theme.goldSoft }]}
-              >
-                <Text style={[styles.bookingsCount, { color: theme.gold }]}>
-                  {item.bookings_count ?? 0}
-                </Text>
-                <Text style={[styles.bookingsLabel, { color: theme.muted }]}>
-                  {c[2]}
-                </Text>
-              </View>
-            </Pressable>
-          )}
-        />
-      )}
-    </SafeAreaView>
-  );
+
+  return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
+    <View style={styles.header}><View style={[styles.headerIcon, { backgroundColor: theme.plumSoft }]}><VizitIcon ios="person.2.fill" android="group" color={theme.plum} size={27} /></View><View style={{ flex: 1 }}><Text style={[styles.title, { color: theme.text }]}>{c[0]}</Text><Text style={[styles.total, { color: theme.muted }]}>{query.isSuccess ? query.data.length : '—'}</Text></View><Pressable disabled={query.isError} onPress={() => setAdding((value) => !value)} style={[styles.add, { backgroundColor: theme.plum, opacity: query.isError ? 0.4 : 1 }]}><VizitIcon ios="plus" android="add" color="#FFF" size={22} /></Pressable></View>
+    <View style={styles.tools}><View style={[styles.search, { backgroundColor: theme.surface, borderColor: theme.border }]}><VizitIcon ios="magnifyingglass" android="search" color={theme.muted} size={21} /><TextInput value={search} onChangeText={setSearch} placeholder={c[3]} placeholderTextColor={theme.muted} style={[styles.searchInput, { color: theme.text }]} /></View></View>
+    {adding ? <View style={[styles.editor, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}><Text style={[styles.editorTitle, { color: theme.text }]}>{c[4]}</Text>{(['name', 'phone', 'email'] as const).map((key, index) => <TextInput key={key} value={form[key]} onChangeText={(value) => setForm((current) => ({ ...current, [key]: value }))} placeholder={c[5 + index]} placeholderTextColor={theme.muted} keyboardType={key === 'phone' ? 'phone-pad' : key === 'email' ? 'email-address' : 'default'} autoCapitalize={key === 'email' ? 'none' : undefined} style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]} />)}<View style={styles.actions}><Pressable onPress={() => setAdding(false)} style={[styles.secondary, { borderColor: theme.border }]}><Text style={{ color: theme.text, fontWeight: '800' }}>{c[9]}</Text></Pressable><Pressable disabled={form.name.trim().length < 2 || create.isPending} onPress={() => create.mutate()} style={[styles.save, { backgroundColor: theme.plum, opacity: form.name.trim().length >= 2 ? 1 : 0.4 }]}>{create.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '900' }}>{c[8]}</Text>}</Pressable></View></View> : null}
+    {query.isLoading ? <ActivityIndicator color={theme.plum} /> : query.isError ? <View style={[styles.error, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}><VizitIcon ios="exclamationmark.triangle.fill" android="error_outline" color={theme.danger} size={28} /><Text style={[styles.errorTitle, { color: theme.text }]}>{c[10]}</Text><Text style={[styles.errorText, { color: theme.muted }]}>{apiErrorMessage(query.error)}</Text><Pressable onPress={() => query.refetch()} style={[styles.retry, { backgroundColor: theme.plum }]}><Text style={{ color: '#FFF', fontWeight: '900' }}>{c[11]}</Text></Pressable></View> : <FlatList data={data} keyExtractor={(item) => String(item.id)} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false} ListEmptyComponent={<Text style={{ color: theme.muted }}>{c[1]}</Text>} renderItem={({ item }) => <Pressable onPress={() => router.push({ pathname: '/(business)/client-detail', params: { id: item.id } })} style={({ pressed }) => [styles.card, { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.75 : 1 }]}><View style={[styles.avatar, { backgroundColor: theme.peachSoft }]}><Text style={{ color: theme.plum, fontWeight: '900', fontSize: 17 }}>{item.name?.slice(0, 1).toUpperCase()}</Text></View><View style={{ flex: 1 }}><Text style={[styles.name, { color: theme.text }]}>{item.name}</Text><Text style={[styles.contact, { color: theme.muted }]}>{item.phone ?? item.email ?? '—'}</Text></View><View style={[styles.bookings, { backgroundColor: theme.goldSoft }]}><Text style={[styles.bookingsCount, { color: theme.gold }]}>{item.bookings_count ?? 0}</Text><Text style={[styles.bookingsLabel, { color: theme.muted }]}>{c[2]}</Text></View></Pressable>} />}
+  </SafeAreaView>;
 }
-const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 13,
-  },
-  headerIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: { fontSize: 27, fontWeight: "900", letterSpacing: -0.5 },
-  total: { fontSize: 12, marginTop: 2 },
-  add: { width: 46, height: 46, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  tools: { paddingHorizontal: 18, paddingBottom: 8 },
-  search: { height: 52, borderWidth: 1, borderRadius: 10, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 9 },
-  searchInput: { flex: 1, fontSize: 14 },
-  editor: { marginHorizontal: 18, marginBottom: 8, padding: 14, borderWidth: 1, borderRadius: 12, gap: 9 },
-  editorTitle: { fontSize: 17, fontWeight: "900" },
-  input: { height: 49, borderWidth: 1, borderRadius: 9, paddingHorizontal: 12 },
-  actions: { flexDirection: "row", gap: 8 },
-  secondary: { flex: 1, height: 48, borderWidth: 1, borderRadius: 9, alignItems: "center", justifyContent: "center" },
-  save: { flex: 1, height: 48, borderRadius: 9, alignItems: "center", justifyContent: "center" },
-  list: { padding: 18, gap: 10 },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderRadius: 10,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  name: { fontSize: 16, fontWeight: "900", marginBottom: 4 },
-  contact: { fontSize: 12 },
-  bookings: {
-    minWidth: 58,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  bookingsCount: { fontSize: 15, fontWeight: "900" },
-  bookingsLabel: { fontSize: 9, marginTop: 1 },
-});
+const styles = StyleSheet.create({ screen: { flex: 1 }, header: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 13 }, headerIcon: { width: 52, height: 52, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, title: { fontSize: 27, fontWeight: '900', letterSpacing: -0.5 }, total: { fontSize: 12, marginTop: 2 }, add: { width: 46, height: 46, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, tools: { paddingHorizontal: 18, paddingBottom: 8 }, search: { height: 52, borderWidth: 1, borderRadius: 10, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9 }, searchInput: { flex: 1, fontSize: 14 }, editor: { marginHorizontal: 18, marginBottom: 8, padding: 14, borderWidth: 1, borderRadius: 12, gap: 9 }, editorTitle: { fontSize: 17, fontWeight: '900' }, input: { height: 49, borderWidth: 1, borderRadius: 9, paddingHorizontal: 12 }, actions: { flexDirection: 'row', gap: 8 }, secondary: { flex: 1, height: 48, borderWidth: 1, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, save: { flex: 1, height: 48, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, list: { padding: 18, gap: 10 }, card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderWidth: 1, borderRadius: 10 }, avatar: { width: 48, height: 48, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, name: { fontSize: 16, fontWeight: '900', marginBottom: 4 }, contact: { fontSize: 12 }, bookings: { minWidth: 58, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }, bookingsCount: { fontSize: 15, fontWeight: '900' }, bookingsLabel: { fontSize: 9, marginTop: 1 }, error: { margin: 18, padding: 18, borderWidth: 1, borderRadius: 10, alignItems: 'center', gap: 8 }, errorTitle: { fontSize: 17, fontWeight: '900', textAlign: 'center' }, errorText: { fontSize: 12, textAlign: 'center' }, retry: { minHeight: 46, paddingHorizontal: 20, borderRadius: 9, alignItems: 'center', justifyContent: 'center' } });
