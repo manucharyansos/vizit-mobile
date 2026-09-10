@@ -1,13 +1,13 @@
-import { businessAuthClient, tokenStore } from './client';
+import { API_BASE_URL, businessAuthClient, tokenStore } from './client';
 import { debugEmptyList, normalizeList, normalizeResource } from './normalize';
 import { revokePushDevice, synchronizePushDevice } from '../notifications';
 
 export type BusinessUser = { id: number; name: string; email?: string; role?: string; audience?: 'business'; business_id?: number; business_name?: string; business_slug?: string; needs_onboarding?: boolean };
-export type CalendarBooking = { id: number; starts_at: string; ends_at: string; status: string; client_name?: string; client_phone?: string; customer_name?: string; service?: { id: number; name: string }; staff?: { id: number; name: string } };
-export type BusinessClient = { id: number; name: string; phone?: string; email?: string; bookings_count?: number; last_booking_at?: string };
-export type BusinessClientDetail = BusinessClient & { notes?: string | null; group_name?: string | null; birth_date?: string | null; is_vip?: boolean; is_blacklisted?: boolean; total_spent?: number; next_booking_at?: string | null; recent_bookings?: CalendarBooking[]; crm?: { completed_count?: number; cancelled_count?: number; no_show_count?: number; avg_ticket?: number; favorite_service_name?: string | null; favorite_staff_name?: string | null } };
-export type BusinessService = { id: number; name: string; description?: string | null; duration_minutes: number; price: number; currency: string; is_active: boolean; booking_mode?: 'individual' | 'group'; capacity?: number; location_id?: number | null; location?: BusinessLocation | null };
-export type BusinessStaff = { id: number; name: string; email: string; phone?: string; role: 'owner' | 'manager' | 'staff'; is_active: boolean; is_bookable?: boolean; show_in_public_team?: boolean; location_id?: number | null; location?: BusinessLocation | null };
+export type CalendarBooking = { id: number; starts_at: string; ends_at: string; status: string; client_name?: string; client_phone?: string; customer_name?: string; notes?: string | null; final_price?: number | null; service?: { id: number; name: string }; staff?: { id: number; name: string }; client?: { id: number; name: string; phone?: string | null } | null };
+export type BusinessClient = { id: number; name: string; phone?: string; email?: string; bookings_count?: number; last_booking_at?: string; next_booking_at?: string | null; total_spent?: number; group_name?: string | null; is_vip?: boolean; is_blacklisted?: boolean };
+export type BusinessClientDetail = BusinessClient & { notes?: string | null; birth_date?: string | null; is_vip?: boolean; is_blacklisted?: boolean; total_spent?: number; next_booking_at?: string | null; recent_bookings?: CalendarBooking[]; timeline?: Array<{ id: string; type: string; title?: string | null; subtitle?: string | null; status?: string | null; body?: string | null; occurred_at?: string | null }>; recent_notes?: Array<{ id: number; body: string; note_type?: string; is_pinned?: boolean; author_name?: string | null; created_at?: string | null }>; crm?: { completed_count?: number; cancelled_count?: number; no_show_count?: number; avg_ticket?: number; favorite_service_name?: string | null; favorite_staff_name?: string | null } };
+export type BusinessService = { id: number; name: string; description?: string | null; image_url?: string | null; duration_minutes: number; price: number; currency: string; is_active: boolean; booking_mode?: 'individual' | 'group'; capacity?: number; location_id?: number | null; location?: BusinessLocation | null };
+export type BusinessStaff = { id: number; name: string; email: string; phone?: string; avatar_url?: string | null; bio?: string | null; role: 'owner' | 'manager' | 'staff'; is_active: boolean; is_bookable?: boolean; show_in_public_team?: boolean; location_id?: number | null; location?: BusinessLocation | null };
 export type ScheduleDay = { weekday: number; is_closed: boolean; start: string | null; end: string | null; break_start: string | null; break_end: string | null };
 export type BusinessTask = { id: number; title: string; description?: string | null; status: 'open' | 'in_progress' | 'completed' | 'canceled'; priority: 'low' | 'medium' | 'high' | 'urgent'; due_at?: string | null; assignee?: { id: number; name: string } | null };
 export type GiftCard = { id: number; code: string; initial_amount: number; balance: number; currency: string; status: string; issued_to_name?: string | null };
@@ -32,11 +32,20 @@ export type BusinessSettings = {
   work_end?: string;
   locations?: BusinessLocation[];
   location_limit?: number;
+  service_limit?: number;
+  plan?: { code?: string | null; name?: string | null };
   [key: string]: unknown;
 };
 export type BusinessOnboardingStatus = { business_id?: number; business_name?: string; business_type?: string; is_onboarding_completed?: boolean; onboarding_step?: 'services' | 'schedule' | 'settings' | 'completed' };
 export type LocalImageFile = { uri: string; name: string; mimeType: string };
 export type BusinessRegistration = { business_name: string; business_phone: string; business_address: string; business_city?: string; business_district?: string; latitude: number; longitude: number; vertical: 'services' | 'healthcare'; business_category_id?: number; business_category_slug?: string; custom_category_name?: string; name: string; email: string; password: string; password_confirmation: string; plan_code?: string };
+
+const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, '');
+export const absoluteMediaUrl = (value?: string | null): string | null => {
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `${apiOrigin}${value.startsWith('/') ? value : `/${value}`}`;
+};
 
 function assertBusinessAudience(data: { user?: { audience?: unknown } }) {
   if (data.user?.audience && data.user.audience !== 'business') throw new Error('Invalid business token audience');
@@ -45,9 +54,13 @@ function assertBusinessAudience(data: { user?: { audience?: unknown } }) {
 function normalizeBusinessSettings(payload: unknown): BusinessSettings {
   const raw = normalizeResource<Record<string, unknown>>(payload);
   const text = (key: string): string | undefined => typeof raw[key] === 'string' ? raw[key] as string : undefined;
+  const number = (key: string): number | undefined => {
+    const value = Number(raw[key]);
+    return Number.isFinite(value) ? value : undefined;
+  };
   return {
     ...raw,
-    id: typeof raw.id === 'number' ? raw.id : undefined,
+    id: number('id'),
     name: text('name'),
     slug: text('slug'),
     phone: text('phone'),
@@ -59,12 +72,17 @@ function normalizeBusinessSettings(payload: unknown): BusinessSettings {
     timezone: text('timezone'),
     work_start: text('work_start'),
     work_end: text('work_end'),
-    logo_url: typeof raw.logo_url === 'string' ? raw.logo_url : null,
-    cover_url: typeof raw.cover_url === 'string' ? raw.cover_url : null,
+    logo_url: absoluteMediaUrl(typeof raw.logo_url === 'string' ? raw.logo_url : null),
+    cover_url: absoluteMediaUrl(typeof raw.cover_url === 'string' ? raw.cover_url : null),
     locations: normalizeList<BusinessLocation>(raw.locations, ['locations']),
-    location_limit: typeof raw.location_limit === 'number' ? raw.location_limit : undefined,
+    location_limit: number('location_limit'),
+    service_limit: number('service_limit'),
+    plan: raw.plan && typeof raw.plan === 'object' ? raw.plan as BusinessSettings['plan'] : undefined,
   };
 }
+
+const normalizeServices = (payload: unknown): BusinessService[] => normalizeList<BusinessService>(payload, ['services']).map((item) => ({ ...item, image_url: absoluteMediaUrl(item.image_url) }));
+const normalizeStaff = (payload: unknown): BusinessStaff[] => normalizeList<BusinessStaff>(payload, ['staff', 'users']).map((item) => ({ ...item, avatar_url: absoluteMediaUrl(item.avatar_url) }));
 
 export const businessApi = {
   async login(email: string, password: string): Promise<BusinessUser> { const { data } = await businessAuthClient.post('/auth/login', { email, password }); assertBusinessAudience(data); await tokenStore.set('business', data.token); void synchronizePushDevice('business'); return data.user as BusinessUser; },
@@ -76,8 +94,8 @@ export const businessApi = {
   async createClient(payload: { name: string; phone?: string; email?: string }): Promise<BusinessClient> { const { data } = await businessAuthClient.post('/clients', payload); return normalizeResource<BusinessClient>(data, ['client']); },
   async client(id: number): Promise<BusinessClientDetail> { const { data } = await businessAuthClient.get(`/clients/${id}`); return normalizeResource<BusinessClientDetail>(data, ['client']); },
   async updateClient(id: number, payload: Partial<BusinessClientDetail>): Promise<BusinessClientDetail> { const { data } = await businessAuthClient.put(`/clients/${id}`, payload); return normalizeResource<BusinessClientDetail>(data, ['client']); },
-  async services(): Promise<BusinessService[]> { const response = await businessAuthClient.get('/services'); const list = normalizeList<BusinessService>(response.data, ['services']); debugEmptyList('business.services', response, list); return list; },
-  async staff(): Promise<BusinessStaff[]> { const response = await businessAuthClient.get('/staff', { params: { only_active: false } }); const list = normalizeList<BusinessStaff>(response.data, ['staff', 'users']); debugEmptyList('business.staff', response, list); return list; },
+  async services(): Promise<BusinessService[]> { const response = await businessAuthClient.get('/services'); const list = normalizeServices(response.data); debugEmptyList('business.services', response, list); return list; },
+  async staff(): Promise<BusinessStaff[]> { const response = await businessAuthClient.get('/staff', { params: { only_active: false } }); const list = normalizeStaff(response.data); debugEmptyList('business.staff', response, list); return list; },
   async tasks(): Promise<BusinessTask[]> { const response = await businessAuthClient.get('/tasks'); const list = normalizeList<BusinessTask>(response.data, ['tasks']); debugEmptyList('business.tasks', response, list); return list; },
   async createTask(payload: { title: string; description?: string; priority?: BusinessTask['priority']; assignee_id?: number }): Promise<BusinessTask> { const { data } = await businessAuthClient.post('/tasks', payload); return normalizeResource<BusinessTask>(data, ['task']); },
   async updateTask(id: number, payload: Partial<BusinessTask>): Promise<BusinessTask> { const { data } = await businessAuthClient.patch(`/tasks/${id}`, payload); return normalizeResource<BusinessTask>(data, ['task']); },
@@ -96,18 +114,18 @@ export const businessApi = {
   async disconnectTelegram(): Promise<void> { await businessAuthClient.delete('/telegram/connection'); },
   async settings(): Promise<BusinessSettings> { const { data } = await businessAuthClient.get('/business/settings'); return normalizeBusinessSettings(data); },
   async updateSettings(payload: Record<string, unknown>): Promise<BusinessSettings> { const { data } = await businessAuthClient.patch('/business/settings', payload); return normalizeBusinessSettings(data); },
-  async uploadImage(file: LocalImageFile, folder = 'businesses'): Promise<{ path: string; url: string }> { const form = new FormData(); form.append('file', { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob); form.append('folder', folder); const { data } = await businessAuthClient.post('/media/upload', form); return normalizeResource<{ path: string; url: string }>(data); },
+  async uploadImage(file: LocalImageFile, folder = 'businesses'): Promise<{ path: string; url: string }> { const form = new FormData(); form.append('file', { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob); form.append('folder', folder); const { data } = await businessAuthClient.post('/media/upload', form); const uploaded = normalizeResource<{ path: string; url: string }>(data); return { ...uploaded, url: absoluteMediaUrl(uploaded.url) ?? uploaded.url }; },
   async createLocation(payload: Omit<BusinessLocation, 'id' | 'is_active'> & { is_active?: boolean }): Promise<BusinessLocation> { const { data } = await businessAuthClient.post('/business/locations', payload); return normalizeResource<BusinessLocation>(data, ['location']); },
   async updateLocation(id: number, payload: Partial<BusinessLocation>): Promise<BusinessLocation> { const { data } = await businessAuthClient.patch(`/business/locations/${id}`, payload); return normalizeResource<BusinessLocation>(data, ['location']); },
   async deleteLocation(id: number): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.delete(`/business/locations/${id}`); return normalizeResource<Record<string, unknown>>(data); },
   async onboardingStatus(): Promise<BusinessOnboardingStatus> { const { data } = await businessAuthClient.get('/business/onboarding-status'); return normalizeResource<BusinessOnboardingStatus>(data); },
   async schedule(): Promise<ScheduleDay[]> { const response = await businessAuthClient.get('/schedule', { params: { _t: Date.now() } }); const list = normalizeList<ScheduleDay>(response.data, ['days', 'schedule']); debugEmptyList('business.schedule', response, list); return list; },
   async updateSchedule(days: ScheduleDay[]): Promise<{ ok?: boolean }> { const { data } = await businessAuthClient.put('/schedule', { days }); return normalizeResource<{ ok?: boolean }>(data); },
-  async createService(payload: { name: string; duration_minutes: number; price?: number; currency?: string; location_id?: number }): Promise<BusinessService> { const { data } = await businessAuthClient.post('/services', { ...payload, is_active: true }); return normalizeResource<BusinessService>(data, ['service']); },
-  async updateService(id: number, payload: Partial<BusinessService>): Promise<BusinessService> { const { data } = await businessAuthClient.put(`/services/${id}`, payload); return normalizeResource<BusinessService>(data, ['service']); },
+  async createService(payload: { name: string; description?: string; image_url?: string | null; duration_minutes: number; price?: number; currency?: string; location_id?: number }): Promise<BusinessService> { const { data } = await businessAuthClient.post('/services', { ...payload, is_active: true }); const service = normalizeResource<BusinessService>(data, ['service']); return { ...service, image_url: absoluteMediaUrl(service.image_url) }; },
+  async updateService(id: number, payload: Partial<BusinessService>): Promise<BusinessService> { const { data } = await businessAuthClient.put(`/services/${id}`, payload); const service = normalizeResource<BusinessService>(data, ['service']); return { ...service, image_url: absoluteMediaUrl(service.image_url) }; },
   async deleteService(id: number): Promise<void> { await businessAuthClient.delete(`/services/${id}`); },
-  async createStaff(payload: { name: string; email: string; password: string; phone?: string; location_id?: number }): Promise<BusinessStaff> { const { data } = await businessAuthClient.post('/staff', { ...payload, role: 'staff', is_bookable: true, show_in_public_team: true }); return normalizeResource<BusinessStaff>(data, ['staff', 'user']); },
-  async updateStaff(id: number, payload: Partial<BusinessStaff>): Promise<BusinessStaff> { const { data } = await businessAuthClient.patch(`/staff/${id}`, payload); return normalizeResource<BusinessStaff>(data, ['staff', 'user']); },
+  async createStaff(payload: { name: string; email: string; password: string; phone?: string; avatar_url?: string | null; bio?: string; location_id?: number }): Promise<BusinessStaff> { const { data } = await businessAuthClient.post('/staff', { ...payload, role: 'staff', is_bookable: true, show_in_public_team: true }); const staff = normalizeResource<BusinessStaff>(data, ['staff', 'user']); return { ...staff, avatar_url: absoluteMediaUrl(staff.avatar_url) }; },
+  async updateStaff(id: number, payload: Partial<BusinessStaff>): Promise<BusinessStaff> { const { data } = await businessAuthClient.patch(`/staff/${id}`, payload); const staff = normalizeResource<BusinessStaff>(data, ['staff', 'user']); return { ...staff, avatar_url: absoluteMediaUrl(staff.avatar_url) }; },
   async setStaffActive(id: number, active: boolean): Promise<unknown> { return (await businessAuthClient.patch(`/staff/${id}/${active ? 'activate' : 'deactivate'}`)).data; },
   async staffSchedule(id: number): Promise<{ days: ScheduleDay[] }> { const { data } = await businessAuthClient.get(`/staff/${id}/schedule`, { params: { _t: Date.now() } }); const root = normalizeResource<Record<string, unknown>>(data); return { ...root, days: normalizeList<ScheduleDay>(root.days ?? root, ['days']) }; },
   async updateStaffSchedule(id: number, days: ScheduleDay[]): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.put(`/staff/${id}/schedule`, { days }); return normalizeResource<Record<string, unknown>>(data); },
