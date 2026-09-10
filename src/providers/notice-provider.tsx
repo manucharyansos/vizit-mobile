@@ -111,9 +111,11 @@ export function NoticeProvider({ children }: PropsWithChildren) {
                   </Pressable>
                 ) : null}
               </View>
-              <Pressable accessibilityRole="button" onPress={hideNotice} hitSlop={10} style={({ pressed }) => [styles.close, { opacity: pressed ? 0.55 : 1 }]}>
-                <VizitIcon ios="xmark" android="close" color={theme.muted} size={18} />
-              </Pressable>
+              {!notice.onAction ? (
+                <Pressable accessibilityRole="button" onPress={hideNotice} hitSlop={10} style={({ pressed }) => [styles.close, { opacity: pressed ? 0.55 : 1 }]}>
+                  <VizitIcon ios="xmark" android="close" color={theme.muted} size={18} />
+                </Pressable>
+              ) : null}
               <View style={[styles.accent, { backgroundColor: accent }]} />
             </View>
           </View>
