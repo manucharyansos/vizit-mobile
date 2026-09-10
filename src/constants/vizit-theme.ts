@@ -5,14 +5,14 @@ const shared = {
 
 export const themes = {
   light: {
-    ...shared, background: '#FFFFFF', surface: '#F4F8FB', surfaceRaised: '#FFFFFF', cream: '#EDF4F8', peach: '#D8ECFC', peachSoft: '#EEF7FE',
-    plum: '#378ADD', plumStrong: '#092B46', plumSoft: '#E5F2FD', gold: '#378ADD', goldSoft: '#EAF5FE', text: '#071624', muted: '#58758D',
-    border: '#D5E3EE', map: '#E9F3FA', danger: '#C84252', dangerSoft: '#FCEDEF', success: '#18745A', shadow: '#071624',
+    ...shared, background: '#FFFFFF', surface: '#F7F7F8', surfaceRaised: '#FFFFFF', cream: '#F3F4F6', peach: '#E5E7EB', peachSoft: '#F3F4F6',
+    plum: '#6B7280', plumStrong: '#374151', plumSoft: '#F3F4F6', gold: '#6B7280', goldSoft: '#F3F4F6', text: '#111827', muted: '#6B7280',
+    border: '#E5E7EB', map: '#F3F4F6', danger: '#C84252', dangerSoft: '#FCEDEF', success: '#18745A', shadow: '#111827',
   },
   dark: {
-    ...shared, background: '#071624', surface: '#0E2940', surfaceRaised: '#0B2133', cream: '#102D45', peach: '#174A70', peachSoft: '#0F2D45',
-    plum: '#378ADD', plumStrong: '#E5F3FF', plumSoft: '#123653', gold: '#7DBCF4', goldSoft: '#123653', text: '#F3F8FD', muted: '#7390AA',
-    border: '#173B57', map: '#102D45', danger: '#FF8291', dangerSoft: '#3D1E2A', success: '#68D2AA', shadow: '#020B12',
+    ...shared, background: '#111315', surface: '#1A1D21', surfaceRaised: '#16191D', cream: '#22262B', peach: '#343A40', peachSoft: '#202429',
+    plum: '#9CA3AF', plumStrong: '#F3F4F6', plumSoft: '#2A2E34', gold: '#B4BAC4', goldSoft: '#2A2E34', text: '#F5F5F5', muted: '#9CA3AF',
+    border: '#343A40', map: '#20242A', danger: '#FF8291', dangerSoft: '#3D1E2A', success: '#68D2AA', shadow: '#000000',
   },
 } as const;
 export type ThemeMode = keyof typeof themes;
