@@ -15,32 +15,28 @@ function assertClientAudience(data: { user?: { audience?: unknown } }) {
 
 const stripInternalReference = ({ booking_code: _bookingCode, ...booking }: CabinetBooking): ClientBooking => booking;
 
-async function activateClientSession(token: string) {
-  await guestBookingStore.clearClientBookingReferences();
-  await tokenStore.set('client', token);
-  void synchronizePushDevice('client');
-}
-
-async function clearClientSession() {
-  await Promise.all([guestBookingStore.clearClientBookingReferences(), tokenStore.remove('client')]);
-}
-
 export const clientAccountApi = {
   async login(identity: string, password: string): Promise<ClientUser> {
     const { data } = await clientAuthClient.post('/client/auth/login', { identity, password });
     assertClientAudience(data);
-    await activateClientSession(data.token);
+    await guestBookingStore.clearClientBookingData();
+    await tokenStore.set('client', data.token);
+    void synchronizePushDevice('client');
     return data.user as ClientUser;
   },
   async register(payload: { name: string; email?: string | null; phone?: string | null; password: string; password_confirmation: string }): Promise<ClientUser> {
     const { data } = await clientAuthClient.post('/client/auth/register', payload);
     assertClientAudience(data);
-    await activateClientSession(data.token);
+    await guestBookingStore.clearClientBookingData();
+    await tokenStore.set('client', data.token);
+    void synchronizePushDevice('client');
     return data.user as ClientUser;
   },
   async forgotPassword(email: string) { return (await clientAuthClient.post('/client/auth/forgot-password', { email })).data; },
   async resetPassword(payload: { token: string; email: string; password: string; password_confirmation: string }) { return (await clientAuthClient.post('/client/auth/reset-password', payload)).data; },
   async me(): Promise<ClientUser> {
+    const token = await tokenStore.get('client');
+    if (!token) throw new Error('No client session');
     const { data } = await clientAuthClient.get('/client/auth/me');
     const user = normalizeResource<ClientUser>(data, ['user']);
     if (user.audience && user.audience !== 'client') throw new Error('Invalid client token audience');
@@ -52,11 +48,11 @@ export const clientAccountApi = {
     const upcoming = normalizeList<CabinetBooking>(payload.upcoming, ['upcoming']);
     const past = normalizeList<CabinetBooking>(payload.past, ['past']);
     const raw = [...upcoming, ...past];
-    await guestBookingStore.rememberClientBookingReferences(raw.flatMap((booking) =>
-      typeof booking.booking_code === 'string' && booking.booking_code.trim()
-        ? [{ bookingId: booking.id, code: booking.booking_code }]
-        : [],
-    ));
+    await guestBookingStore.rememberClientBookingReferences(
+      raw
+        .filter((booking) => typeof booking.booking_code === 'string' && booking.booking_code.trim())
+        .map((booking) => ({ bookingId: booking.id, code: booking.booking_code! })),
+    );
     const list = raw.map(stripInternalReference);
     debugEmptyList('client.cabinet.bookings', response, list);
     return list;
@@ -66,19 +62,17 @@ export const clientAccountApi = {
     try {
       return (await clientAuthClient.post('/mobile/account-deletion-request', { reason })).data;
     } finally {
-      await clearClientSession();
+      await guestBookingStore.clearClientBookingData();
+      await tokenStore.remove('client');
     }
   },
   async logout(): Promise<void> {
     try {
       await revokePushDevice('client');
-      try {
-        await clientAuthClient.post('/client/auth/logout');
-      } catch {
-        // Expired or already-revoked sessions are already logged out.
-      }
+      try { await clientAuthClient.post('/client/auth/logout'); } catch { /* Expired or already-revoked sessions are already logged out. */ }
     } finally {
-      await clearClientSession();
+      await guestBookingStore.clearClientBookingData();
+      await tokenStore.remove('client');
     }
   },
 };
