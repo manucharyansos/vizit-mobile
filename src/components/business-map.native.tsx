@@ -9,7 +9,9 @@ type MapKitModule = typeof import('expo-yandex-mapkit');
 export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusiness[]; onSelect: (business: PublicBusiness) => void }) {
   const { locale, mode, theme } = useApp();
   const apiKey = process.env.EXPO_PUBLIC_YANDEX_MAPKIT_API_KEY;
-  const isExpoGo = Constants.expoGoConfig != null;
+  // expoGoConfig can also be present in expo-dev-client. appOwnership === 'expo'
+  // is the reliable Expo Go-only signal in expo-constants.
+  const isExpoGo = Constants.appOwnership === 'expo';
   const [mapKit, setMapKit] = useState<MapKitModule | null>(null);
 
   useEffect(() => {
