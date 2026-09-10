@@ -25,7 +25,7 @@ export default function BusinessLogin() {
   useEffect(() => {
     if (!existingSession.data || redirected.current) return;
     redirected.current = true;
-    router.replace((existingSession.data.needs_onboarding ? '/(business)/admin' : '/(business)/today') as Href);
+    router.replace('/(business)/today' as Href);
   }, [existingSession.data]);
 
   const login = useMutation({
@@ -44,7 +44,7 @@ export default function BusinessLogin() {
     <View style={styles.intro}><View style={[styles.brandMark, { backgroundColor: theme.plum }]}><VizitIcon ios="briefcase.fill" android="business_center" color="#FFFFFF" size={28} /></View><Text style={[styles.brand, { color: theme.gold }]}>VIZIT BUSINESS</Text><Text style={[styles.title, { color: theme.text }]}>{c.title}</Text><Text style={[styles.subtitle, { color: theme.muted }]}>{c.subtitle}</Text></View>
     <View style={[styles.card, { backgroundColor: theme.surfaceRaised, shadowColor: theme.shadow, borderColor: theme.border }]}><TextInput value={email} onChangeText={setEmail} placeholder={c.email} autoCapitalize="none" keyboardType="email-address" placeholderTextColor={theme.muted} style={[styles.field, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]} /><TextInput value={password} onChangeText={setPassword} placeholder={c.password} secureTextEntry placeholderTextColor={theme.muted} style={[styles.field, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]} /><Pressable disabled={!email || !password || login.isPending} onPress={() => login.mutate()} style={({ pressed }) => [styles.button, { backgroundColor: theme.plum, opacity: !email || !password ? 0.45 : pressed ? 0.88 : 1 }]}>{login.isPending ? <ActivityIndicator color="#FFF" /> : <><Text style={styles.buttonText}>{c.submit}</Text><VizitIcon ios="arrow.right" android="arrow_forward" color="#FFFFFF" size={19} /></>}</Pressable></View>
     <Text style={[styles.registerHint, { color: theme.muted }]}>{c.registerHint}</Text>
-    <Pressable onPress={() => router.push('/(business)/register' as Href)} style={[styles.registerButton, { borderColor: theme.plum }]}><VizitIcon ios="building.2.fill" android="domain_add" color={theme.plum} size={19} /><Text style={[styles.registerText, { color: theme.plum }]}>{c.register}</Text></Pressable>
+    <Pressable onPress={() => router.replace('/(business)/register' as Href)} style={[styles.registerButton, { borderColor: theme.plum }]}><VizitIcon ios="building.2.fill" android="domain_add" color={theme.plum} size={19} /><Text style={[styles.registerText, { color: theme.plum }]}>{c.register}</Text></Pressable>
   </SafeAreaView>;
 }
 
