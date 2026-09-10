@@ -15,8 +15,6 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
 
   useEffect(() => {
     let active = true;
-    setMapError(null);
-
     if (!apiKey || isExpoGo) return () => { active = false; };
 
     void import('expo-yandex-mapkit')
