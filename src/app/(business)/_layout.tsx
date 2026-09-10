@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { Href, Redirect, Tabs, useSegments } from 'expo-router';
-import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VizitIcon } from '@/components/vizit-icon';
@@ -14,33 +13,24 @@ export default function BusinessLayout() {
   const segments = useSegments();
   const routeName = segments[segments.length - 1];
   const isAuthScreen = routeName === 'login' || routeName === 'register';
-  const [hasStoredToken, setHasStoredToken] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    setHasStoredToken(null);
-    tokenStore
-      .get('business')
-      .then((token) => {
-        if (active) setHasStoredToken(Boolean(token));
-      })
-      .catch(() => {
-        if (active) setHasStoredToken(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [routeName]);
+  const storedToken = useQuery({
+    queryKey: ['business-token-guard', routeName],
+    queryFn: () => tokenStore.get('business'),
+    retry: false,
+    staleTime: 0,
+  });
+  const hasStoredToken = Boolean(storedToken.data);
 
   const session = useQuery({
     queryKey: ['business-session-guard'],
     queryFn: businessApi.me,
-    enabled: hasStoredToken === true,
+    enabled: storedToken.isSuccess && hasStoredToken,
     retry: false,
     staleTime: 0,
   });
 
-  if (hasStoredToken === null || (hasStoredToken && session.isLoading)) {
+  if (storedToken.isLoading || (hasStoredToken && session.isLoading)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}>
         <ActivityIndicator color={theme.plum} />
@@ -48,7 +38,7 @@ export default function BusinessLayout() {
     );
   }
 
-  const authenticated = hasStoredToken === true && session.isSuccess;
+  const authenticated = hasStoredToken && session.isSuccess;
 
   if (!isAuthScreen && !authenticated) {
     return <Redirect href={'/(business)/login' as Href} />;
