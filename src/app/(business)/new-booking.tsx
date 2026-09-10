@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalendarDatePicker } from '@/components/calendar-date-picker';
@@ -51,22 +51,13 @@ export default function NewBooking() {
   const effectiveLocationId = locationId ?? (locations.length === 1 ? locations[0]?.id : undefined);
   const visibleServices = useMemo(() => (services.data ?? []).filter((item) => item.is_active && (!effectiveLocationId || item.location_id == null || item.location_id === effectiveLocationId)), [effectiveLocationId, services.data]);
   const visibleStaff = useMemo(() => (staff.data ?? []).filter((item) => item.is_active && item.is_bookable !== false && (!effectiveLocationId || item.location_id == null || item.location_id === effectiveLocationId)), [effectiveLocationId, staff.data]);
-
-  useEffect(() => {
-    if (serviceId && !visibleServices.some((item) => item.id === serviceId)) {
-      setServiceId(undefined);
-      setSelectedStart(undefined);
-    }
-    if (staffId && !visibleStaff.some((item) => item.id === staffId)) {
-      setStaffId(undefined);
-      setSelectedStart(undefined);
-    }
-  }, [serviceId, staffId, visibleServices, visibleStaff]);
+  const effectiveServiceId = serviceId && visibleServices.some((item) => item.id === serviceId) ? serviceId : undefined;
+  const effectiveStaffId = staffId && visibleStaff.some((item) => item.id === staffId) ? staffId : undefined;
 
   const slots = useQuery({
-    queryKey: ['business-availability', form.date, serviceId, staffId, effectiveLocationId],
-    queryFn: () => availabilityApi.slots({ date: form.date, service_id: serviceId!, staff_id: staffId!, location_id: effectiveLocationId }),
-    enabled: Boolean(serviceId && staffId),
+    queryKey: ['business-availability', form.date, effectiveServiceId, effectiveStaffId, effectiveLocationId],
+    queryFn: () => availabilityApi.slots({ date: form.date, service_id: effectiveServiceId!, staff_id: effectiveStaffId!, location_id: effectiveLocationId }),
+    enabled: Boolean(effectiveServiceId && effectiveStaffId),
     retry: false,
     refetchOnMount: 'always',
     refetchInterval: 10_000,
@@ -75,14 +66,14 @@ export default function NewBooking() {
   const dayBookings = useQuery({
     queryKey: ['calendar', form.date],
     queryFn: () => businessApi.calendar(form.date, form.date),
-    enabled: Boolean(staffId),
+    enabled: Boolean(effectiveStaffId),
     retry: false,
     refetchOnMount: 'always',
     refetchInterval: 10_000,
     staleTime: 0,
   });
 
-  const busyBookings = useMemo(() => (dayBookings.data ?? []).filter((booking) => bookingStaffId(booking) === staffId && !terminalStatuses.has(booking.status)), [dayBookings.data, staffId]);
+  const busyBookings = useMemo(() => (dayBookings.data ?? []).filter((booking) => bookingStaffId(booking) === effectiveStaffId && !terminalStatuses.has(booking.status)), [dayBookings.data, effectiveStaffId]);
 
   const schedule = useMemo<ScheduleItem[]>(() => {
     const busyRanges = busyBookings.map((booking) => ({
@@ -99,18 +90,15 @@ export default function NewBooking() {
     return [...free, ...busy].sort((a, b) => a.start - b.start || (a.type === 'busy' ? -1 : 1));
   }, [busyBookings, locale, slots.data]);
 
-  useEffect(() => {
-    if (selectedStart && schedule.length && !schedule.some((item) => item.type === 'free' && item.slot.starts_at === selectedStart)) setSelectedStart(undefined);
-  }, [selectedStart, schedule]);
-
-  const valid = Boolean(serviceId && staffId && selectedStart && (locations.length <= 1 || effectiveLocationId) && form.name.trim().length > 1 && form.phone.trim().length > 3);
+  const effectiveSelectedStart = selectedStart && schedule.some((item) => item.type === 'free' && item.slot.starts_at === selectedStart) ? selectedStart : undefined;
+  const valid = Boolean(effectiveServiceId && effectiveStaffId && effectiveSelectedStart && (locations.length <= 1 || effectiveLocationId) && form.name.trim().length > 1 && form.phone.trim().length > 3);
   const anyLoadError = settings.isError || services.isError || staff.isError || clients.isError;
   const firstLoadError = settings.error ?? services.error ?? staff.error ?? clients.error;
 
   const create = useMutation({
     mutationFn: () => businessApi.createBooking({
-      service_id: serviceId!, staff_id: staffId!, location_id: effectiveLocationId,
-      starts_at: selectedStart!.replace('T', ' ').slice(0, 16),
+      service_id: effectiveServiceId!, staff_id: effectiveStaffId!, location_id: effectiveLocationId,
+      starts_at: effectiveSelectedStart!.replace('T', ' ').slice(0, 16),
       client_name: form.name.trim(), client_phone: form.phone.trim(), client_email: form.email.trim() || undefined,
       client_id: clientId, notes: form.notes.trim() || undefined,
     }),
@@ -142,10 +130,10 @@ export default function NewBooking() {
   const showBusy = (booking: CalendarBooking) => {
     const name = booking.client_name ?? booking.customer_name ?? booking.client?.name ?? '—';
     const phone = booking.client_phone ?? booking.client?.phone ?? '';
-    const service = booking.service?.name ?? '—';
+    const serviceName = booking.service?.name ?? '—';
     const employee = booking.staff?.name ?? '—';
     const range = `${formatApiTime(booking.starts_at, locale)}–${formatApiTime(booking.ends_at, locale)}`;
-    Alert.alert(c.occupiedTitle, `${range}\n${c.customer}: ${name}${phone ? ` · ${phone}` : ''}\n${service} · ${employee}\n${c.status}: ${booking.status}${booking.notes ? `\n${booking.notes}` : ''}`, [{ text: c.close }]);
+    Alert.alert(c.occupiedTitle, `${range}\n${c.customer}: ${name}${phone ? ` · ${phone}` : ''}\n${serviceName} · ${employee}\n${c.status}: ${booking.status}${booking.notes ? `\n${booking.notes}` : ''}`, [{ text: c.close }]);
   };
 
   const input = (key: 'name' | 'phone' | 'email' | 'notes', placeholder: string, keyboardType?: 'default' | 'phone-pad' | 'email-address') => (
@@ -163,16 +151,16 @@ export default function NewBooking() {
 
     {locations.length > 1 ? <><Text style={[styles.label, { color: theme.text }]}>{c.location}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}>{locations.map((location) => <Choice key={location.id} selected={effectiveLocationId === location.id} title={location.name || location.address || `#${location.id}`} onPress={() => selectLocation(location.id)} />)}</ScrollView></> : null}
 
-    <Text style={[styles.label, { color: theme.text }]}>{c.service}</Text><View style={styles.chips}>{visibleServices.map((item) => <Choice key={item.id} selected={serviceId === item.id} title={item.name} onPress={() => { setServiceId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedStart(undefined); }} />)}</View>
+    <Text style={[styles.label, { color: theme.text }]}>{c.service}</Text><View style={styles.chips}>{visibleServices.map((item) => <Choice key={item.id} selected={effectiveServiceId === item.id} title={item.name} onPress={() => { setServiceId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedStart(undefined); }} />)}</View>
 
-    <Text style={[styles.label, { color: theme.text }]}>{c.staff}</Text><View style={styles.chips}>{visibleStaff.map((item) => <Choice key={item.id} selected={staffId === item.id} title={item.name} onPress={() => { setStaffId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedStart(undefined); }} />)}</View>
+    <Text style={[styles.label, { color: theme.text }]}>{c.staff}</Text><View style={styles.chips}>{visibleStaff.map((item) => <Choice key={item.id} selected={effectiveStaffId === item.id} title={item.name} onPress={() => { setStaffId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedStart(undefined); }} />)}</View>
 
     <Text style={[styles.label, { color: theme.text }]}>{c.client}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}><Choice selected={clientId == null} title={c.newClient} onPress={newClient} />{clients.data?.slice(0, 30).map((item) => <Pressable key={item.id} onPress={() => selectClient(item)} style={[styles.clientChip, { borderColor: clientId === item.id ? theme.plum : theme.border, backgroundColor: clientId === item.id ? theme.plumSoft : theme.surfaceRaised }]}><View style={[styles.clientAvatar, { backgroundColor: theme.plum }]}><Text style={styles.clientInitial}>{item.name.slice(0, 1).toUpperCase()}</Text></View><Text numberOfLines={1} style={{ color: theme.text, fontWeight: '800', maxWidth: 110 }}>{item.name}</Text></Pressable>)}</ScrollView>
 
     {input('name', c.name)}{input('phone', c.phone, 'phone-pad')}{input('email', c.email, 'email-address')}
     <Text style={[styles.label, { color: theme.text }]}>{c.date}</Text><CalendarDatePicker value={form.date} onChange={selectDate} />
     <View style={styles.timeHeader}><Text style={[styles.label, { color: theme.text }]}>{c.time}</Text><View style={styles.legend}><View style={[styles.dot, { backgroundColor: theme.success }]} /><Text style={{ color: theme.muted, fontSize: 11 }}>{c.available}</Text><View style={[styles.dot, { backgroundColor: theme.danger }]} /><Text style={{ color: theme.muted, fontSize: 11 }}>{c.occupied}</Text></View></View>
-    {!serviceId || !staffId ? <Text style={{ color: theme.muted }}>{c.chooseFirst}</Text> : timesLoading ? <ActivityIndicator color={theme.plum} /> : timesError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.slotsError}</Text><Pressable onPress={() => void Promise.all([slots.refetch(), dayBookings.refetch()])}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : schedule.length ? <View style={styles.slotGrid}>{schedule.map((item) => item.type === 'free' ? <FreeSlot key={item.key} slot={item.slot} selected={selectedStart === item.slot.starts_at} label={c.recommended} locale={locale} onPress={() => setSelectedStart(item.slot.starts_at)} /> : <BusySlot key={item.key} booking={item.booking} locale={locale} onPress={() => showBusy(item.booking)} />)}</View> : <Text style={{ color: theme.muted }}>{c.noSlots}</Text>}
+    {!effectiveServiceId || !effectiveStaffId ? <Text style={{ color: theme.muted }}>{c.chooseFirst}</Text> : timesLoading ? <ActivityIndicator color={theme.plum} /> : timesError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.slotsError}</Text><Pressable onPress={() => void Promise.all([slots.refetch(), dayBookings.refetch()])}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : schedule.length ? <View style={styles.slotGrid}>{schedule.map((item) => item.type === 'free' ? <FreeSlot key={item.key} slot={item.slot} selected={effectiveSelectedStart === item.slot.starts_at} label={c.recommended} locale={locale} onPress={() => setSelectedStart(item.slot.starts_at)} /> : <BusySlot key={item.key} booking={item.booking} locale={locale} onPress={() => showBusy(item.booking)} />)}</View> : <Text style={{ color: theme.muted }}>{c.noSlots}</Text>}
     {input('notes', c.notes)}
     <Pressable disabled={!valid || create.isPending || anyLoadError} onPress={() => create.mutate()} style={[styles.primary, { backgroundColor: theme.plum, opacity: valid && !anyLoadError ? 1 : 0.4 }]}>{create.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryText}>{c.save}</Text>}</Pressable>
   </ScrollView></SafeAreaView>;
