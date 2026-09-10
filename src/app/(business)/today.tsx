@@ -13,13 +13,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "@/providers/app-provider";
 import { businessApi, CalendarBooking } from "@/services/api/business";
 import { tokenStore } from "@/services/api/client";
+import { localDateKey, formatApiTime } from "@/services/date-time";
 import { VizitIcon } from "@/components/vizit-icon";
 
-const today = () => {
-  const current = new Date();
-  const offset = current.getTimezoneOffset() * 60000;
-  return new Date(current.getTime() - offset).toISOString().slice(0, 10);
-};
 const copy = {
   hy: { title: "Այսօրվա օրացույց", empty: "Այսօր ամրագրումներ չկան", client: "Հաճախորդ", confirm: "Հաստատել", done: "Ավարտված", noShow: "Չներկայացավ", cancel: "Չեղարկել", add: "Նոր ամրագրում", logout: "Դուրս գալ", delete: "Ջնջել հաշիվը", deleteConfirm: "Ուղարկե՞լ բիզնես հաշվի և տվյալների ջնջման հայտը։", auth: "Մուտք գործիր բիզնես հաշվով", loadError: "Չհաջողվեց բեռնել օրացույցը", retry: "Կրկին փորձել" },
   ru: { title: "Календарь на сегодня", empty: "На сегодня записей нет", client: "Клиент", confirm: "Подтвердить", done: "Завершено", noShow: "Не пришёл", cancel: "Отменить", add: "Новая запись", logout: "Выйти", delete: "Удалить аккаунт", deleteConfirm: "Отправить запрос на удаление бизнес-аккаунта и данных?", auth: "Войдите в аккаунт бизнеса", loadError: "Не удалось загрузить календарь", retry: "Повторить" },
@@ -29,9 +25,15 @@ export default function TodayScreen() {
   const { locale, theme } = useApp();
   const c = copy[locale];
   const queryClient = useQueryClient();
-  const date = today();
-  const me = useQuery({ queryKey: ["business-me"], queryFn: businessApi.me, retry: false });
-  const bookings = useQuery({ queryKey: ["calendar", date], queryFn: () => businessApi.calendar(`${date} 00:00:00`, `${date} 23:59:59`), enabled: me.isSuccess, retry: false });
+  const date = localDateKey();
+  const me = useQuery({ queryKey: ["business-me"], queryFn: businessApi.me, retry: false, refetchOnMount: "always" });
+  const bookings = useQuery({
+    queryKey: ["calendar", date],
+    queryFn: () => businessApi.calendar(date, date),
+    enabled: me.isSuccess,
+    retry: false,
+    refetchOnMount: "always",
+  });
   const status = useMutation({
     mutationFn: ({ id, action }: { id: number; action: "confirm" | "done" | "no-show" | "cancel" }) => businessApi.updateStatus(id, action),
     onSuccess: async () => {
@@ -51,7 +53,7 @@ export default function TodayScreen() {
   ]);
   if (me.isLoading) return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><ActivityIndicator color={theme.plum} /></SafeAreaView>;
   if (me.isError) return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><Text style={{ color: theme.muted }}>{c.auth}</Text><Pressable onPress={async () => { await tokenStore.remove("business"); router.replace("/(business)/login"); }} style={[styles.primary, { backgroundColor: theme.plum }]}><Text style={styles.white}>{c.auth}</Text></Pressable></SafeAreaView>;
-  const dateLabel = new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T12:00:00`));
+  const dateLabel = new Intl.DateTimeFormat(locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : 'en-US', { weekday: "long", day: "numeric", month: "long", timeZone: 'Asia/Yerevan' }).format(new Date(`${date}T12:00:00+04:00`));
   return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
     <View style={styles.header}>
       <View style={{ flex: 1 }}><Text style={[styles.eyebrow, { color: theme.gold }]}>VIZIT BUSINESS</Text><Text style={[styles.title, { color: theme.text }]}>{c.title}</Text><Text style={{ color: theme.muted, marginTop: 4 }}>{me.data?.name}</Text></View>
@@ -59,13 +61,13 @@ export default function TodayScreen() {
       <Pressable accessibilityLabel={c.logout} onPress={logout} style={[styles.logout, { backgroundColor: theme.plumSoft }]}><VizitIcon ios="rectangle.portrait.and.arrow.right" android="logout" color={theme.plum} size={19} /></Pressable>
     </View>
     <View style={[styles.dateCard, { backgroundColor: theme.plumSoft }]}><View style={[styles.dateIcon, { backgroundColor: theme.surface }]}><VizitIcon ios="calendar" android="calendar_month" color={theme.plum} size={23} /></View><Text style={[styles.dateText, { color: theme.plumStrong }]}>{dateLabel}</Text><View style={[styles.countBadge, { backgroundColor: theme.plum }]}><Text style={styles.countText}>{bookings.data?.length ?? 0}</Text></View></View>
-    {bookings.isLoading ? <ActivityIndicator color={theme.plum} /> : bookings.isError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: "800" }}>{c.loadError}</Text><Pressable onPress={() => bookings.refetch()}><Text style={{ color: theme.plum, fontWeight: "900" }}>{c.retry}</Text></Pressable></View> : <FlatList data={bookings.data} keyExtractor={(item) => String(item.id)} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false} ListEmptyComponent={<View style={styles.emptyWrap}><VizitIcon ios="calendar.badge.checkmark" android="event_available" color={theme.muted} size={42} /><Text style={[styles.empty, { color: theme.muted }]}>{c.empty}</Text></View>} renderItem={({ item }) => <BookingCard item={item} onStatus={(action) => status.mutate({ id: item.id, action })} labels={c} />} />}
+    {bookings.isLoading ? <ActivityIndicator color={theme.plum} /> : bookings.isError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: "800" }}>{c.loadError}</Text><Pressable onPress={() => bookings.refetch()}><Text style={{ color: theme.plum, fontWeight: "900" }}>{c.retry}</Text></Pressable></View> : <FlatList data={bookings.data} keyExtractor={(item) => String(item.id)} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false} ListEmptyComponent={<View style={styles.emptyWrap}><VizitIcon ios="calendar.badge.checkmark" android="event_available" color={theme.muted} size={42} /><Text style={[styles.empty, { color: theme.muted }]}>{c.empty}</Text></View>} renderItem={({ item }) => <BookingCard item={item} onStatus={(action) => status.mutate({ id: item.id, action })} labels={c} locale={locale} />} />}
   </SafeAreaView>;
 }
-function BookingCard({ item, onStatus, labels }: { item: CalendarBooking; onStatus: (action: "confirm" | "done" | "no-show" | "cancel") => void; labels: typeof copy.hy }) {
+function BookingCard({ item, onStatus, labels, locale }: { item: CalendarBooking; onStatus: (action: "confirm" | "done" | "no-show" | "cancel") => void; labels: typeof copy.hy; locale: 'hy' | 'ru' | 'en' }) {
   const { theme } = useApp();
-  const starts = item.starts_at?.slice(11, 16);
-  const ends = item.ends_at?.slice(11, 16);
+  const starts = formatApiTime(item.starts_at, locale);
+  const ends = formatApiTime(item.ends_at, locale);
   const terminal = ["cancelled", "done", "completed", "no_show"].includes(item.status);
   return <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
     <View style={styles.cardTop}><View style={[styles.timeBadge, { backgroundColor: theme.plumSoft }]}><Text style={[styles.time, { color: theme.plum }]}>{starts}</Text><Text style={[styles.timeEnd, { color: theme.muted }]}>– {ends}</Text></View><View style={[styles.statusBadge, { backgroundColor: theme.goldSoft }]}><Text style={[styles.status, { color: theme.gold }]}>{item.status}</Text></View></View>
