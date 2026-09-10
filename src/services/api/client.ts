@@ -13,8 +13,8 @@ export const tokenStore = {
     appQueryClient.clear();
     await SecureStore.setItemAsync(keys[audience], token);
   },
-  async remove(audience: TokenAudience) {
-    appQueryClient.clear();
+  async remove(audience: TokenAudience, clearCache = true) {
+    if (clearCache) appQueryClient.clear();
     await SecureStore.deleteItemAsync(keys[audience]);
   },
 };
@@ -32,7 +32,10 @@ export function createApiClient(audience?: TokenAudience) {
   client.interceptors.response.use(
     (response) => response,
     async (error) => {
-      if (audience && error?.response?.status === 401) await tokenStore.remove(audience);
+      // Do not clear React Query from inside the response interceptor. Clearing the
+      // query that is currently rejecting can recreate it immediately and cause an
+      // endless loading loop on auth screens. Explicit login/logout still clears cache.
+      if (audience && error?.response?.status === 401) await tokenStore.remove(audience, false);
       return Promise.reject(error);
     },
   );
