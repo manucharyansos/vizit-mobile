@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { VizitIcon } from '@/components/vizit-icon';
 import { useApp } from '@/providers/app-provider';
 import { businessApi, ScheduleDay } from '@/services/api/business';
 import { apiErrorMessage } from '@/services/api/client';
+import { safeBack } from '@/services/navigation';
 
 const defaultDay = (weekday: number): ScheduleDay => ({ weekday, is_closed: weekday === 7, start: weekday === 7 ? null : '09:00', end: weekday === 7 ? null : '18:00', break_start: null, break_end: null });
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -49,34 +49,37 @@ export default function WorkingHoursScreen() {
   const c = copy[locale];
   const cache = useQueryClient();
   const query = useQuery({ queryKey: ['business-schedule'], queryFn: businessApi.schedule, retry: false });
-  const [days, setDays] = useState<ScheduleDay[]>(() => completeWeek(undefined));
+  const [edits, setEdits] = useState<Record<number, Partial<ScheduleDay>>>({});
 
-  useEffect(() => {
-    if (query.data) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDays(completeWeek(query.data));
-    }
-  }, [query.data]);
+  const baseDays = useMemo(() => query.isSuccess ? completeWeek(query.data) : completeWeek(undefined), [query.data, query.isSuccess]);
+  const days = useMemo(() => baseDays.map((day) => ({ ...day, ...(edits[day.weekday] ?? {}) })), [baseDays, edits]);
 
   const valid = useMemo(() => days.every((day) => {
     if (day.is_closed) return true;
-    if (!day.start || !day.end || !timePattern.test(day.start) || !timePattern.test(day.end)) return false;
+    if (!day.start || !day.end || !timePattern.test(day.start) || !timePattern.test(day.end) || day.end <= day.start) return false;
     const breaks = [day.break_start, day.break_end].filter(Boolean) as string[];
-    return breaks.length === 0 || (breaks.length === 2 && breaks.every((time) => timePattern.test(time)));
+    if (breaks.length === 0) return true;
+    return breaks.length === 2
+      && breaks.every((time) => timePattern.test(time))
+      && String(day.break_start) < String(day.break_end)
+      && String(day.break_start) >= String(day.start)
+      && String(day.break_end) <= String(day.end);
   }), [days]);
 
-  const updateDay = (weekday: number, patch: Partial<ScheduleDay>) => setDays((current) => current.map((day) => day.weekday === weekday ? { ...day, ...patch } : day));
+  const updateDay = (weekday: number, patch: Partial<ScheduleDay>) => setEdits((current) => ({ ...current, [weekday]: { ...(current[weekday] ?? {}), ...patch } }));
   const save = useMutation({
     mutationFn: () => businessApi.updateSchedule(days.map((day) => ({ ...day, start: day.is_closed ? null : day.start, end: day.is_closed ? null : day.end, break_start: day.is_closed ? null : day.break_start, break_end: day.is_closed ? null : day.break_end }))),
     onSuccess: async () => {
       await Promise.all([
         cache.invalidateQueries({ queryKey: ['business-schedule'] }),
         cache.invalidateQueries({ queryKey: ['business-onboarding'] }),
+        cache.invalidateQueries({ queryKey: ['business-availability'] }),
       ]);
       await Promise.all([
         cache.refetchQueries({ queryKey: ['business-schedule'], type: 'active' }),
         cache.refetchQueries({ queryKey: ['business-onboarding'], type: 'active' }),
       ]);
+      setEdits({});
       Alert.alert(c.saved);
     },
     onError: (error) => Alert.alert(c.error, apiErrorMessage(error)),
@@ -85,7 +88,7 @@ export default function WorkingHoursScreen() {
   return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={[styles.back, { borderColor: theme.border }]}><VizitIcon ios="chevron.left" android="arrow_back" color={theme.text} size={21} /></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => safeBack('/(business)/more')} style={[styles.back, { borderColor: theme.border }]}><VizitIcon ios="chevron.left" android="arrow_back" color={theme.text} size={21} /></Pressable>
         <View style={styles.headerText}><Text style={[styles.title, { color: theme.text }]}>{c.title}</Text><Text style={[styles.subtitle, { color: theme.muted }]}>{c.subtitle}</Text></View>
       </View>
 
@@ -93,7 +96,7 @@ export default function WorkingHoursScreen() {
       {query.isError ? <View style={[styles.error, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.loadError}</Text><Pressable onPress={() => query.refetch()}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : null}
 
       {!query.isLoading && !query.isError ? days.map((day, index) => <View key={day.weekday} style={[styles.card, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
-        <View style={styles.dayHeader}><View style={{ flex: 1 }}><Text style={[styles.dayName, { color: theme.text }]}>{c.days[index]}</Text><Text style={[styles.state, { color: day.is_closed ? theme.muted : theme.success }]}>{day.is_closed ? c.closed : c.open}</Text></View><Switch value={!day.is_closed} onValueChange={(open) => updateDay(day.weekday, { is_closed: !open, start: open ? (day.start ?? '09:00') : null, end: open ? (day.end ?? '18:00') : null })} trackColor={{ false: theme.border, true: theme.plum }} /></View>
+        <View style={styles.dayHeader}><View style={{ flex: 1 }}><Text style={[styles.dayName, { color: theme.text }]}>{c.days[index]}</Text><Text style={[styles.state, { color: day.is_closed ? theme.muted : theme.success }]}>{day.is_closed ? c.closed : c.open}</Text></View><Switch value={!day.is_closed} onValueChange={(open) => updateDay(day.weekday, { is_closed: !open, start: open ? (day.start ?? '09:00') : null, end: open ? (day.end ?? '18:00') : null, break_start: open ? day.break_start : null, break_end: open ? day.break_end : null })} trackColor={{ false: theme.border, true: theme.plum }} /></View>
         {!day.is_closed ? <>
           <View style={styles.row}><TimeField label={c.from} value={day.start ?? ''} onChange={(start) => updateDay(day.weekday, { start })} /><TimeField label={c.to} value={day.end ?? ''} onChange={(end) => updateDay(day.weekday, { end })} /></View>
           <View style={styles.row}><TimeField label={c.breakFrom} value={day.break_start ?? ''} onChange={(break_start) => updateDay(day.weekday, { break_start: break_start || null })} optional /><TimeField label={c.breakTo} value={day.break_end ?? ''} onChange={(break_end) => updateDay(day.weekday, { break_end: break_end || null })} optional /></View>
