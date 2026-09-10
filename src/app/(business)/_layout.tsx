@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { Href, Redirect, Tabs, useSegments } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { Href, Tabs, router, useSegments } from 'expo-router';
+import { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VizitIcon } from '@/components/vizit-icon';
 import { useApp } from '@/providers/app-provider';
@@ -14,39 +13,34 @@ export default function BusinessLayout() {
   const routeName = segments[segments.length - 1];
   const isAuthScreen = routeName === 'login' || routeName === 'register';
 
-  const storedToken = useQuery({
-    queryKey: ['business-token-guard'],
-    queryFn: () => tokenStore.get('business'),
-    retry: false,
-    staleTime: 0,
-  });
-  const hasStoredToken = Boolean(storedToken.data);
+  useEffect(() => {
+    let cancelled = false;
 
-  const session = useQuery({
-    queryKey: ['business-session-guard'],
-    queryFn: businessApi.me,
-    enabled: storedToken.isSuccess && hasStoredToken,
-    retry: false,
-    staleTime: 0,
-  });
+    void (async () => {
+      const token = await tokenStore.get('business').catch(() => null);
+      if (cancelled) return;
 
-  if (storedToken.isLoading || (hasStoredToken && session.isLoading)) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}>
-        <ActivityIndicator color={theme.plum} />
-      </View>
-    );
-  }
+      if (!token) {
+        if (!isAuthScreen) router.replace('/(business)/login' as Href);
+        return;
+      }
 
-  const authenticated = hasStoredToken && session.isSuccess;
+      if (!isAuthScreen) return;
 
-  if (!isAuthScreen && !authenticated) {
-    return <Redirect href={'/(business)/login' as Href} />;
-  }
+      try {
+        const user = await businessApi.me();
+        if (!cancelled) {
+          router.replace((user.needs_onboarding ? '/(business)/admin' : '/(business)/today') as Href);
+        }
+      } catch {
+        // Invalid/stale token is cleared by the API auth interceptor; stay on auth screen.
+      }
+    })();
 
-  if (isAuthScreen && authenticated) {
-    return <Redirect href={(session.data?.needs_onboarding ? '/(business)/admin' : '/(business)/today') as Href} />;
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthScreen, routeName]);
 
   const labels = {
     hy: ['Գլխավոր', 'Օրացույց', 'Հաճախորդներ', 'Ավելին'],
