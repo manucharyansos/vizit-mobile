@@ -9,14 +9,13 @@ type MapKitModule = typeof import('expo-yandex-mapkit');
 export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusiness[]; onSelect: (business: PublicBusiness) => void }) {
   const { locale, mode, theme } = useApp();
   const apiKey = process.env.EXPO_PUBLIC_YANDEX_MAPKIT_API_KEY;
-  // expoGoConfig is populated by Expo Go. appOwnership/executionEnvironment are
-  // not suitable here because a development client can share StoreClient-style
-  // execution metadata while still supporting custom native modules.
   const isExpoGo = Constants.expoGoConfig != null;
   const [mapKit, setMapKit] = useState<MapKitModule | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
+    setMapError(null);
 
     if (!apiKey || isExpoGo) return () => { active = false; };
 
@@ -26,8 +25,12 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
         if (active) setMapKit(module);
       })
       .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
         if (__DEV__) console.warn('[Vizit MapKit] business map unavailable', error);
-        if (active) setMapKit(null);
+        if (active) {
+          setMapKit(null);
+          setMapError(message);
+        }
       });
 
     return () => { active = false; };
@@ -53,11 +56,17 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
           : locale === 'ru'
             ? 'Добавьте ключ Yandex MapKit Mobile SDK.'
             : 'Add the Yandex MapKit Mobile SDK key.'
-        : locale === 'hy'
-          ? 'Քարտեզը նախապատրաստվում է…'
-          : locale === 'ru'
-            ? 'Карта загружается…'
-            : 'Preparing the map…';
+        : mapError
+          ? locale === 'hy'
+            ? `Yandex MapKit-ը չբացվեց․ ${mapError}`
+            : locale === 'ru'
+              ? `Yandex MapKit не открылся: ${mapError}`
+              : `Yandex MapKit failed to open: ${mapError}`
+          : locale === 'hy'
+            ? 'Քարտեզը նախապատրաստվում է…'
+            : locale === 'ru'
+              ? 'Карта загружается…'
+              : 'Preparing the map…';
 
     return (
       <View style={[styles.fallback, { backgroundColor: theme.map }]}>
