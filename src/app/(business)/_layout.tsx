@@ -23,6 +23,8 @@ export default function BusinessLayout() {
 
   return (
     <Tabs
+      initialRouteName="dashboard"
+      backBehavior="none"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.plum,
