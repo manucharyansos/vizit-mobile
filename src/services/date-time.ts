@@ -117,9 +117,9 @@ export function localDateKeyFromApi(value?: string | null): string | null {
 }
 
 export function localDateTimeInputFromApi(value: string): string {
-  if (!hasExplicitZone(value)) return value.replace(' ', 'T').slice(0, 16);
+  if (!hasExplicitZone(value)) return value.replace('T', ' ').slice(0, 16);
   const date = apiDateToLocal(value);
-  if (!date) return value.slice(0, 16);
+  if (!date) return value.replace('T', ' ').slice(0, 16);
   const parts = dateTimePartsInAppZone(date);
-  return `${parts.year}-${two(parts.month)}-${two(parts.day)}T${two(parts.hour)}:${two(parts.minute)}`;
+  return `${parts.year}-${two(parts.month)}-${two(parts.day)} ${two(parts.hour)}:${two(parts.minute)}`;
 }
