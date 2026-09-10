@@ -39,15 +39,17 @@ export function normalizeList<T>(payload: unknown, aliases: string[] = []): T[] 
 }
 
 /**
- * Extracts a single resource from root, { data: resource }, or named envelopes
- * such as { user: ... } / { data: { location: ... } } without assuming one
- * backend response shape.
+ * Extracts a single resource from root, { data: resource }, nested
+ * { data: { data: resource } }, or named envelopes such as { user: ... }.
+ * When aliases are supplied but the backend uses only the standard Laravel
+ * `data` envelope, the deepest data object is returned as a safe fallback.
  */
 export function normalizeResource<T>(payload: unknown, aliases: string[] = []): T {
   if (!isRecord(payload)) return payload as T;
 
   const queue: UnknownRecord[] = [payload];
   const seen = new Set<UnknownRecord>();
+  let dataFallback: UnknownRecord | undefined;
 
   while (queue.length) {
     const current = queue.shift()!;
@@ -61,12 +63,17 @@ export function normalizeResource<T>(payload: unknown, aliases: string[] = []): 
 
     const data = current.data;
     if (isRecord(data)) {
-      if (!aliases.length) return data as T;
+      dataFallback = data;
+      if (!aliases.length) {
+        let deepest = data;
+        while (isRecord(deepest.data)) deepest = deepest.data;
+        return deepest as T;
+      }
       queue.push(data);
     }
   }
 
-  return payload as T;
+  return (dataFallback ?? payload) as T;
 }
 
 /** Development-only diagnostics for the exact URL/status/payload behind an
