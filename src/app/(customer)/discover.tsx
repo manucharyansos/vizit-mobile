@@ -131,6 +131,9 @@ export default function DiscoverScreen() {
     [openedAt],
   );
   const displayName = me.data?.name?.split(" ")[0] ?? c.guest;
+  const featureBackground = mode === "dark" ? "#2A2E34" : "#4B5563";
+  const featureRaised = mode === "dark" ? "#3B4047" : "#6B7280";
+
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={["top"]}>
       <FlatList
@@ -142,11 +145,9 @@ export default function DiscoverScreen() {
           <>
             <View style={styles.header}>
               <View style={styles.brandWrap}>
-                <Image
-                  source={require("../../../assets/images/vizit-brand-mark.png")}
-                  style={styles.logo}
-                  contentFit="contain"
-                />
+                <View style={[styles.logoMark, { backgroundColor: theme.plum }]}>
+                  <Text style={styles.logoLetter}>V</Text>
+                </View>
                 <Text style={[styles.brand, { color: theme.text }]}>Vizit</Text>
               </View>
               <View style={styles.headerActions}>
@@ -250,7 +251,7 @@ export default function DiscoverScreen() {
             ) : nextBooking ? (
               <Pressable
                 onPress={() => router.push("/(customer)/bookings")}
-                style={styles.nextCard}
+                style={[styles.nextCard, { backgroundColor: featureBackground }]}
               >
                 <View style={styles.nextInfo}>
                   <Text style={styles.nextBusiness}>
@@ -262,7 +263,7 @@ export default function DiscoverScreen() {
                       "—"}
                   </Text>
                 </View>
-                <View style={styles.nextTime}>
+                <View style={[styles.nextTime, { backgroundColor: featureRaised }]}>
                   <Text style={styles.nextDay}>
                     {new Intl.DateTimeFormat(locale, {
                       weekday: "short",
@@ -276,7 +277,7 @@ export default function DiscoverScreen() {
             ) : (
               <Pressable
                 onPress={() => router.push("/map")}
-                style={styles.emptyNext}
+                style={[styles.emptyNext, { backgroundColor: featureBackground }]}
               >
                 <Text style={styles.emptyText}>{c.noBooking}</Text>
                 <Text style={styles.bookText}>{c.book} →</Text>
@@ -373,6 +374,7 @@ function BusinessRow({ item, label }: { item: PublicBusiness; label: string }) {
     </Pressable>
   );
 }
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   list: { paddingHorizontal: 20, paddingBottom: 30 },
@@ -393,10 +395,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  logo: {
+  logoMark: {
     width: 45,
     height: 45,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  logoLetter: { color: "#FFFFFF", fontSize: 25, fontWeight: "900", letterSpacing: -1 },
   brand: {
     fontSize: 28,
     fontWeight: "800",
@@ -409,7 +415,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { color: "#CDE5FA", fontWeight: "800", fontSize: 12 },
+  avatarText: { color: "#FFFFFF", fontWeight: "800", fontSize: 12 },
   greeting: { fontSize: 17, marginBottom: 8 },
   hero: {
     fontSize: 30,
@@ -458,33 +464,30 @@ const styles = StyleSheet.create({
     minHeight: 130,
     borderRadius: 19,
     padding: 20,
-    backgroundColor: "#15558E",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     marginBottom: 24,
   },
   nextInfo: { flex: 1 },
-  nextBusiness: { color: "#E7F3FE", fontSize: 21, fontWeight: "800" },
-  nextService: { color: "#CDE5FA", fontSize: 15, marginTop: 8 },
+  nextBusiness: { color: "#F9FAFB", fontSize: 21, fontWeight: "800" },
+  nextService: { color: "#E5E7EB", fontSize: 15, marginTop: 8 },
   nextTime: {
     minWidth: 84,
     borderRadius: 15,
-    backgroundColor: "#2575BB",
     padding: 13,
     alignItems: "center",
   },
-  nextDay: { color: "#CBE5FA", textTransform: "capitalize" },
+  nextDay: { color: "#E5E7EB", textTransform: "capitalize" },
   nextHour: { color: "#FFFFFF", fontSize: 22, fontWeight: "800", marginTop: 5 },
   emptyNext: {
     minHeight: 92,
     borderRadius: 17,
     padding: 18,
     marginBottom: 24,
-    backgroundColor: "#15558E",
     justifyContent: "center",
   },
-  emptyText: { color: "#CDE5FA" },
+  emptyText: { color: "#E5E7EB" },
   bookText: { color: "#FFFFFF", fontWeight: "800", marginTop: 8 },
   categories: { gap: 11, paddingBottom: 24 },
   category: {
