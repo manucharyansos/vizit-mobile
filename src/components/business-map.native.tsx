@@ -5,7 +5,7 @@ import { useApp } from '@/providers/app-provider';
 
 type MapKitModule = typeof import('expo-yandex-mapkit');
 
-export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusiness[]; onSelect: (business: PublicBusiness) => void }) {
+export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusiness[]; onSelect: (business: PublicBusiness, locationId?: number) => void }) {
   const { locale, mode, theme } = useApp();
   const apiKey = process.env.EXPO_PUBLIC_YANDEX_MAPKIT_API_KEY;
   const [mapKit, setMapKit] = useState<MapKitModule | null>(null);
@@ -82,7 +82,7 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
           key={`${business.business_id}-${locationId}-${latitude}-${longitude}`}
           point={{ latitude, longitude }}
           handled
-          onPress={() => onSelect(business)}
+          onPress={() => onSelect(business, locationId)}
         >
           <Pressable style={[styles.pin, { backgroundColor: theme.plum }]}>
             <Text style={styles.pinText}>V</Text>
