@@ -51,6 +51,10 @@
     "plugins": [
       "expo-router",
       "expo-notifications",
+      "expo-image",
+      "expo-localization",
+      "expo-secure-store",
+      "expo-web-browser",
       [
         "expo-image-picker",
         {
