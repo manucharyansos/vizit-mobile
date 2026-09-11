@@ -3,6 +3,12 @@
     "name": "Vizit",
     "slug": "vizit-mobile",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f3260a72-143c-4f75-a121-e7f9fdfa2635"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "vizit",
