@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +26,7 @@ const minutes = (time: string) => {
   return match ? Number(match[1]) * 60 + Number(match[2]) : 0;
 };
 const bookingStaffId = (booking: CalendarBooking) => booking.staff?.id ?? Number((booking as unknown as { staff_id?: number }).staff_id ?? 0);
+const slotKey = (slot: AvailabilitySlot) => `${slot.staff_id}|${slot.starts_at}`;
 
 type ScheduleItem =
   | { type: 'free'; key: string; start: number; slot: AvailabilitySlot }
@@ -40,7 +41,7 @@ export default function NewBooking() {
   const [serviceId, setServiceId] = useState<number>();
   const [staffId, setStaffId] = useState<number>();
   const [clientId, setClientId] = useState<number>();
-  const [selectedStart, setSelectedStart] = useState<string>();
+  const [selectedSlotKey, setSelectedSlotKey] = useState<string>();
 
   const settings = useQuery({ queryKey: ['business-settings'], queryFn: businessApi.settings, retry: false });
   const services = useQuery({ queryKey: ['business-services'], queryFn: businessApi.services, retry: false, refetchOnMount: 'always' });
@@ -55,15 +56,30 @@ export default function NewBooking() {
   const effectiveStaffId = staffId && visibleStaff.some((item) => item.id === staffId) ? staffId : undefined;
   const showingAllStaff = !effectiveStaffId;
 
-  const slots = useQuery({
-    queryKey: ['business-availability', form.date, effectiveServiceId, effectiveStaffId ?? 'all', effectiveLocationId],
-    queryFn: () => availabilityApi.slots({ date: form.date, service_id: effectiveServiceId!, staff_id: effectiveStaffId, location_id: effectiveLocationId }),
-    enabled: Boolean(effectiveServiceId),
+  const selectedStaffSlots = useQuery({
+    queryKey: ['business-availability', form.date, effectiveServiceId, effectiveStaffId, effectiveLocationId],
+    queryFn: () => availabilityApi.slots({ date: form.date, service_id: effectiveServiceId!, staff_id: effectiveStaffId!, location_id: effectiveLocationId }),
+    enabled: Boolean(effectiveServiceId && effectiveStaffId),
     retry: false,
     refetchOnMount: 'always',
     refetchInterval: 10_000,
     staleTime: 0,
   });
+  const allStaffSlotQueries = useQueries({
+    queries: visibleStaff.map((member) => ({
+      queryKey: ['business-availability', form.date, effectiveServiceId, member.id, effectiveLocationId],
+      queryFn: () => availabilityApi.slots({ date: form.date, service_id: effectiveServiceId!, staff_id: member.id, location_id: effectiveLocationId }),
+      enabled: Boolean(effectiveServiceId && showingAllStaff),
+      retry: false,
+      refetchOnMount: 'always' as const,
+      refetchInterval: 10_000,
+      staleTime: 0,
+    })),
+  });
+  const slotData = effectiveStaffId
+    ? selectedStaffSlots.data ?? []
+    : allStaffSlotQueries.flatMap((query) => query.data ?? []);
+
   const dayBookings = useQuery({
     queryKey: ['calendar', form.date],
     queryFn: () => businessApi.calendar(form.date, form.date),
@@ -75,29 +91,36 @@ export default function NewBooking() {
   });
 
   const busyBookings = useMemo(() => (dayBookings.data ?? []).filter((booking) => !terminalStatuses.has(booking.status) && (!effectiveStaffId || bookingStaffId(booking) === effectiveStaffId)), [dayBookings.data, effectiveStaffId]);
-
-  const schedule = useMemo<ScheduleItem[]>(() => {
-    const busyRanges = busyBookings.map((booking) => ({
-      booking,
-      staffId: bookingStaffId(booking),
-      start: minutes(formatApiTime(booking.starts_at, locale)),
-      end: minutes(formatApiTime(booking.ends_at, locale)),
-    }));
-    const free = (slots.data ?? []).filter((slot) => {
+  const busyRanges = busyBookings.map((booking) => ({
+    booking,
+    staffId: bookingStaffId(booking),
+    start: minutes(formatApiTime(booking.starts_at, locale)),
+    end: minutes(formatApiTime(booking.ends_at, locale)),
+  }));
+  const freeItems: ScheduleItem[] = slotData
+    .filter((slot) => {
       const start = minutes(formatApiTime(slot.starts_at, locale));
       const end = minutes(formatApiTime(slot.ends_at, locale));
       return !busyRanges.some((busy) => busy.staffId === slot.staff_id && busy.start < end && busy.end > start);
-    }).map((slot): ScheduleItem => ({ type: 'free', key: `free-${slot.staff_id}-${slot.starts_at}`, start: minutes(formatApiTime(slot.starts_at, locale)), slot }));
-    const busy = busyRanges.map(({ booking, start }): ScheduleItem => ({ type: 'busy', key: `busy-${booking.id}`, start, booking }));
-    return [...free, ...busy].sort((a, b) => a.start - b.start || (a.type === 'busy' ? -1 : 1));
-  }, [busyBookings, locale, slots.data]);
+    })
+    .map((slot) => ({ type: 'free', key: `free-${slotKey(slot)}`, start: minutes(formatApiTime(slot.starts_at, locale)), slot }));
+  const busyItems: ScheduleItem[] = busyRanges.map(({ booking, start }) => ({ type: 'busy', key: `busy-${booking.id}`, start, booking }));
+  const schedule = [...freeItems, ...busyItems].sort((a, b) => a.start - b.start || (a.type === 'busy' ? -1 : 1));
 
-  const selectedFreeItem = selectedStart ? schedule.find((item): item is Extract<ScheduleItem, { type: 'free' }> => item.type === 'free' && item.slot.starts_at === selectedStart) : undefined;
+  const selectedFreeItem = selectedSlotKey ? schedule.find((item): item is Extract<ScheduleItem, { type: 'free' }> => item.type === 'free' && slotKey(item.slot) === selectedSlotKey) : undefined;
   const effectiveSelectedStart = selectedFreeItem?.slot.starts_at;
   const selectedBookingStaffId = selectedFreeItem?.slot.staff_id ?? effectiveStaffId;
   const valid = Boolean(effectiveServiceId && selectedBookingStaffId && effectiveSelectedStart && (locations.length <= 1 || effectiveLocationId) && form.name.trim().length > 1 && form.phone.trim().length > 3);
   const anyLoadError = settings.isError || services.isError || staff.isError || clients.isError;
   const firstLoadError = settings.error ?? services.error ?? staff.error ?? clients.error;
+
+  const refetchSlots = async () => {
+    if (effectiveStaffId) {
+      await selectedStaffSlots.refetch();
+      return;
+    }
+    await Promise.all(allStaffSlotQueries.map((query) => query.refetch()));
+  };
 
   const create = useMutation({
     mutationFn: () => businessApi.createBooking({
@@ -117,15 +140,15 @@ export default function NewBooking() {
       Alert.alert(c.success, '', [{ text: 'OK', onPress: () => safeBack('/(business)/today') }]);
     },
     onError: async (error) => {
-      setSelectedStart(undefined);
-      await Promise.all([slots.refetch(), dayBookings.refetch()]);
+      setSelectedSlotKey(undefined);
+      await Promise.all([refetchSlots(), dayBookings.refetch()]);
       Alert.alert(c.required, apiErrorMessage(error));
     },
   });
 
   const retryAll = () => void Promise.all([settings.refetch(), services.refetch(), staff.refetch(), clients.refetch()]);
-  const selectLocation = (id: number) => { setLocationId(id); setServiceId(undefined); setStaffId(undefined); setSelectedStart(undefined); };
-  const selectDate = (date: string) => { setForm((current) => ({ ...current, date })); setSelectedStart(undefined); };
+  const selectLocation = (id: number) => { setLocationId(id); setServiceId(undefined); setStaffId(undefined); setSelectedSlotKey(undefined); };
+  const selectDate = (date: string) => { setForm((current) => ({ ...current, date })); setSelectedSlotKey(undefined); };
   const selectClient = (item: { id: number; name: string; phone?: string; email?: string }) => {
     setClientId(item.id);
     setForm((current) => ({ ...current, name: item.name ?? '', phone: item.phone ?? '', email: item.email ?? '' }));
@@ -144,8 +167,10 @@ export default function NewBooking() {
     <TextInput value={form[key]} onChangeText={(value) => setForm((current) => ({ ...current, [key]: value }))} placeholder={placeholder} placeholderTextColor={theme.muted} keyboardType={keyboardType} autoCapitalize={key === 'email' ? 'none' : undefined} multiline={key === 'notes'} style={[styles.input, key === 'notes' && styles.notes, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} />
   );
 
-  const timesLoading = slots.isLoading || dayBookings.isLoading;
-  const timesError = slots.isError || dayBookings.isError;
+  const slotQueriesLoading = effectiveStaffId ? selectedStaffSlots.isLoading : allStaffSlotQueries.some((query) => query.isLoading);
+  const slotQueriesError = effectiveStaffId ? selectedStaffSlots.isError : allStaffSlotQueries.some((query) => query.isError);
+  const timesLoading = slotQueriesLoading || dayBookings.isLoading;
+  const timesError = slotQueriesError || dayBookings.isError;
 
   return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <View style={styles.header}><Pressable onPress={() => safeBack('/(business)/today')} style={[styles.back, { borderColor: theme.border }]}><VizitIcon ios="chevron.left" android="arrow_back" color={theme.text} size={21} /></Pressable><Text style={[styles.title, { color: theme.text }]}>{c.title}</Text></View>
@@ -155,16 +180,16 @@ export default function NewBooking() {
 
     {locations.length > 1 ? <><Text style={[styles.label, { color: theme.text }]}>{c.location}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}>{locations.map((location) => <Choice key={location.id} selected={effectiveLocationId === location.id} title={location.name || location.address || `#${location.id}`} onPress={() => selectLocation(location.id)} />)}</ScrollView></> : null}
 
-    <Text style={[styles.label, { color: theme.text }]}>{c.service}</Text><View style={styles.chips}>{visibleServices.map((item) => <Choice key={item.id} selected={effectiveServiceId === item.id} title={item.name} onPress={() => { setServiceId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedStart(undefined); }} />)}</View>
+    <Text style={[styles.label, { color: theme.text }]}>{c.service}</Text><View style={styles.chips}>{visibleServices.map((item) => <Choice key={item.id} selected={effectiveServiceId === item.id} title={item.name} onPress={() => { setServiceId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedSlotKey(undefined); }} />)}</View>
 
-    <Text style={[styles.label, { color: theme.text }]}>{c.staff}</Text><View style={styles.chips}><Choice selected={showingAllStaff} title={c.allStaff} onPress={() => { setStaffId(undefined); setSelectedStart(undefined); }} />{visibleStaff.map((item) => <Choice key={item.id} selected={effectiveStaffId === item.id} title={item.name} onPress={() => { setStaffId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedStart(undefined); }} />)}</View>
+    <Text style={[styles.label, { color: theme.text }]}>{c.staff}</Text><View style={styles.chips}><Choice selected={showingAllStaff} title={c.allStaff} onPress={() => { setStaffId(undefined); setSelectedSlotKey(undefined); }} />{visibleStaff.map((item) => <Choice key={item.id} selected={effectiveStaffId === item.id} title={item.name} onPress={() => { setStaffId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedSlotKey(undefined); }} />)}</View>
 
     <Text style={[styles.label, { color: theme.text }]}>{c.client}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}><Choice selected={clientId == null} title={c.newClient} onPress={newClient} />{clients.data?.slice(0, 30).map((item) => <Pressable key={item.id} onPress={() => selectClient(item)} style={[styles.clientChip, { borderColor: clientId === item.id ? theme.plum : theme.border, backgroundColor: clientId === item.id ? theme.plumSoft : theme.surfaceRaised }]}><View style={[styles.clientAvatar, { backgroundColor: theme.plum }]}><Text style={styles.clientInitial}>{item.name.slice(0, 1).toUpperCase()}</Text></View><Text numberOfLines={1} style={{ color: theme.text, fontWeight: '800', maxWidth: 110 }}>{item.name}</Text></Pressable>)}</ScrollView>
 
     {input('name', c.name)}{input('phone', c.phone, 'phone-pad')}{input('email', c.email, 'email-address')}
     <Text style={[styles.label, { color: theme.text }]}>{c.date}</Text><CalendarDatePicker value={form.date} onChange={selectDate} />
     <View style={styles.timeHeader}><Text style={[styles.label, { color: theme.text }]}>{c.time}</Text><View style={styles.legend}><View style={[styles.dot, { backgroundColor: theme.success }]} /><Text style={{ color: theme.muted, fontSize: 11 }}>{c.available}</Text><View style={[styles.dot, { backgroundColor: theme.danger }]} /><Text style={{ color: theme.muted, fontSize: 11 }}>{c.occupied}</Text></View></View>
-    {!effectiveServiceId ? <Text style={{ color: theme.muted }}>{c.chooseFirst}</Text> : timesLoading ? <ActivityIndicator color={theme.plum} /> : timesError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.slotsError}</Text><Pressable onPress={() => void Promise.all([slots.refetch(), dayBookings.refetch()])}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : schedule.length ? <View style={styles.slotGrid}>{schedule.map((item) => item.type === 'free' ? <FreeSlot key={item.key} slot={item.slot} selected={effectiveSelectedStart === item.slot.starts_at} label={c.recommended} locale={locale} showStaff={showingAllStaff} onPress={() => setSelectedStart(item.slot.starts_at)} /> : <BusySlot key={item.key} booking={item.booking} locale={locale} showStaff={showingAllStaff} onPress={() => showBusy(item.booking)} />)}</View> : <Text style={{ color: theme.muted }}>{c.noSlots}</Text>}
+    {!effectiveServiceId ? <Text style={{ color: theme.muted }}>{c.chooseFirst}</Text> : timesLoading ? <ActivityIndicator color={theme.plum} /> : timesError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.slotsError}</Text><Pressable onPress={() => void Promise.all([refetchSlots(), dayBookings.refetch()])}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : schedule.length ? <View style={styles.slotGrid}>{schedule.map((item) => item.type === 'free' ? <FreeSlot key={item.key} slot={item.slot} selected={selectedSlotKey === slotKey(item.slot)} label={c.recommended} locale={locale} showStaff={showingAllStaff} onPress={() => setSelectedSlotKey(slotKey(item.slot))} /> : <BusySlot key={item.key} booking={item.booking} locale={locale} showStaff={showingAllStaff} onPress={() => showBusy(item.booking)} />)}</View> : <Text style={{ color: theme.muted }}>{c.noSlots}</Text>}
     {input('notes', c.notes)}
     <Pressable disabled={!valid || create.isPending || anyLoadError} onPress={() => create.mutate()} style={[styles.primary, { backgroundColor: theme.plum, opacity: valid && !anyLoadError ? 1 : 0.4 }]}>{create.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryText}>{c.save}</Text>}</Pressable>
   </ScrollView></SafeAreaView>;
