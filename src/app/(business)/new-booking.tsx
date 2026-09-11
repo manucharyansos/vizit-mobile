@@ -13,11 +13,11 @@ import { safeBack } from '@/services/navigation';
 
 const copy = {
   hy: {
-    title: 'Նոր ամրագրում', location: 'Ընտրեք մասնաճյուղը', service: 'Ընտրեք ծառայությունը', staff: 'Ընտրեք աշխատակցին', client: 'Ընտրեք հաճախորդին կամ լրացրեք նոր տվյալներ', newClient: 'Նոր հաճախորդ', name: 'Հաճախորդի անուն', phone: 'Հեռախոս', email: 'Էլ․ փոստ (ոչ պարտադիր)', date: 'Ընտրեք ամսաթիվը', time: 'Ժամերը', chooseFirst: 'Նախ ընտրեք ծառայությունն ու աշխատակցին', noSlots: 'Այս օրվա համար ազատ ժամեր չկան', notes: 'Նշումներ', save: 'Ստեղծել և հաստատել', required: 'Լրացրեք պարտադիր դաշտերը', success: 'Ամրագրումը ստեղծված է', loadError: 'Չհաջողվեց բեռնել ամրագրման տվյալները', slotsError: 'Չհաջողվեց բեռնել ժամերը', retry: 'Կրկին փորձել', available: 'Ազատ', occupied: 'Զբաղված', recommended: 'Առաջարկվող', occupiedTitle: 'Զբաղված ժամ', customer: 'Հաճախորդ', status: 'Կարգավիճակ', close: 'Փակել' },
+    title: 'Նոր ամրագրում', location: 'Ընտրեք մասնաճյուղը', service: 'Ընտրեք ծառայությունը', staff: 'Աշխատողի գրաֆիկ', allStaff: 'Բոլոր աշխատողները', client: 'Ընտրեք հաճախորդին կամ լրացրեք նոր տվյալներ', newClient: 'Նոր հաճախորդ', name: 'Հաճախորդի անուն', phone: 'Հեռախոս', email: 'Էլ․ փոստ (ոչ պարտադիր)', date: 'Ընտրեք ամսաթիվը', time: 'Ժամերը', chooseFirst: 'Նախ ընտրեք ծառայությունը', noSlots: 'Այս օրվա համար ազատ ժամեր չկան', notes: 'Նշումներ', save: 'Ստեղծել և հաստատել', required: 'Լրացրեք պարտադիր դաշտերը', success: 'Ամրագրումը ստեղծված է', loadError: 'Չհաջողվեց բեռնել ամրագրման տվյալները', slotsError: 'Չհաջողվեց բեռնել ժամերը', retry: 'Կրկին փորձել', available: 'Ազատ', occupied: 'Զբաղված', recommended: 'Առաջարկվող', occupiedTitle: 'Զբաղված ժամ', customer: 'Հաճախորդ', status: 'Կարգավիճակ', close: 'Փակել' },
   ru: {
-    title: 'Новая запись', location: 'Выберите филиал', service: 'Выберите услугу', staff: 'Выберите сотрудника', client: 'Выберите клиента или заполните данные нового', newClient: 'Новый клиент', name: 'Имя клиента', phone: 'Телефон', email: 'Email (необязательно)', date: 'Выберите дату', time: 'Время', chooseFirst: 'Сначала выберите услугу и сотрудника', noSlots: 'На этот день свободного времени нет', notes: 'Заметки', save: 'Создать и подтвердить', required: 'Заполните обязательные поля', success: 'Запись создана', loadError: 'Не удалось загрузить данные для записи', slotsError: 'Не удалось загрузить время', retry: 'Повторить', available: 'Свободно', occupied: 'Занято', recommended: 'Рекомендуем', occupiedTitle: 'Занятое время', customer: 'Клиент', status: 'Статус', close: 'Закрыть' },
+    title: 'Новая запись', location: 'Выберите филиал', service: 'Выберите услугу', staff: 'График сотрудника', allStaff: 'Все сотрудники', client: 'Выберите клиента или заполните данные нового', newClient: 'Новый клиент', name: 'Имя клиента', phone: 'Телефон', email: 'Email (необязательно)', date: 'Выберите дату', time: 'Время', chooseFirst: 'Сначала выберите услугу', noSlots: 'На этот день свободного времени нет', notes: 'Заметки', save: 'Создать и подтвердить', required: 'Заполните обязательные поля', success: 'Запись создана', loadError: 'Не удалось загрузить данные для записи', slotsError: 'Не удалось загрузить время', retry: 'Повторить', available: 'Свободно', occupied: 'Занято', recommended: 'Рекомендуем', occupiedTitle: 'Занятое время', customer: 'Клиент', status: 'Статус', close: 'Закрыть' },
   en: {
-    title: 'New booking', location: 'Choose a location', service: 'Choose a service', staff: 'Choose a team member', client: 'Choose an existing client or enter a new one', newClient: 'New client', name: 'Client name', phone: 'Phone', email: 'Email (optional)', date: 'Choose a date', time: 'Times', chooseFirst: 'Choose a service and team member first', noSlots: 'No available times on this date', notes: 'Notes', save: 'Create and confirm', required: 'Complete the required fields', success: 'Booking created', loadError: 'Could not load booking data', slotsError: 'Could not load times', retry: 'Try again', available: 'Free', occupied: 'Busy', recommended: 'Recommended', occupiedTitle: 'Occupied time', customer: 'Client', status: 'Status', close: 'Close' },
+    title: 'New booking', location: 'Choose a location', service: 'Choose a service', staff: 'Team schedule', allStaff: 'All team members', client: 'Choose an existing client or enter a new one', newClient: 'New client', name: 'Client name', phone: 'Phone', email: 'Email (optional)', date: 'Choose a date', time: 'Times', chooseFirst: 'Choose a service first', noSlots: 'No available times on this date', notes: 'Notes', save: 'Create and confirm', required: 'Complete the required fields', success: 'Booking created', loadError: 'Could not load booking data', slotsError: 'Could not load times', retry: 'Try again', available: 'Free', occupied: 'Busy', recommended: 'Recommended', occupiedTitle: 'Occupied time', customer: 'Client', status: 'Status', close: 'Close' },
 };
 
 const terminalStatuses = new Set(['cancelled', 'done', 'no_show']);
@@ -53,11 +53,12 @@ export default function NewBooking() {
   const visibleStaff = useMemo(() => (staff.data ?? []).filter((item) => item.is_active && item.is_bookable !== false && (!effectiveLocationId || item.location_id == null || item.location_id === effectiveLocationId)), [effectiveLocationId, staff.data]);
   const effectiveServiceId = serviceId && visibleServices.some((item) => item.id === serviceId) ? serviceId : undefined;
   const effectiveStaffId = staffId && visibleStaff.some((item) => item.id === staffId) ? staffId : undefined;
+  const showingAllStaff = !effectiveStaffId;
 
   const slots = useQuery({
-    queryKey: ['business-availability', form.date, effectiveServiceId, effectiveStaffId, effectiveLocationId],
-    queryFn: () => availabilityApi.slots({ date: form.date, service_id: effectiveServiceId!, staff_id: effectiveStaffId!, location_id: effectiveLocationId }),
-    enabled: Boolean(effectiveServiceId && effectiveStaffId),
+    queryKey: ['business-availability', form.date, effectiveServiceId, effectiveStaffId ?? 'all', effectiveLocationId],
+    queryFn: () => availabilityApi.slots({ date: form.date, service_id: effectiveServiceId!, staff_id: effectiveStaffId, location_id: effectiveLocationId }),
+    enabled: Boolean(effectiveServiceId),
     retry: false,
     refetchOnMount: 'always',
     refetchInterval: 10_000,
@@ -66,38 +67,41 @@ export default function NewBooking() {
   const dayBookings = useQuery({
     queryKey: ['calendar', form.date],
     queryFn: () => businessApi.calendar(form.date, form.date),
-    enabled: Boolean(effectiveStaffId),
+    enabled: Boolean(effectiveServiceId),
     retry: false,
     refetchOnMount: 'always',
     refetchInterval: 10_000,
     staleTime: 0,
   });
 
-  const busyBookings = useMemo(() => (dayBookings.data ?? []).filter((booking) => bookingStaffId(booking) === effectiveStaffId && !terminalStatuses.has(booking.status)), [dayBookings.data, effectiveStaffId]);
+  const busyBookings = useMemo(() => (dayBookings.data ?? []).filter((booking) => !terminalStatuses.has(booking.status) && (!effectiveStaffId || bookingStaffId(booking) === effectiveStaffId)), [dayBookings.data, effectiveStaffId]);
 
   const schedule = useMemo<ScheduleItem[]>(() => {
     const busyRanges = busyBookings.map((booking) => ({
       booking,
+      staffId: bookingStaffId(booking),
       start: minutes(formatApiTime(booking.starts_at, locale)),
       end: minutes(formatApiTime(booking.ends_at, locale)),
     }));
     const free = (slots.data ?? []).filter((slot) => {
       const start = minutes(formatApiTime(slot.starts_at, locale));
       const end = minutes(formatApiTime(slot.ends_at, locale));
-      return !busyRanges.some((busy) => busy.start < end && busy.end > start);
+      return !busyRanges.some((busy) => busy.staffId === slot.staff_id && busy.start < end && busy.end > start);
     }).map((slot): ScheduleItem => ({ type: 'free', key: `free-${slot.staff_id}-${slot.starts_at}`, start: minutes(formatApiTime(slot.starts_at, locale)), slot }));
     const busy = busyRanges.map(({ booking, start }): ScheduleItem => ({ type: 'busy', key: `busy-${booking.id}`, start, booking }));
     return [...free, ...busy].sort((a, b) => a.start - b.start || (a.type === 'busy' ? -1 : 1));
   }, [busyBookings, locale, slots.data]);
 
-  const effectiveSelectedStart = selectedStart && schedule.some((item) => item.type === 'free' && item.slot.starts_at === selectedStart) ? selectedStart : undefined;
-  const valid = Boolean(effectiveServiceId && effectiveStaffId && effectiveSelectedStart && (locations.length <= 1 || effectiveLocationId) && form.name.trim().length > 1 && form.phone.trim().length > 3);
+  const selectedFreeItem = selectedStart ? schedule.find((item): item is Extract<ScheduleItem, { type: 'free' }> => item.type === 'free' && item.slot.starts_at === selectedStart) : undefined;
+  const effectiveSelectedStart = selectedFreeItem?.slot.starts_at;
+  const selectedBookingStaffId = selectedFreeItem?.slot.staff_id ?? effectiveStaffId;
+  const valid = Boolean(effectiveServiceId && selectedBookingStaffId && effectiveSelectedStart && (locations.length <= 1 || effectiveLocationId) && form.name.trim().length > 1 && form.phone.trim().length > 3);
   const anyLoadError = settings.isError || services.isError || staff.isError || clients.isError;
   const firstLoadError = settings.error ?? services.error ?? staff.error ?? clients.error;
 
   const create = useMutation({
     mutationFn: () => businessApi.createBooking({
-      service_id: effectiveServiceId!, staff_id: effectiveStaffId!, location_id: effectiveLocationId,
+      service_id: effectiveServiceId!, staff_id: selectedBookingStaffId!, location_id: effectiveLocationId,
       starts_at: effectiveSelectedStart!.replace('T', ' ').slice(0, 16),
       client_name: form.name.trim(), client_phone: form.phone.trim(), client_email: form.email.trim() || undefined,
       client_id: clientId, notes: form.notes.trim() || undefined,
@@ -153,14 +157,14 @@ export default function NewBooking() {
 
     <Text style={[styles.label, { color: theme.text }]}>{c.service}</Text><View style={styles.chips}>{visibleServices.map((item) => <Choice key={item.id} selected={effectiveServiceId === item.id} title={item.name} onPress={() => { setServiceId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedStart(undefined); }} />)}</View>
 
-    <Text style={[styles.label, { color: theme.text }]}>{c.staff}</Text><View style={styles.chips}>{visibleStaff.map((item) => <Choice key={item.id} selected={effectiveStaffId === item.id} title={item.name} onPress={() => { setStaffId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedStart(undefined); }} />)}</View>
+    <Text style={[styles.label, { color: theme.text }]}>{c.staff}</Text><View style={styles.chips}><Choice selected={showingAllStaff} title={c.allStaff} onPress={() => { setStaffId(undefined); setSelectedStart(undefined); }} />{visibleStaff.map((item) => <Choice key={item.id} selected={effectiveStaffId === item.id} title={item.name} onPress={() => { setStaffId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedStart(undefined); }} />)}</View>
 
     <Text style={[styles.label, { color: theme.text }]}>{c.client}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}><Choice selected={clientId == null} title={c.newClient} onPress={newClient} />{clients.data?.slice(0, 30).map((item) => <Pressable key={item.id} onPress={() => selectClient(item)} style={[styles.clientChip, { borderColor: clientId === item.id ? theme.plum : theme.border, backgroundColor: clientId === item.id ? theme.plumSoft : theme.surfaceRaised }]}><View style={[styles.clientAvatar, { backgroundColor: theme.plum }]}><Text style={styles.clientInitial}>{item.name.slice(0, 1).toUpperCase()}</Text></View><Text numberOfLines={1} style={{ color: theme.text, fontWeight: '800', maxWidth: 110 }}>{item.name}</Text></Pressable>)}</ScrollView>
 
     {input('name', c.name)}{input('phone', c.phone, 'phone-pad')}{input('email', c.email, 'email-address')}
     <Text style={[styles.label, { color: theme.text }]}>{c.date}</Text><CalendarDatePicker value={form.date} onChange={selectDate} />
     <View style={styles.timeHeader}><Text style={[styles.label, { color: theme.text }]}>{c.time}</Text><View style={styles.legend}><View style={[styles.dot, { backgroundColor: theme.success }]} /><Text style={{ color: theme.muted, fontSize: 11 }}>{c.available}</Text><View style={[styles.dot, { backgroundColor: theme.danger }]} /><Text style={{ color: theme.muted, fontSize: 11 }}>{c.occupied}</Text></View></View>
-    {!effectiveServiceId || !effectiveStaffId ? <Text style={{ color: theme.muted }}>{c.chooseFirst}</Text> : timesLoading ? <ActivityIndicator color={theme.plum} /> : timesError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.slotsError}</Text><Pressable onPress={() => void Promise.all([slots.refetch(), dayBookings.refetch()])}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : schedule.length ? <View style={styles.slotGrid}>{schedule.map((item) => item.type === 'free' ? <FreeSlot key={item.key} slot={item.slot} selected={effectiveSelectedStart === item.slot.starts_at} label={c.recommended} locale={locale} onPress={() => setSelectedStart(item.slot.starts_at)} /> : <BusySlot key={item.key} booking={item.booking} locale={locale} onPress={() => showBusy(item.booking)} />)}</View> : <Text style={{ color: theme.muted }}>{c.noSlots}</Text>}
+    {!effectiveServiceId ? <Text style={{ color: theme.muted }}>{c.chooseFirst}</Text> : timesLoading ? <ActivityIndicator color={theme.plum} /> : timesError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.slotsError}</Text><Pressable onPress={() => void Promise.all([slots.refetch(), dayBookings.refetch()])}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : schedule.length ? <View style={styles.slotGrid}>{schedule.map((item) => item.type === 'free' ? <FreeSlot key={item.key} slot={item.slot} selected={effectiveSelectedStart === item.slot.starts_at} label={c.recommended} locale={locale} showStaff={showingAllStaff} onPress={() => setSelectedStart(item.slot.starts_at)} /> : <BusySlot key={item.key} booking={item.booking} locale={locale} showStaff={showingAllStaff} onPress={() => showBusy(item.booking)} />)}</View> : <Text style={{ color: theme.muted }}>{c.noSlots}</Text>}
     {input('notes', c.notes)}
     <Pressable disabled={!valid || create.isPending || anyLoadError} onPress={() => create.mutate()} style={[styles.primary, { backgroundColor: theme.plum, opacity: valid && !anyLoadError ? 1 : 0.4 }]}>{create.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryText}>{c.save}</Text>}</Pressable>
   </ScrollView></SafeAreaView>;
@@ -170,16 +174,17 @@ function Choice({ selected, title, onPress }: { selected: boolean; title: string
   const { theme } = useApp();
   return <Pressable onPress={onPress} style={[styles.chip, { borderColor: selected ? theme.plum : theme.border, backgroundColor: selected ? theme.plumSoft : theme.surfaceRaised }]}><Text style={{ color: selected ? theme.plum : theme.text, fontWeight: '800' }}>{title}</Text></Pressable>;
 }
-function FreeSlot({ slot, selected, label, locale, onPress }: { slot: AvailabilitySlot; selected: boolean; label: string; locale: 'hy' | 'ru' | 'en'; onPress: () => void }) {
+function FreeSlot({ slot, selected, label, locale, showStaff, onPress }: { slot: AvailabilitySlot; selected: boolean; label: string; locale: 'hy' | 'ru' | 'en'; showStaff: boolean; onPress: () => void }) {
   const { theme } = useApp();
   const start = formatApiTime(slot.starts_at, locale);
   const end = formatApiTime(slot.ends_at, locale);
   const recommended = !!slot.is_recommended;
-  return <Pressable onPress={onPress} style={[styles.slot, { borderColor: selected || recommended ? theme.success : theme.border, backgroundColor: selected ? theme.success : theme.successSoft }]}><Text style={{ color: selected ? '#FFF' : theme.success, fontWeight: '900', fontSize: 14 }}>{start}–{end}</Text>{recommended ? <Text numberOfLines={1} style={{ color: selected ? '#FFF' : theme.success, fontSize: 9, fontWeight: '900', marginTop: 3 }}>★ {label}</Text> : null}</Pressable>;
+  return <Pressable onPress={onPress} style={[styles.slot, { borderColor: selected || recommended ? theme.success : theme.border, backgroundColor: selected ? theme.success : theme.successSoft }]}><Text style={{ color: selected ? '#FFF' : theme.success, fontWeight: '900', fontSize: 14 }}>{start}–{end}</Text>{showStaff && slot.staff_name ? <Text numberOfLines={1} style={{ color: selected ? '#FFF' : theme.success, fontSize: 9, fontWeight: '800', marginTop: 3 }}>{slot.staff_name}</Text> : recommended ? <Text numberOfLines={1} style={{ color: selected ? '#FFF' : theme.success, fontSize: 9, fontWeight: '900', marginTop: 3 }}>★ {label}</Text> : null}</Pressable>;
 }
-function BusySlot({ booking, locale, onPress }: { booking: CalendarBooking; locale: 'hy' | 'ru' | 'en'; onPress: () => void }) {
+function BusySlot({ booking, locale, showStaff, onPress }: { booking: CalendarBooking; locale: 'hy' | 'ru' | 'en'; showStaff: boolean; onPress: () => void }) {
   const { theme } = useApp();
-  return <Pressable onPress={onPress} style={[styles.slot, { borderColor: theme.danger, backgroundColor: theme.dangerSoft }]}><Text style={{ color: theme.danger, fontWeight: '900', fontSize: 14 }}>{formatApiTime(booking.starts_at, locale)}–{formatApiTime(booking.ends_at, locale)}</Text><Text numberOfLines={1} style={{ color: theme.danger, fontSize: 9, fontWeight: '800', marginTop: 3 }}>{booking.client_name ?? booking.customer_name ?? booking.client?.name ?? '—'}</Text></Pressable>;
+  const subtitle = showStaff ? booking.staff?.name ?? booking.client_name ?? booking.customer_name ?? booking.client?.name ?? '—' : booking.client_name ?? booking.customer_name ?? booking.client?.name ?? '—';
+  return <Pressable onPress={onPress} style={[styles.slot, { borderColor: theme.danger, backgroundColor: theme.dangerSoft }]}><Text style={{ color: theme.danger, fontWeight: '900', fontSize: 14 }}>{formatApiTime(booking.starts_at, locale)}–{formatApiTime(booking.ends_at, locale)}</Text><Text numberOfLines={1} style={{ color: theme.danger, fontSize: 9, fontWeight: '800', marginTop: 3 }}>{subtitle}</Text></Pressable>;
 }
 
 const styles = StyleSheet.create({
