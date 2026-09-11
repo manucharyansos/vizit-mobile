@@ -1,4 +1,3 @@
-import Constants from 'expo-constants';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useApp } from '@/providers/app-provider';
@@ -33,7 +32,6 @@ function pointFromEvent(value: unknown): Point | null {
 export function LocationPicker({ latitude, longitude, onChange, height = 238 }: Props) {
   const { locale, mode, theme } = useApp();
   const apiKey = process.env.EXPO_PUBLIC_YANDEX_MAPKIT_API_KEY;
-  const isExpoGo = Constants.expoGoConfig != null;
   const [mapKit, setMapKit] = useState<MapKitModule | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
 
@@ -44,7 +42,7 @@ export function LocationPicker({ latitude, longitude, onChange, height = 238 }: 
 
   useEffect(() => {
     let active = true;
-    if (!apiKey || isExpoGo) return () => { active = false; };
+    if (!apiKey) return () => { active = false; };
 
     void import('expo-yandex-mapkit')
       .then(async (module) => {
@@ -61,17 +59,15 @@ export function LocationPicker({ latitude, longitude, onChange, height = 238 }: 
       });
 
     return () => { active = false; };
-  }, [apiKey, isExpoGo]);
+  }, [apiKey]);
 
-  const fallback = isExpoGo
-    ? locale === 'hy' ? 'Yandex քարտեզը հասանելի է development build-ում։ Հասցեն կարող եք պահպանել նաև առանց քարտեզի։' : locale === 'ru' ? 'Yandex-карта доступна в development build. Адрес можно сохранить и без карты.' : 'Yandex MapKit is available in a development build. You can still save the address without the map.'
-    : !apiKey
-      ? locale === 'hy' ? 'Yandex MapKit API key-ը բացակայում է։' : locale === 'ru' ? 'Не найден ключ Yandex MapKit.' : 'Yandex MapKit API key is missing.'
-      : mapError
-        ? locale === 'hy' ? `Yandex MapKit-ը չբացվեց․ ${mapError}` : locale === 'ru' ? `Yandex MapKit не открылся: ${mapError}` : `Yandex MapKit failed to open: ${mapError}`
-        : locale === 'hy' ? 'Yandex քարտեզը բեռնվում է…' : locale === 'ru' ? 'Yandex-карта загружается…' : 'Loading Yandex MapKit…';
+  const fallback = !apiKey
+    ? locale === 'hy' ? 'Yandex MapKit API key-ը բացակայում է։' : locale === 'ru' ? 'Не найден ключ Yandex MapKit.' : 'Yandex MapKit API key is missing.'
+    : mapError
+      ? locale === 'hy' ? `Yandex MapKit-ը չբացվեց․ ${mapError}` : locale === 'ru' ? `Yandex MapKit не открылся: ${mapError}` : `Yandex MapKit failed to open: ${mapError}`
+      : locale === 'hy' ? 'Yandex քարտեզը բեռնվում է…' : locale === 'ru' ? 'Yandex-карта загружается…' : 'Loading Yandex MapKit…';
 
-  if (!apiKey || isExpoGo || !mapKit) {
+  if (!apiKey || !mapKit) {
     return <View style={[styles.fallback, { height, backgroundColor: theme.map, borderColor: theme.border }]}><Text style={[styles.brand, { color: theme.plum }]}>Yandex MapKit</Text><Text style={[styles.hint, { color: theme.muted }]}>{fallback}</Text>{finite(latitude) && finite(longitude) ? <Text style={[styles.coords, { color: theme.text }]}>{latitude.toFixed(6)}, {longitude.toFixed(6)}</Text> : null}</View>;
   }
 
