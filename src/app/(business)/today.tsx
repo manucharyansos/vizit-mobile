@@ -51,11 +51,12 @@ export default function TodayScreen() {
   ]);
   if (me.isLoading) return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><ActivityIndicator color={theme.plum} /></SafeAreaView>;
   if (me.isError) return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><Text style={{ color: theme.muted }}>{c.auth}</Text><Pressable onPress={async () => { await tokenStore.remove('business'); router.replace('/(business)/login'); }} style={[styles.primary, { backgroundColor: theme.plum }]}><Text style={styles.white}>{c.auth}</Text></Pressable></SafeAreaView>;
+  const isStaff = me.data?.role === 'staff';
   const dateLabel = new Intl.DateTimeFormat(locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Yerevan' }).format(new Date(`${date}T12:00:00+04:00`));
   return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
     <View style={styles.header}>
       <View style={{ flex: 1 }}><Text style={[styles.eyebrow, { color: theme.gold }]}>VIZIT BUSINESS</Text><Text style={[styles.title, { color: theme.text }]}>{c.title}</Text><Text style={{ color: theme.muted, marginTop: 4 }}>{me.data?.name}</Text></View>
-      <Pressable accessibilityLabel={c.add} onPress={() => router.push('/(business)/new-booking' as never)} style={[styles.logout, { backgroundColor: theme.plum }]}><VizitIcon ios="plus" android="add" color="#FFF" size={22} /></Pressable>
+      {!isStaff ? <Pressable accessibilityLabel={c.add} onPress={() => router.push('/(business)/new-booking' as never)} style={[styles.logout, { backgroundColor: theme.plum }]}><VizitIcon ios="plus" android="add" color="#FFF" size={22} /></Pressable> : null}
       <Pressable accessibilityLabel={c.logout} onPress={logout} style={[styles.logout, { backgroundColor: theme.plumSoft }]}><VizitIcon ios="rectangle.portrait.and.arrow.right" android="logout" color={theme.plum} size={19} /></Pressable>
     </View>
     <View style={[styles.dateCard, { backgroundColor: theme.plumSoft }]}><View style={[styles.dateIcon, { backgroundColor: theme.surface }]}><VizitIcon ios="calendar" android="calendar_month" color={theme.plum} size={23} /></View><Text style={[styles.dateText, { color: theme.plumStrong }]}>{dateLabel}</Text><View style={[styles.countBadge, { backgroundColor: theme.plum }]}><Text style={styles.countText}>{bookings.data?.length ?? 0}</Text></View></View>
@@ -67,13 +68,14 @@ function BookingCard({ item, onStatus, labels, locale, pending }: { item: Calend
   const starts = formatApiTime(item.starts_at, locale);
   const ends = formatApiTime(item.ends_at, locale);
   const terminal = isBookingTerminal(item.status);
+  const busy = item.status === 'pending' || item.status === 'confirmed' || item.status === 'in_progress';
   const client = item.client_name ?? item.customer_name ?? item.client?.name ?? labels.client;
   const phone = item.client_phone ?? item.client?.phone;
   const canConfirm = item.status === 'pending';
   const canComplete = item.status === 'confirmed';
   const canNoShowOrCancel = item.status === 'pending' || item.status === 'confirmed';
-  return <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-    <View style={styles.cardTop}><View style={[styles.timeBadge, { backgroundColor: theme.plumSoft }]}><Text style={[styles.time, { color: theme.plum }]}>{starts}</Text><Text style={[styles.timeEnd, { color: theme.muted }]}>– {ends}</Text></View><View style={[styles.statusBadge, { backgroundColor: terminal ? theme.plumSoft : theme.successSoft }]}><Text style={[styles.status, { color: terminal ? theme.muted : theme.success }]}>{bookingStatusLabel(item.status, locale)}</Text></View></View>
+  return <View style={[styles.card, { backgroundColor: busy ? theme.dangerSoft : theme.surface, borderColor: busy ? theme.danger : theme.border }]}>
+    <View style={styles.cardTop}><View style={[styles.timeBadge, { backgroundColor: busy ? theme.dangerSoft : theme.plumSoft }]}><Text style={[styles.time, { color: busy ? theme.danger : theme.plum }]}>{starts}</Text><Text style={[styles.timeEnd, { color: busy ? theme.danger : theme.muted }]}>– {ends}</Text></View><View style={[styles.statusBadge, { backgroundColor: terminal ? theme.plumSoft : theme.dangerSoft }]}><Text style={[styles.status, { color: terminal ? theme.muted : theme.danger }]}>{bookingStatusLabel(item.status, locale)}</Text></View></View>
     <Text style={[styles.client, { color: theme.text }]}>{client}</Text>
     {phone ? <Text style={{ color: theme.muted, fontSize: 12 }}>{labels.phone}: {phone}</Text> : null}
     <View style={styles.detailRow}><VizitIcon ios="sparkles" android="spa" color={theme.muted} size={15} /><Text style={{ color: theme.muted, flex: 1 }}>{item.service?.name ?? '—'} · {item.staff?.name ?? '—'}</Text></View>
