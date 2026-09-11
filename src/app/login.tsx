@@ -75,6 +75,7 @@ export default function UnifiedLoginScreen() {
 
       setPassword('');
       if (result.audience === 'client') {
+        queryClient.invalidateQueries({ queryKey: ['client-existing-session'] });
         queryClient.invalidateQueries({ queryKey: ['client-me'] });
         queryClient.invalidateQueries({ queryKey: ['client-bookings'] });
         router.replace('/(customer)/profile' as Href);
