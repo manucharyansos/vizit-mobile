@@ -9,6 +9,7 @@ import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { businessApi } from '@/services/api/business';
 import { apiErrorMessage } from '@/services/api/client';
+import { useBusinessPermissions } from '@/hooks/use-business-permissions';
 
 export default function ClientsScreen() {
   const { locale, theme } = useApp();
@@ -18,6 +19,7 @@ export default function ClientsScreen() {
     en: ['Clients', 'No clients yet', 'bookings', 'Search by name or phone', 'New client', 'Name', 'Phone', 'Email', 'Save', 'Cancel', 'Could not load clients', 'Try again', 'Customer database'],
   }[locale];
   const queryClient = useQueryClient();
+  const { canManage } = useBusinessPermissions();
   const [search, setSearch] = useState('');
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', email: '' });
@@ -42,6 +44,8 @@ export default function ClientsScreen() {
     <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>
       <FlatList
         data={data}
+        refreshing={query.isRefetching}
+        onRefresh={() => void query.refetch()}
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
@@ -51,10 +55,10 @@ export default function ClientsScreen() {
               eyebrow="Vizit Business"
               title={c[0]}
               subtitle={query.isSuccess ? `${c[12]} · ${query.data.length}` : c[12]}
-              action={<IconButton disabled={query.isError} accessibilityLabel={c[4]} ios={adding ? 'xmark' : 'plus'} android={adding ? 'close' : 'person_add'} onPress={() => setAdding((value) => !value)} tone="primary" />}
+              action={canManage ? <IconButton disabled={query.isError} accessibilityLabel={c[4]} ios={adding ? 'xmark' : 'plus'} android={adding ? 'close' : 'person_add'} onPress={() => setAdding((value) => !value)} tone="primary" /> : undefined}
             />
             <PremiumInput value={search} onChangeText={setSearch} placeholder={c[3]} returnKeyType="search" icon={{ ios: 'magnifyingglass', android: 'search' }} />
-            {adding ? (
+            {canManage && adding ? (
               <Surface style={styles.editor} elevated>
                 <View style={styles.editorHeader}><View style={[styles.editorIcon, { backgroundColor: theme.accentSoft }]}><VizitIcon ios="person.badge.plus" android="person_add" color={theme.accentText} size={21} /></View><Text style={[styles.editorTitle, { color: theme.text }]}>{c[4]}</Text></View>
                 <PremiumInput label={c[5]} value={form.name} onChangeText={(name) => setForm((value) => ({ ...value, name }))} placeholder={c[5]} icon={{ ios: 'person.fill', android: 'person' }} />

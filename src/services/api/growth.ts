@@ -1,4 +1,5 @@
 import { businessAuthClient } from './client';
+import { localDateTimeInputFromApi } from '../date-time';
 import { debugEmptyList, normalizeList, normalizeResource } from './normalize';
 
 export type WaitlistStatus = 'waiting' | 'offered' | 'booked' | 'cancelled' | 'expired';
@@ -77,7 +78,7 @@ export const growthApi = {
   async offerWaitlist(id: number, slot: AvailabilitySlot): Promise<WaitlistEntry> {
     const { data } = await businessAuthClient.post(`/waitlist/${id}/offer`, {
       staff_id: slot.staff_id,
-      starts_at: slot.starts_at.slice(0, 16).replace('T', ' '),
+      starts_at: localDateTimeInputFromApi(slot.starts_at),
     });
     return normalizeResource<WaitlistEntry>(data, ['entry', 'waitlist']);
   },

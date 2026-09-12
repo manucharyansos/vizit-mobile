@@ -10,6 +10,7 @@ import { useApp } from '@/providers/app-provider';
 import { BusinessUser } from '@/services/api/business';
 import { TokenAudience } from '@/services/api/client';
 import { unifiedAuthApi } from '@/services/api/unified-auth';
+import { useAuthNavigation } from '@/hooks/use-auth-navigation';
 
 const copy = {
   hy: {
@@ -75,6 +76,7 @@ export default function UnifiedLoginScreen() {
   const { locale, setLocale, mode, theme, toggleMode } = useApp();
   const c = copy[locale];
   const queryClient = useQueryClient();
+  const finishLogin = useAuthNavigation();
   const [identity, setIdentity] = useState('');
   const [password, setPassword] = useState('');
 
@@ -95,13 +97,14 @@ export default function UnifiedLoginScreen() {
         queryClient.invalidateQueries({ queryKey: ['client-existing-session'] });
         queryClient.invalidateQueries({ queryKey: ['client-me'] });
         queryClient.invalidateQueries({ queryKey: ['client-bookings'] });
-        router.replace('/(customer)/profile' as Href);
+        finishLogin('profile');
         return;
       }
 
       const user = result.user as BusinessUser;
       queryClient.invalidateQueries({ queryKey: ['business-existing-session'] });
-      router.replace((user.needs_onboarding ? '/(business)/admin' : '/(business)/today') as Href);
+      queryClient.setQueryData(['business-me'], user);
+      finishLogin(user.needs_onboarding ? 'admin' : 'today');
     },
     onError: () => Alert.alert(c.failed),
   });

@@ -1,14 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconButton, PageHeader, PremiumButton, StateCard, Surface } from '@/components/premium-ui';
+import { IconButton, PageHeader, PremiumButton, SectionHeader, StateCard, StatusPill, Surface } from '@/components/premium-ui';
 import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
-import { businessApi } from '@/services/api/business';
+import { businessApi, type CalendarBooking } from '@/services/api/business';
 import { apiErrorMessage } from '@/services/api/client';
-import { APP_TIME_ZONE, localDateKey } from '@/services/date-time';
+import { APP_TIME_ZONE, formatApiDateTime, localDateKey } from '@/services/date-time';
+import { bookingStatusLabel } from '@/services/booking-status';
+import { useBusinessPermissions } from '@/hooks/use-business-permissions';
 
 const copy = {
   hy: ['Գլխավոր', 'Բիզնեսի ընդհանուր պատկերը', 'Այսօր', 'Ամրագրումներ', 'Հաճախորդներ', 'Աշխատակիցներ', 'Ծառայություններ', 'Չհաջողվեց բեռնել տվյալները', 'Կրկին փորձել', 'Նոր ամրագրում'],
@@ -24,36 +26,38 @@ function readNumber(root: Record<string, unknown>, path: string): number | null 
 export default function BusinessDashboard() {
   const { locale, theme } = useApp();
   const c = copy[locale];
+  const { canManage } = useBusinessPermissions();
   const query = useQuery<Record<string, unknown>>({ queryKey: ['business-dashboard'], queryFn: businessApi.dashboard, retry: false, refetchOnMount: 'always', staleTime: 0 });
-  const clients = useQuery({ queryKey: ['business-clients'], queryFn: businessApi.clients, retry: false, refetchOnMount: 'always', staleTime: 0 });
   const date = localDateKey();
   const dateLabel = new Intl.DateTimeFormat(locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', timeZone: APP_TIME_ZONE }).format(new Date(`${date}T12:00:00+04:00`));
   const data = query.data;
   const dashboardClientCount = data ? readNumber(data, 'counts.clients') : null;
-  const clientCount = clients.data ? clients.data.length : dashboardClientCount;
+  const clientCount = dashboardClientCount;
+  const upcoming = (data?.upcoming as { rows?: CalendarBooking[] } | undefined)?.rows ?? [];
+  const upcomingLabel = locale === 'hy' ? 'Առաջիկա այցերը' : locale === 'ru' ? 'Ближайшие визиты' : 'Upcoming visits';
   const cards = data ? [
     { label: c[3], value: readNumber(data, 'today.total'), icon: 'calendar_month' as const, ios: 'calendar' as const },
     { label: c[4], value: clientCount, icon: 'group' as const, ios: 'person.2.fill' as const },
     { label: c[5], value: readNumber(data, 'counts.staff'), icon: 'badge' as const, ios: 'person.crop.rectangle.stack.fill' as const },
     { label: c[6], value: readNumber(data, 'counts.services'), icon: 'grid_view' as const, ios: 'square.grid.2x2.fill' as const },
   ] : [];
-  const retryAll = () => void Promise.all([query.refetch(), clients.refetch()]);
+  const retryAll = () => void query.refetch();
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={retryAll} tintColor={theme.accent} />}>
         <PageHeader
           eyebrow="Vizit Business"
           title={c[0]}
           subtitle={c[1]}
-          action={<IconButton accessibilityLabel={c[9]} ios="plus" android="add" onPress={() => router.push('/(business)/new-booking' as never)} tone="primary" />}
+          action={canManage ? <IconButton accessibilityLabel={c[9]} ios="plus" android="add" onPress={() => router.push('/(business)/new-booking' as never)} tone="primary" /> : undefined}
         />
 
-        <Surface style={[styles.todayStrip, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={c[2]} onPress={() => router.navigate('/(business)/today')}><Surface style={[styles.todayStrip, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
           <View style={[styles.todayIcon, { backgroundColor: 'rgba(255,255,255,0.12)' }]}><VizitIcon ios="calendar" android="calendar_month" color={theme.onPrimary} size={23} /></View>
           <View style={styles.todayCopy}><Text style={[styles.todayLabel, { color: theme.onPrimary }]}>{c[2]}</Text><Text style={[styles.todayDate, { color: theme.onPrimary }]}>{dateLabel}</Text></View>
           <VizitIcon ios="arrow.up.right" android="north_east" color={theme.onPrimary} size={20} />
-        </Surface>
+        </Surface></Pressable>
 
         {query.isLoading ? <View style={styles.loader}><ActivityIndicator color={theme.accent} size="large" /></View> : query.isError ? (
           <StateCard title={c[7]} message={apiErrorMessage(query.error)} tone="danger" icon={{ ios: 'exclamationmark.triangle.fill', android: 'error_outline' }} action={<PremiumButton title={c[8]} onPress={retryAll} tone="secondary" />} />
@@ -71,6 +75,7 @@ export default function BusinessDashboard() {
             ))}
           </View>
         )}
+        {canManage && upcoming.length ? <View style={styles.upcoming}><SectionHeader title={upcomingLabel} />{upcoming.map((visit) => <Surface key={visit.id} style={styles.visit}><View style={styles.visitTop}><Text style={[styles.visitName, { color: theme.text }]}>{visit.client_name}</Text><StatusPill label={bookingStatusLabel(visit.status, locale)} tone={visit.status === 'confirmed' ? 'success' : 'warning'} /></View><Text style={[styles.visitDate, { color: theme.accentText }]}>{formatApiDateTime(visit.starts_at, locale)}</Text><Text style={[styles.label, { color: theme.muted }]}>{visit.service?.name} · {visit.staff?.name}</Text></Surface>)}</View> : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -92,4 +97,5 @@ const styles = StyleSheet.create({
   metricIndex: { ...ui.type.eyebrow },
   value: { fontSize: 29, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 14 },
   label: { ...ui.type.caption, marginTop: 5 },
+  upcoming: { gap: 10 }, visit: { padding: 15, gap: 4 }, visitTop: { flexDirection: 'row', gap: 8, alignItems: 'center' }, visitName: { ...ui.type.cardTitle, flex: 1 }, visitDate: { ...ui.type.body, fontWeight: '700' },
 });

@@ -33,7 +33,7 @@ export default function BillingScreen() {
   const providerName = String(provider?.default ?? '').toLocaleLowerCase();
   const providerMode = String(provider?.mode ?? '').toLocaleLowerCase();
   const idbankConfigured = providerName.includes('idbank');
-  const idbankLive = idbankConfigured && providerMode === 'live';
+  const idbankLive = idbankConfigured && providerMode === 'live' && provider?.live_ready === true;
   const methods: Method[] = [
     { key: 'idbank', name: c.idbank, detail: idbankLive ? c.live : c.setup, active: idbankLive, officialLogo: idbankLogo },
     { key: 'idram', name: c.idram, detail: c.planned, active: false },

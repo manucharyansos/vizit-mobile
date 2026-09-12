@@ -1,2 +1,2 @@
-import { PublicBusiness } from '@/services/api/public';
-export function BusinessMap(props: { businesses: PublicBusiness[]; onSelect: (business: PublicBusiness, locationId?: number) => void }): React.JSX.Element;
+import type { BusinessMapProps } from './business-map.types';
+export declare function BusinessMap(props: BusinessMapProps): React.JSX.Element;

@@ -41,6 +41,9 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: Session, booking, map and accessibility regressions
+        run: npm test
+
       - name: Android Expo bundle
         run: npx expo export --platform android --output-dir dist/android --clear
 

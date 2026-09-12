@@ -43,11 +43,13 @@ export const clientAccountApi = {
     return user;
   },
   async bookings(): Promise<ClientBooking[]> {
+    const session = await tokenStore.get('client');
     const response = await clientAuthClient.get('/client/cabinet/bookings');
     const payload = normalizeResource<CabinetPayload>(response.data);
     const upcoming = normalizeList<CabinetBooking>(payload.upcoming, ['upcoming']);
     const past = normalizeList<CabinetBooking>(payload.past, ['past']);
     const raw = [...upcoming, ...past];
+    if (session !== await tokenStore.get('client')) return [];
     await guestBookingStore.rememberClientBookingReferences(
       raw
         .filter((booking) => typeof booking.booking_code === 'string' && booking.booking_code.trim())
@@ -59,12 +61,10 @@ export const clientAccountApi = {
   },
   async resendVerification() { return (await clientAuthClient.post('/client/auth/email/verification-notification')).data; },
   async requestAccountDeletion(reason?: string) {
-    try {
-      return (await clientAuthClient.post('/mobile/account-deletion-request', { reason })).data;
-    } finally {
-      await guestBookingStore.clearClientBookingReferences();
-      await tokenStore.remove('client');
-    }
+    const { data } = await clientAuthClient.post('/mobile/account-deletion-request', { reason });
+    await guestBookingStore.clearClientBookingReferences();
+    await tokenStore.remove('client');
+    return data;
   },
   async logout(): Promise<void> {
     try {

@@ -12,6 +12,8 @@ import { publicApi } from '@/services/api/public';
 import { guestBookingStore } from '@/services/guest-booking-store';
 import { useApp } from '@/providers/app-provider';
 import { formatApiDateTime } from '@/services/date-time';
+import { useClientSession } from '@/hooks/use-client-session';
+import { bookingStatusLabel } from '@/services/booking-status';
 
 const copy = {
   hy: {
@@ -30,8 +32,9 @@ export default function ProfileScreen() {
   const c = copy[locale];
   const queryClient = useQueryClient();
   const [openingBookingId, setOpeningBookingId] = useState<number | null>(null);
-  const me = useQuery({ queryKey: ['client-me'], queryFn: clientAccountApi.me, retry: false });
-  const bookings = useQuery({ queryKey: ['client-bookings'], queryFn: clientAccountApi.bookings, enabled: me.isSuccess, retry: false });
+  const session = useClientSession();
+  const me = useQuery({ queryKey: ['client-me'], queryFn: clientAccountApi.me, enabled: session.data === true, retry: false });
+  const bookings = useQuery({ queryKey: ['client-bookings'], queryFn: clientAccountApi.bookings, enabled: session.data === true && me.isSuccess, retry: false });
   const resend = useMutation({ mutationFn: clientAccountApi.resendVerification, onSuccess: () => Alert.alert(c.resend), onError: () => Alert.alert(t('loadError')) });
 
   const openBooking = async (bookingId: number) => {
@@ -47,7 +50,7 @@ export default function ProfileScreen() {
 
       const saved = await guestBookingStore.restore(reference);
       if (saved) {
-        await guestBookingStore.rememberCode(reference);
+        await guestBookingStore.requestOpen(reference);
         router.push('/(customer)/bookings');
         return;
       }
@@ -55,7 +58,7 @@ export default function ProfileScreen() {
       const recovery = await publicApi.resendBookingOtp(reference);
       const manageToken = recovery.manage_token ?? recovery.guest_token;
       if (typeof manageToken === 'string' && manageToken) await guestBookingStore.save(reference, manageToken);
-      else await guestBookingStore.rememberCode(reference);
+      await guestBookingStore.requestOpen(reference);
       router.push('/(customer)/bookings');
     } catch (error) {
       Alert.alert(t('loadError'), apiErrorMessage(error));
@@ -72,7 +75,6 @@ export default function ProfileScreen() {
       onPress: async () => {
         try {
           await clientAccountApi.requestAccountDeletion();
-          queryClient.clear();
           Alert.alert(c.deletionSent);
         } catch {
           Alert.alert(t('loadError'));
@@ -93,11 +95,11 @@ export default function ProfileScreen() {
     { text: t('back'), style: 'cancel' },
   ]);
 
-  if (me.isLoading) {
+  if (session.isLoading || me.isLoading) {
     return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><ActivityIndicator color={theme.accent} size="large" /></SafeAreaView>;
   }
 
-  if (me.isError) {
+  if (!session.data) {
     return (
       <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
         <View style={styles.signedOut}>
@@ -120,10 +122,14 @@ export default function ProfileScreen() {
     );
   }
 
+  if (me.isError) return <SafeAreaView style={[styles.signedOut, { backgroundColor: theme.background }]}><StateCard title={t('loadError')} tone="danger" action={<PremiumButton title={c.retry} onPress={() => void me.refetch()} tone="secondary" />} /></SafeAreaView>;
+
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>
       <FlatList
         data={bookings.data}
+        refreshing={me.isRefetching || bookings.isRefetching}
+        onRefresh={() => { void me.refetch(); void bookings.refetch(); }}
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
@@ -174,7 +180,7 @@ export default function ProfileScreen() {
                   <Text numberOfLines={1} style={[styles.bookingTitle, { color: theme.text }]}>{item.business?.name ?? c.booking}</Text>
                   <Text style={[styles.bookingDate, { color: theme.muted }]}>{formatApiDateTime(item.starts_at, locale)}</Text>
                 </View>
-                <StatusPill label={status || '—'} tone={bookingTone(status)} />
+                <StatusPill label={bookingStatusLabel(status, locale)} tone={bookingTone(status)} />
               </View>
               <View style={[styles.serviceRow, { backgroundColor: theme.accentSubtle }]}>
                 <VizitIcon ios="sparkles" android="spa" color={theme.accentText} size={16} />

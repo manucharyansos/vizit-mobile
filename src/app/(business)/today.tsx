@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
+import { useState } from 'react';
+import { isAxiosError } from 'axios';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconButton, PageHeader, PremiumButton, StateCard, StatusPill, Surface } from '@/components/premium-ui';
@@ -10,6 +12,7 @@ import { businessApi, CalendarBooking } from '@/services/api/business';
 import { apiErrorMessage, tokenStore } from '@/services/api/client';
 import { localDateKey, formatApiTime } from '@/services/date-time';
 import { bookingStatusLabel, isBookingTerminal } from '@/services/booking-status';
+import { CalendarDatePicker } from '@/components/calendar-date-picker';
 
 const copy = {
   hy: { title: 'Այսօրվա օրացույց', empty: 'Այսօր ամրագրումներ չկան', client: 'Հաճախորդ', confirm: 'Հաստատել', done: 'Ավարտել', noShow: 'Նշել՝ չի ներկայացել', cancel: 'Չեղարկել', add: 'Նոր ամրագրում', logout: 'Դուրս գալ', delete: 'Ջնջել հաշիվը', deleteConfirm: 'Ուղարկե՞լ բիզնես հաշվի և տվյալների ջնջման հայտը։', auth: 'Մուտք գործիր բիզնես հաշվով', loadError: 'Չհաջողվեց բեռնել օրացույցը', actionError: 'Գործողությունը չհաջողվեց', retry: 'Կրկին փորձել', phone: 'Հեռախոս', notes: 'Նշումներ', actionConfirm: 'Հաստատե՞լ այս գործողությունը։', close: 'Փակել', appointments: 'ամրագրում' },
@@ -21,7 +24,11 @@ export default function TodayScreen() {
   const { locale, theme } = useApp();
   const c = copy[locale];
   const queryClient = useQueryClient();
-  const date = localDateKey();
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const date = selectedDate ?? localDateKey();
+  const [showCalendar, setShowCalendar] = useState(false);
+  const calendarTitle = locale === 'hy' ? 'Օրացույց' : locale === 'ru' ? 'Календарь' : 'Calendar';
+  const emptyDay = locale === 'hy' ? 'Այս օրը ամրագրումներ չկան' : locale === 'ru' ? 'На этот день записей нет' : 'No bookings on this day';
   const me = useQuery({ queryKey: ['business-me'], queryFn: businessApi.me, retry: false, refetchOnMount: 'always' });
   const bookings = useQuery({ queryKey: ['calendar', date], queryFn: () => businessApi.calendar(date, date), enabled: me.isSuccess, retry: false, refetchOnMount: 'always', staleTime: 0, refetchInterval: 15_000 });
   const status = useMutation({
@@ -46,18 +53,19 @@ export default function TodayScreen() {
   };
   const requestDeletion = () => Alert.alert(c.delete, c.deleteConfirm, [
     { text: c.logout, style: 'cancel' },
-    { text: c.delete, style: 'destructive', onPress: async () => { await businessApi.requestAccountDeletion(); queryClient.clear(); router.replace('/(business)/login'); } },
+    { text: c.delete, style: 'destructive', onPress: async () => { try { await businessApi.requestAccountDeletion(); router.replace('/login'); } catch { Alert.alert(c.actionError, c.retry); } } },
   ]);
   const logout = () => Alert.alert(c.title, '', [
-    { text: c.logout, onPress: async () => { await businessApi.logout(); queryClient.clear(); router.replace('/(business)/login'); } },
+    { text: c.logout, onPress: async () => { await businessApi.logout(); router.replace('/login'); } },
     { text: c.delete, style: 'destructive', onPress: requestDeletion },
   ]);
 
   if (me.isLoading) return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><ActivityIndicator color={theme.accent} size="large" /></SafeAreaView>;
   if (me.isError) {
+    const unauthorized = isAxiosError(me.error) && me.error.response?.status === 401;
     return (
       <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}>
-        <StateCard title={c.auth} icon={{ ios: 'lock.shield.fill', android: 'shield_lock' }} action={<PremiumButton title={c.auth} onPress={async () => { await tokenStore.remove('business'); router.replace('/(business)/login'); }} />} />
+        <StateCard title={unauthorized ? c.auth : c.loadError} icon={{ ios: 'lock.shield.fill', android: 'shield_lock' }} action={<PremiumButton title={unauthorized ? c.auth : c.retry} onPress={async () => { if (unauthorized) { await tokenStore.remove('business'); router.replace('/login'); } else await me.refetch(); }} />} />
       </SafeAreaView>
     );
   }
@@ -70,7 +78,7 @@ export default function TodayScreen() {
       <View style={styles.headerWrap}>
         <PageHeader
           eyebrow="Vizit Business"
-          title={c.title}
+          title={calendarTitle}
           subtitle={me.data?.name}
           action={
             <View style={styles.headerActions}>
@@ -79,11 +87,12 @@ export default function TodayScreen() {
             </View>
           }
         />
-        <Surface style={styles.dateCard}>
+        <Pressable accessibilityRole="button" accessibilityLabel={calendarTitle} accessibilityState={{ expanded: showCalendar }} onPress={() => setShowCalendar((value) => !value)}><Surface style={styles.dateCard}>
           <View style={[styles.dateIcon, { backgroundColor: theme.accentSoft }]}><VizitIcon ios="calendar" android="calendar_month" color={theme.accentText} size={21} /></View>
           <View style={styles.dateCopy}><Text style={[styles.dateText, { color: theme.text }]}>{dateLabel}</Text><Text style={[styles.dateMeta, { color: theme.muted }]}>{bookings.data?.length ?? 0} {c.appointments}</Text></View>
           <View style={[styles.countBadge, { backgroundColor: theme.primary }]}><Text style={[styles.countText, { color: theme.onPrimary }]}>{bookings.data?.length ?? 0}</Text></View>
-        </Surface>
+        </Surface></Pressable>
+        {showCalendar ? <CalendarDatePicker value={date} minDate="" onChange={(value) => { setSelectedDate(value); setShowCalendar(false); }} /> : null}
       </View>
 
       {bookings.isLoading ? <View style={styles.loader}><ActivityIndicator color={theme.accent} size="large" /></View> : bookings.isError ? (
@@ -91,11 +100,13 @@ export default function TodayScreen() {
       ) : (
         <FlatList
           data={bookings.data}
+          refreshing={bookings.isRefetching}
+          onRefresh={() => void bookings.refetch()}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
-          ListEmptyComponent={<StateCard title={c.empty} icon={{ ios: 'calendar.badge.checkmark', android: 'event_available' }} />}
+          ListEmptyComponent={<StateCard title={emptyDay} icon={{ ios: 'calendar.badge.checkmark', android: 'event_available' }} />}
           renderItem={({ item }) => <BookingCard item={item} onStatus={(action) => runAction(item, action)} labels={c} locale={locale} pending={status.isPending} />}
         />
       )}
@@ -125,7 +136,7 @@ function BookingCard({ item, onStatus, labels, locale, pending }: { item: Calend
         </View>
         <View style={styles.cardBody}>
           <View style={styles.cardTop}>
-            <Text numberOfLines={1} style={[styles.client, { color: theme.text }]}>{client}</Text>
+            <Text numberOfLines={2} style={[styles.client, { color: theme.text }]}>{client}</Text>
             <StatusPill label={bookingStatusLabel(item.status, locale)} tone={tone} />
           </View>
           {phone ? <View style={styles.detailRow}><VizitIcon ios="phone.fill" android="call" color={theme.faint} size={14} /><Text style={[styles.detailText, { color: theme.muted }]}>{phone}</Text></View> : null}
@@ -180,12 +191,12 @@ const styles = StyleSheet.create({
   card: { padding: 13, gap: 12 },
   cardMain: { flexDirection: 'row', alignItems: 'stretch', gap: 12 },
   timeRail: { width: 68, minHeight: 106, borderRadius: ui.radius.medium, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
-  time: { fontSize: 17, lineHeight: 21, fontWeight: '800' },
+  time: { fontSize: 17, lineHeight: 21, fontWeight: '700', fontVariant: ['tabular-nums'] },
   timeDivider: { width: 14, height: 1, opacity: 0.35, marginVertical: 5 },
   timeEnd: { fontSize: 11, lineHeight: 15, fontWeight: '700', opacity: 0.75 },
   cardBody: { flex: 1, minWidth: 0, justifyContent: 'center', gap: 7 },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 7 },
-  client: { fontSize: 17, lineHeight: 22, fontWeight: '800', flex: 1 },
+  cardTop: { alignItems: 'flex-start', gap: 7 },
+  client: { fontSize: 17, lineHeight: 22, fontWeight: '700' },
   detailRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   detailText: { ...ui.type.caption, flex: 1 },
   notes: { borderRadius: ui.radius.small, padding: 8 },

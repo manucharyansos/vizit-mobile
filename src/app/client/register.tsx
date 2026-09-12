@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { useAuthNavigation } from '@/hooks/use-auth-navigation';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 import { ClientAuthShell } from '@/components/client-auth-shell';
@@ -17,11 +17,12 @@ export default function ClientRegisterScreen() {
   const { locale } = useApp();
   const c = copy[locale];
   const queryClient = useQueryClient();
+  const finishLogin = useAuthNavigation();
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirmation: '' });
   const valid = form.name.trim().length >= 2 && Boolean(form.email.trim() || form.phone.trim()) && form.password.length >= 8 && form.password === form.confirmation;
   const register = useMutation({
     mutationFn: () => clientAccountApi.register({ name: form.name.trim(), email: form.email.trim() || null, phone: form.phone.trim() || null, password: form.password, password_confirmation: form.confirmation }),
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['client-me'] }); router.replace('/(customer)/profile'); },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['client-me'] }); finishLogin('profile'); },
     onError: () => Alert.alert(c.failed),
   });
   const submit = () => {

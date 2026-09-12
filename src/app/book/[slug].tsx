@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -13,6 +13,7 @@ import { apiErrorMessage } from '@/services/api/client';
 import { guestBookingStore } from '@/services/guest-booking-store';
 import { formatApiTime, localDateKey, localDateTimeInputFromApi } from '@/services/date-time';
 import { safeBack } from '@/services/navigation';
+import { CalendarDatePicker } from '@/components/calendar-date-picker';
 
 const copy = {
   hy: { location: 'Մասնաճյուղ', noServices: 'Այս մասնաճյուղում ծառայություններ չկան', noStaff: 'Այս մասնաճյուղում հասանելի աշխատակիցներ չկան', noSlots: 'Այս օրվա համար ազատ ժամ չկա', retry: 'Կրկին փորձել', slotTaken: 'Այս ժամը հենց նոր զբաղեցվեց։ Ընտրեք մեկ այլ ազատ ժամ։' },
@@ -25,6 +26,8 @@ export default function BookingScreen() {
   const requestedLocationId = Number(locationParam) || undefined;
   const { locale, t, theme } = useApp();
   const c = copy[locale];
+  const cache = useQueryClient();
+  const [showCalendar, setShowCalendar] = useState(false);
   const [chosenLocationId, setChosenLocationId] = useState<number | undefined>(requestedLocationId);
   const [service, setService] = useState<Service>();
   const [staff, setStaff] = useState<Staff>();
@@ -50,7 +53,7 @@ export default function BookingScreen() {
     staleTime: 0,
   });
   const visibleSlots = useMemo(() => (slots.data ?? []).filter((item) => !staff || item.staff_id === staff.id), [slots.data, staff]);
-  const dates = useMemo(() => Array.from({ length: 10 }, (_, index) => localDateKey(index)), []);
+  const dates = Array.from({ length: 10 }, (_, index) => localDateKey(index));
 
   const booking = useMutation({
     mutationFn: () => publicApi.createBooking(slug, {
@@ -68,11 +71,19 @@ export default function BookingScreen() {
       const response = result.data ?? result;
       const bookingReference = response.booking_code;
       if (typeof bookingReference === 'string' && bookingReference.trim()) {
-        await guestBookingStore.rememberCode(bookingReference).catch(() => undefined);
+        try {
+          await guestBookingStore.rememberGuestBooking(bookingReference, { businessName: business.data?.name, businessSlug: slug, serviceName: service?.name, staffName: slot?.staff_name, startsAt: slot?.starts_at, status: response.status ?? 'pending', bookingIds: response.booking?.id ? [Number(response.booking.id)] : undefined });
+        } catch {
+          // A successful server booking must never be submitted again after a local storage failure.
+          Alert.alert(t('bookingSuccess'), t('bookingOtpHint'));
+        }
       }
+      await cache.invalidateQueries({ queryKey: ['guest-booking-history'] });
+      await cache.invalidateQueries({ queryKey: ['client-bookings'] });
+      router.replace('/(customer)/bookings');
       const checkoutUrl = checkoutUrlFrom(result);
-      if (checkoutUrl) await openIdBankCheckout(checkoutUrl);
-      Alert.alert(t('bookingSuccess'), t('bookingOtpHint'), [{ text: 'OK', onPress: () => router.replace('/(customer)/bookings') }]);
+      if (checkoutUrl) await openIdBankCheckout(checkoutUrl).catch(() => Alert.alert(t('loadError')));
+      Alert.alert(t('bookingSuccess'), t('bookingOtpHint'));
     },
     onError: async (error) => {
       setSlot(undefined);
@@ -82,8 +93,9 @@ export default function BookingScreen() {
     },
   });
 
-  const valid = Boolean(locationId && service && slot && form.name.trim().length >= 2 && form.phone.trim().length >= 5 && /^\S+@\S+\.\S+$/.test(form.email.trim()));
-  const currentStep = slot ? 4 : service ? 3 : 1;
+  const slotAvailable = visibleSlots.some((item) => item.starts_at === slot?.starts_at && item.staff_id === slot?.staff_id);
+  const valid = Boolean(locationId && service && slot && slotAvailable && !slots.isError && date >= localDateKey() && form.name.trim().length >= 2 && form.phone.replace(/\D/g, '').length >= 5 && /^\S+@\S+\.\S+$/.test(form.email.trim()));
+  const currentStep = slot ? 4 : staff ? 3 : service ? 2 : 1;
   const changeLocation = (id: number) => {
     if (id === locationId) return;
     setChosenLocationId(id);
@@ -153,6 +165,8 @@ export default function BookingScreen() {
 
         {service ? (
           <Section step="3" title={t('chooseDate')}>
+            <PremiumButton title={t('chooseDate')} tone="secondary" compact icon={{ ios: 'calendar', android: 'calendar_month' }} onPress={() => setShowCalendar((value) => !value)} />
+            {showCalendar ? <CalendarDatePicker value={date} onChange={(value) => { setDate(value); setSlot(undefined); }} /> : null}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}>
               {dates.map((item) => <DateChoice key={item} value={item} selected={date === item} locale={locale} onPress={() => { setDate(item); setSlot(undefined); }} />)}
             </ScrollView>
@@ -192,8 +206,8 @@ export default function BookingScreen() {
           <PremiumButton
             title={t('confirmBooking')}
             loading={booking.isPending}
-            disabled={!valid}
-            onPress={() => booking.mutate()}
+            disabled={!valid || booking.isSuccess}
+            onPress={() => { if (valid && !booking.isPending && !booking.isSuccess) booking.mutate(); }}
             icon={{ ios: 'arrow.right', android: 'arrow_forward' }}
             style={styles.submit}
           />

@@ -53,14 +53,8 @@ function parseLocalWallClock(value: string): Date | null {
   const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
   if (!match) return null;
   const [, year, month, day, hour, minute, second] = match;
-  const date = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-    Number(second ?? 0),
-  );
+  // Unzoned API values are Armenia wall-clock time, regardless of the device zone.
+  const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second ?? '00'}+04:00`);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, PremiumButton, SectionHeader, StateCard, StatusPill, Surface } from '@/components/premium-ui';
 import { VizitIcon } from '@/components/vizit-icon';
@@ -10,6 +10,9 @@ import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { publicApi } from '@/services/api/public';
 import { safeBack } from '@/services/navigation';
+import { validPoint } from '@/services/geo';
+import { openDirections } from '@/services/directions';
+import { businessCategory } from '@/services/business-category';
 
 const copy = {
   hy: { location: 'Մասնաճյուղ', emptyServices: 'Այս մասնաճյուղում ծառայություններ չկան', emptyStaff: 'Այս մասնաճյուղում աշխատակիցներ չկան', retry: 'Կրկին փորձել' },
@@ -18,11 +21,11 @@ const copy = {
 };
 
 export default function BusinessScreen() {
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { slug, locationId: initialLocation } = useLocalSearchParams<{ slug: string; locationId?: string }>();
   const { locale, t, theme } = useApp();
   const c = copy[locale];
   const insets = useSafeAreaInsets();
-  const [chosenLocationId, setChosenLocationId] = useState<number>();
+  const [chosenLocationId, setChosenLocationId] = useState<number | undefined>(Number(initialLocation) || undefined);
   const business = useQuery({ queryKey: ['business', slug], queryFn: () => publicApi.business(slug), enabled: Boolean(slug), retry: false });
   const locations = business.data?.locations ?? [];
   const selectedLocation = locations.find((location) => location.id === chosenLocationId) ?? locations[0];
@@ -55,9 +58,10 @@ export default function BusinessScreen() {
           </View>
           <View style={styles.summaryBody}>
             <Text style={[styles.title, { color: theme.text }]}>{item.name}</Text>
-            {item.category_name ? <View style={styles.category}><StatusPill label={item.category_name} tone="accent" /></View> : null}
+            {businessCategory(item, locale) ? <View style={styles.category}><StatusPill label={businessCategory(item, locale)!} tone="accent" /></View> : null}
             {address ? <MetaRow icon={{ ios: 'location.fill', android: 'location_on' }} value={address} /> : null}
-            {item.phone ? <MetaRow icon={{ ios: 'phone.fill', android: 'call' }} value={item.phone} /> : null}
+            {item.phone ? <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(`tel:${item.phone!.replace(/[^+\d]/g, '')}`).catch(() => Alert.alert(t('loadError')))}><MetaRow icon={{ ios: 'phone.fill', android: 'call' }} value={item.phone} /></Pressable> : null}
+            {validPoint(selectedLocation?.lat, selectedLocation?.lng) ? <PremiumButton title={locale === 'hy' ? 'Ինչպես հասնել' : locale === 'ru' ? 'Как добраться' : 'Directions'} tone="ghost" compact icon={{ ios: 'arrow.turn.up.right', android: 'directions' }} onPress={() => void openDirections(validPoint(selectedLocation?.lat, selectedLocation?.lng)!).catch(() => Alert.alert(t('loadError')))} /> : null}
           </View>
         </Surface>
 

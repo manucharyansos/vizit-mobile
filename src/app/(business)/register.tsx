@@ -9,6 +9,7 @@ import { ui } from '@/constants/vizit-theme';
 import { useExistingBusinessSession } from '@/hooks/use-existing-business-session';
 import { useApp } from '@/providers/app-provider';
 import { businessApi } from '@/services/api/business';
+import { useAuthNavigation } from '@/hooks/use-auth-navigation';
 
 const copy = {
   hy: { title: 'Գրանցել բիզնես', subtitle: 'Ստեղծիր սեփականատիրոջ հաշիվը և կառավարման տարածքը', business: 'Բիզնեսի անվանում', owner: 'Ձեր անունը', phone: 'Բիզնեսի հեռախոս', address: 'Հասցե', email: 'Էլ․ փոստ', password: 'Գաղտնաբառ՝ առնվազն 8 նիշ', confirm: 'Կրկնել գաղտնաբառը', services: 'Ծառայություններ', healthcare: 'Բժշկություն', submit: 'Ստեղծել բիզնես հաշիվ', login: 'Արդեն ունե՞ք հաշիվ։ Մուտք գործել', mismatch: 'Գաղտնաբառերը չեն համընկնում', failed: 'Գրանցումը չհաջողվեց։ Ստուգեք դաշտերը։', location: 'Սկզբնական կետը Երևանն է․ ճիշտ տեղը կարող եք ընտրել կառավարման բաժնում։', type: 'Բիզնեսի ուղղություն', back: 'Հետ' },
@@ -19,6 +20,7 @@ const copy = {
 export default function BusinessRegister() {
   const { locale, theme } = useApp();
   const c = copy[locale];
+  const finishLogin = useAuthNavigation();
   const existingSession = useExistingBusinessSession();
   const redirected = useRef(false);
   const [vertical, setVertical] = useState<'services' | 'healthcare'>('services');
@@ -27,14 +29,15 @@ export default function BusinessRegister() {
   useEffect(() => {
     if (!existingSession.data || redirected.current) return;
     redirected.current = true;
-    router.replace('/(business)/today' as Href);
-  }, [existingSession.data]);
+    finishLogin('today');
+  }, [existingSession.data, finishLogin]);
 
   const valid = form.business.trim().length > 1 && form.owner.trim().length > 1 && form.phone.trim().length > 4 && form.address.trim().length > 2 && /\S+@\S+\.\S+/.test(form.email) && form.password.length >= 8 && form.password === form.confirmation;
   const registration = useMutation({
+    onMutate: () => { redirected.current = true; },
     mutationFn: () => businessApi.register({ business_name: form.business.trim(), business_phone: form.phone.trim(), business_address: form.address.trim(), latitude: 40.1772, longitude: 44.50349, vertical, name: form.owner.trim(), email: form.email.trim().toLowerCase(), password: form.password, password_confirmation: form.confirmation, plan_code: 'start' }),
-    onSuccess: () => router.replace('/(business)/admin' as Href),
-    onError: () => Alert.alert(c.failed),
+    onSuccess: () => finishLogin('admin'),
+    onError: () => { redirected.current = false; Alert.alert(c.failed); },
   });
 
   if (existingSession.isLoading || existingSession.data) {

@@ -58,6 +58,7 @@ The Yandex key must have **MapKit Mobile SDK** enabled in Yandex Developer Dashb
 ```bash
 npm run typecheck
 npm run lint
+npm test
 npm run doctor
 ```
 
@@ -69,3 +70,5 @@ npm run doctor
 - IDBank merchant secrets and authoritative payment confirmation belong only in Laravel.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/INTEGRATION_STATUS.md](docs/INTEGRATION_STATUS.md), and [docs/MOBILE_BACKEND_CONTRACT.md](docs/MOBILE_BACKEND_CONTRACT.md).
+
+For phone-only OTA updates, the new preview APK with foreground location, and the latest fixes, see [mobile update notes](docs/mobile-fixes-2026-09-12.md).

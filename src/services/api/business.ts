@@ -1,6 +1,7 @@
 import { API_BASE_URL, businessAuthClient, tokenStore } from './client';
 import { debugEmptyList, normalizeList, normalizeResource } from './normalize';
 import { revokePushDevice, synchronizePushDevice } from '../notifications';
+import { collectPages } from './pagination';
 
 export type BusinessUser = { id: number; name: string; email?: string; role?: string; audience?: 'business'; business_id?: number; business_name?: string; business_slug?: string; needs_onboarding?: boolean };
 export type CalendarBooking = { id: number; starts_at: string; ends_at: string; status: string; client_name?: string; client_phone?: string; customer_name?: string; notes?: string | null; final_price?: number | null; service?: { id: number; name: string }; staff?: { id: number; name: string }; client?: { id: number; name: string; phone?: string | null } | null };
@@ -90,7 +91,7 @@ export const businessApi = {
   async me(): Promise<BusinessUser> { const { data } = await businessAuthClient.get('/auth/me'); return normalizeResource<BusinessUser>(data, ['user']); },
   async dashboard(): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.get('/dashboard'); return normalizeResource<Record<string, unknown>>(data); },
   async calendar(from: string, to: string): Promise<CalendarBooking[]> { const response = await businessAuthClient.get('/calendar', { params: { from, to } }); const list = normalizeList<CalendarBooking>(response.data, ['bookings']); debugEmptyList('business.calendar', response, list); return list; },
-  async clients(): Promise<BusinessClient[]> { const response = await businessAuthClient.get('/clients'); const list = normalizeList<BusinessClient>(response.data, ['clients']); debugEmptyList('business.clients', response, list); return list; },
+  async clients(): Promise<BusinessClient[]> { return collectPages<BusinessClient>(async (page) => (await businessAuthClient.get('/clients', { params: { page, per_page: 100 } })).data, ['clients']); },
   async createClient(payload: { name: string; phone?: string; email?: string }): Promise<BusinessClient> { const { data } = await businessAuthClient.post('/clients', payload); return normalizeResource<BusinessClient>(data, ['client']); },
   async client(id: number): Promise<BusinessClientDetail> { const { data } = await businessAuthClient.get(`/clients/${id}`); return normalizeResource<BusinessClientDetail>(data, ['client']); },
   async updateClient(id: number, payload: Partial<BusinessClientDetail>): Promise<BusinessClientDetail> { const { data } = await businessAuthClient.put(`/clients/${id}`, payload); return normalizeResource<BusinessClientDetail>(data, ['client']); },
@@ -98,7 +99,7 @@ export const businessApi = {
   async staff(): Promise<BusinessStaff[]> { const response = await businessAuthClient.get('/staff', { params: { only_active: false } }); const list = normalizeStaff(response.data); debugEmptyList('business.staff', response, list); return list; },
   async tasks(): Promise<BusinessTask[]> { const response = await businessAuthClient.get('/tasks'); const list = normalizeList<BusinessTask>(response.data, ['tasks']); debugEmptyList('business.tasks', response, list); return list; },
   async createTask(payload: { title: string; description?: string; priority?: BusinessTask['priority']; assignee_id?: number }): Promise<BusinessTask> { const { data } = await businessAuthClient.post('/tasks', payload); return normalizeResource<BusinessTask>(data, ['task']); },
-  async updateTask(id: number, payload: Partial<BusinessTask>): Promise<BusinessTask> { const { data } = await businessAuthClient.patch(`/tasks/${id}`, payload); return normalizeResource<BusinessTask>(data, ['task']); },
+  async updateTask(id: number, payload: Partial<BusinessTask>, asStaff = false): Promise<BusinessTask> { const { data } = await businessAuthClient.request({ method: asStaff ? 'PATCH' : 'PUT', url: `/tasks/${id}`, data: payload }); return normalizeResource<BusinessTask>(data, ['task']); },
   async deleteTask(id: number): Promise<void> { await businessAuthClient.delete(`/tasks/${id}`); },
   async analytics(): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.get('/analytics/overview'); return normalizeResource<Record<string, unknown>>(data); },
   async giftCards(): Promise<GiftCard[]> { const response = await businessAuthClient.get('/gift-cards'); const list = normalizeList<GiftCard>(response.data, ['gift_cards', 'giftCards']); debugEmptyList('business.giftCards', response, list); return list; },
@@ -132,6 +133,6 @@ export const businessApi = {
   async completeOnboarding(): Promise<Record<string, unknown>> { return (await businessAuthClient.post('/business/complete-onboarding')).data as Record<string, unknown>; },
   async createBooking(payload: { service_id: number; staff_id: number; location_id?: number; starts_at: string; client_name: string; client_phone: string; client_email?: string; client_id?: number; notes?: string }): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.post('/bookings', { ...payload, status: 'confirmed', source: 'admin' }); return normalizeResource<Record<string, unknown>>(data); },
   async updateStatus(id: number, status: 'confirm' | 'done' | 'no-show' | 'cancel'): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.patch(`/bookings/${id}/${status}`); return normalizeResource<Record<string, unknown>>(data); },
-  async requestAccountDeletion(reason?: string): Promise<unknown> { try { return (await businessAuthClient.post('/mobile/account-deletion-request', { reason })).data; } finally { await tokenStore.remove('business'); } },
+  async requestAccountDeletion(reason?: string): Promise<unknown> { const { data } = await businessAuthClient.post('/mobile/account-deletion-request', { reason }); await tokenStore.remove('business'); return data; },
   async logout(): Promise<void> { try { await revokePushDevice('business'); try { await businessAuthClient.post('/auth/logout'); } catch { /* Expired or already-revoked sessions are already logged out. */ } } finally { await tokenStore.remove('business'); } },
 };

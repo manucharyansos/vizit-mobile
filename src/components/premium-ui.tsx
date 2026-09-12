@@ -37,7 +37,7 @@ export function Surface({ children, style, elevated = false }: PropsWithChildren
     <View
       style={[
         styles.surface,
-        ui.shadow.card,
+        elevated && ui.shadow.card,
         { backgroundColor: elevated ? theme.surfaceElevated : theme.surfaceRaised, borderColor: theme.border, shadowColor: theme.shadow },
         style,
       ]}
@@ -71,6 +71,7 @@ export function IconButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
       disabled={disabled}
       hitSlop={4}
       onPress={onPress}
@@ -160,6 +161,8 @@ export function PremiumButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -198,6 +201,7 @@ export function PremiumInput({
         {icon ? <VizitIcon ios={icon.ios} android={icon.android} color={theme.faint} size={19} style={props.multiline ? styles.fieldIconMultiline : undefined} /> : null}
         <TextInput
           {...props}
+          accessibilityLabel={props.accessibilityLabel ?? label ?? props.placeholder}
           placeholderTextColor={theme.faint}
           selectionColor={theme.accent}
           style={[styles.field, props.multiline && styles.fieldMultiline, { color: theme.text }, inputStyle]}
@@ -306,7 +310,7 @@ const styles = StyleSheet.create({
   sectionDetail: { ...ui.type.caption, marginTop: 2 },
   button: { minHeight: ui.controlHeight, borderRadius: ui.radius.medium, borderWidth: 1, paddingHorizontal: ui.spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: ui.spacing.xs },
   buttonCompact: { minHeight: 42, borderRadius: ui.radius.small, paddingHorizontal: ui.spacing.sm },
-  buttonText: ui.type.button,
+  buttonText: { ...ui.type.button, flexShrink: 1, textAlign: 'center', paddingVertical: 10 },
   fieldGroup: { gap: 7 },
   fieldLabel: { ...ui.type.caption, marginLeft: 2 },
   fieldShell: { minHeight: ui.controlHeight, borderWidth: 1, borderRadius: ui.radius.medium, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -318,7 +322,7 @@ const styles = StyleSheet.create({
   pill: { maxWidth: '100%', minHeight: 28, borderRadius: ui.radius.pill, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
   pillDot: { width: 6, height: 6, borderRadius: 3 },
   pillText: { fontSize: 11, lineHeight: 14, fontWeight: '800' },
-  stateCard: { minHeight: 180, alignItems: 'center', justifyContent: 'center', padding: ui.spacing.xl },
+  stateCard: { minHeight: 156, alignItems: 'center', justifyContent: 'center', padding: ui.spacing.lg },
   stateIcon: { width: 50, height: 50, borderRadius: ui.radius.medium, alignItems: 'center', justifyContent: 'center', marginBottom: ui.spacing.sm },
   stateTitle: { ...ui.type.cardTitle, textAlign: 'center' },
   stateMessage: { ...ui.type.body, textAlign: 'center', marginTop: ui.spacing.xs },

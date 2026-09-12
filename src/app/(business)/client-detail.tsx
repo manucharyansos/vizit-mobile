@@ -10,6 +10,7 @@ import { useApp } from '@/providers/app-provider';
 import { businessApi } from '@/services/api/business';
 import { apiErrorMessage } from '@/services/api/client';
 import { bookingStatusLabel } from '@/services/booking-status';
+import { useBusinessPermissions } from '@/hooks/use-business-permissions';
 import { formatApiDateTime } from '@/services/date-time';
 import { safeBack } from '@/services/navigation';
 
@@ -20,6 +21,7 @@ const copy = {
 };
 
 export default function ClientDetail() {
+  const { canManage } = useBusinessPermissions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const clientId = Number(id);
   const { locale, theme } = useApp();
@@ -93,11 +95,13 @@ export default function ClientDetail() {
 
         <Surface style={styles.card} elevated>
           <SectionHeader title={c.contact} />
+          {canManage ? <>
           <PremiumInput label={c.name} value={form.name} onChangeText={(name) => setForm((value) => ({ ...value, name }))} placeholder={c.name} icon={{ ios: 'person.fill', android: 'person' }} />
           <PremiumInput label={c.phone} value={form.phone} onChangeText={(phone) => setForm((value) => ({ ...value, phone }))} placeholder={c.phone} keyboardType="phone-pad" icon={{ ios: 'phone.fill', android: 'call' }} />
           <PremiumInput label={c.email} value={form.email} onChangeText={(email) => setForm((value) => ({ ...value, email }))} placeholder={c.email} keyboardType="email-address" autoCapitalize="none" icon={{ ios: 'envelope.fill', android: 'mail' }} />
           <View style={[styles.toggle, { backgroundColor: theme.accentSubtle }]}><View style={styles.toggleCopy}><VizitIcon ios="star.fill" android="star" color={theme.accentText} size={18} /><Text style={[styles.toggleLabel, { color: theme.text }]}>{c.vip}</Text></View><Switch value={form.is_vip} onValueChange={(is_vip) => setForm((value) => ({ ...value, is_vip }))} trackColor={{ false: theme.borderStrong, true: theme.accent }} thumbColor={theme.surfaceRaised} /></View>
           <PremiumButton title={c.save} loading={save.isPending} disabled={form.name.trim().length < 2} onPress={() => save.mutate()} icon={{ ios: 'checkmark', android: 'check' }} />
+          </> : <><InfoRow label={c.name} value={data.name} /><InfoRow label={c.phone} value={data.phone ?? '—'} /><InfoRow label={c.email} value={data.email ?? '—'} /></>}
         </Surface>
 
         <SectionHeader title={c.history} />

@@ -9,7 +9,7 @@ import { useApp } from '@/providers/app-provider';
 import { availabilityApi, AvailabilitySlot } from '@/services/api/availability';
 import { businessApi, BusinessLocation, CalendarBooking } from '@/services/api/business';
 import { apiErrorMessage } from '@/services/api/client';
-import { formatApiTime, localDateKey } from '@/services/date-time';
+import { formatApiTime, localDateKey, localDateTimeInputFromApi } from '@/services/date-time';
 import { safeBack } from '@/services/navigation';
 
 const copy = {
@@ -42,6 +42,7 @@ export default function NewBooking() {
   const [serviceId, setServiceId] = useState<number>();
   const [staffId, setStaffId] = useState<number>();
   const [clientId, setClientId] = useState<number>();
+  const [clientSearch, setClientSearch] = useState('');
   const [selectedSlotKey, setSelectedSlotKey] = useState<string>();
 
   const settings = useQuery({ queryKey: ['business-settings'], queryFn: businessApi.settings, retry: false });
@@ -126,7 +127,7 @@ export default function NewBooking() {
   const create = useMutation({
     mutationFn: () => businessApi.createBooking({
       service_id: effectiveServiceId!, staff_id: selectedBookingStaffId!, location_id: effectiveLocationId,
-      starts_at: effectiveSelectedStart!.replace('T', ' ').slice(0, 16),
+      starts_at: localDateTimeInputFromApi(effectiveSelectedStart!),
       client_name: form.name.trim(), client_phone: form.phone.trim(), client_email: form.email.trim() || undefined,
       client_id: clientId, notes: form.notes.trim() || undefined,
     }),
@@ -196,7 +197,8 @@ export default function NewBooking() {
 
     {!anyLoadError ? <Surface style={styles.section}>
       <SectionHeader title={c.client} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}><Choice selected={clientId == null} title={c.newClient} onPress={newClient} />{clients.data?.slice(0, 30).map((item) => <Pressable accessibilityRole="button" key={item.id} onPress={() => selectClient(item)} style={[styles.clientChip, { borderColor: clientId === item.id ? theme.accent : theme.border, backgroundColor: clientId === item.id ? theme.accentSoft : theme.surface }]}><View style={[styles.clientAvatar, { backgroundColor: theme.primary }]}><Text style={[styles.clientInitial, { color: theme.onPrimary }]}>{item.name.slice(0, 1).toUpperCase()}</Text></View><Text numberOfLines={1} style={{ color: theme.text, fontWeight: '800', maxWidth: 110 }}>{item.name}</Text></Pressable>)}</ScrollView>
+      <PremiumInput value={clientSearch} onChangeText={setClientSearch} label={locale === 'hy' ? 'Փնտրել հաճախորդին' : locale === 'ru' ? 'Найти клиента' : 'Find a client'} icon={{ ios: 'magnifyingglass', android: 'search' }} />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}><Choice selected={clientId == null} title={c.newClient} onPress={newClient} />{(clients.data ?? []).filter((item) => [item.name, item.phone, item.email].some((value) => value?.toLocaleLowerCase(locale).includes(clientSearch.trim().toLocaleLowerCase(locale)))).map((item) => <Pressable accessibilityRole="button" key={item.id} onPress={() => selectClient(item)} style={[styles.clientChip, { borderColor: clientId === item.id ? theme.accent : theme.border, backgroundColor: clientId === item.id ? theme.accentSoft : theme.surface }]}><View style={[styles.clientAvatar, { backgroundColor: theme.primary }]}><Text style={[styles.clientInitial, { color: theme.onPrimary }]}>{item.name.slice(0, 1).toUpperCase()}</Text></View><Text numberOfLines={1} style={{ color: theme.text, fontWeight: '800', maxWidth: 110 }}>{item.name}</Text></Pressable>)}</ScrollView>
       {input('name', c.name)}{input('phone', c.phone, 'phone-pad')}{input('email', c.email, 'email-address')}
     </Surface> : null}
 

@@ -1,21 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
 import { router, Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/providers/app-provider';
 import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
-import { tokenStore } from '@/services/api/client';
+import { useClientSession } from '@/hooks/use-client-session';
 
 export default function CustomerLayout() {
   const { t, theme } = useApp();
   const insets = useSafeAreaInsets();
-  const clientSession = useQuery({
-    queryKey: ['client-existing-session'],
-    queryFn: async () => Boolean(await tokenStore.get('client')),
-    retry: false,
-    staleTime: 0,
-    refetchOnMount: 'always',
-  });
+  const clientSession = useClientSession();
 
   return <Tabs screenOptions={{
     headerShown: false,

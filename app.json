@@ -55,6 +55,15 @@
       "expo-secure-store",
       "expo-web-browser",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Vizit uses your location to show nearby businesses and directions when you ask.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Vizit-ին անհրաժեշտ է նկարների հասանելիություն՝ բիզնեսի լոգոն և շապիկը ընտրելու համար։",

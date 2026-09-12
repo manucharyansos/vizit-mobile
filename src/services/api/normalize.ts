@@ -76,8 +76,8 @@ export function normalizeResource<T>(payload: unknown, aliases: string[] = []): 
   return (dataFallback ?? payload) as T;
 }
 
-/** Development-only diagnostics for the exact URL/status/payload behind an
- * unexpected empty list. Authorization headers are intentionally never logged.
+/** Development-only endpoint/status diagnostics. Payloads may contain private
+ * booking references or personal data and must never be written to logs.
  */
 export function debugEmptyList(label: string, response: ResponseLike, list: unknown[]) {
   if (!__DEV__ || list.length) return;
@@ -85,7 +85,5 @@ export function debugEmptyList(label: string, response: ResponseLike, list: unkn
   console.warn(`[Vizit API] empty ${label}`, {
     url,
     status: response.status,
-    params: response.config?.params,
-    response: response.data,
   });
 }

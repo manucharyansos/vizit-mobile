@@ -1,21 +1,58 @@
 import { create } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { appQueryClient } from '@/services/query-client';
+import { belongsToSession } from '@/services/session-cache';
 
 export const API_BASE_URL = 'https://api.vizit.am/api';
 export const PUBLIC_WEB_URL = 'https://vizit.am';
 export type TokenAudience = 'client' | 'business';
 const keys: Record<TokenAudience, string> = { client: 'vizit.auth.client.v1', business: 'vizit.auth.business.v1' };
+const lastAudienceKey = 'vizit.auth.last-audience.v1';
+const writes: Record<TokenAudience, Promise<unknown>> = { client: Promise.resolve(), business: Promise.resolve() };
+function sessionWrite<T>(audience: TokenAudience, action: () => Promise<T>): Promise<T> {
+  const next = writes[audience].then(action, action);
+  writes[audience] = next.catch(() => undefined);
+  return next;
+}
 
 export const tokenStore = {
   get: (audience: TokenAudience) => SecureStore.getItemAsync(keys[audience]),
+  async lastAudience(): Promise<TokenAudience | null> {
+    const last = await SecureStore.getItemAsync(lastAudienceKey);
+    if ((last === 'business' || last === 'client') && await SecureStore.getItemAsync(keys[last])) return last;
+    // Migrate sessions created before the last-used workspace was persisted.
+    if (!last && await SecureStore.getItemAsync(keys.business)) return 'business';
+    if (!last && await SecureStore.getItemAsync(keys.client)) return 'client';
+    return null;
+  },
   async set(audience: TokenAudience, token: string) {
-    appQueryClient.clear();
+    return sessionWrite(audience, async () => {
+    const predicate = (query: { queryKey: readonly unknown[] }) => belongsToSession(query.queryKey, audience);
+    await appQueryClient.cancelQueries({ predicate });
     await SecureStore.setItemAsync(keys[audience], token);
+    await SecureStore.setItemAsync(lastAudienceKey, audience);
+    appQueryClient.removeQueries({ predicate });
+    appQueryClient.setQueryData([`${audience}-existing-session`], true);
+    });
   },
   async remove(audience: TokenAudience, clearCache = true) {
-    if (clearCache) appQueryClient.clear();
+    return sessionWrite(audience, async () => {
     await SecureStore.deleteItemAsync(keys[audience]);
+    if (clearCache) {
+      const predicate = (query: { queryKey: readonly unknown[] }) => belongsToSession(query.queryKey, audience);
+      await appQueryClient.cancelQueries({ predicate });
+      appQueryClient.removeQueries({ predicate });
+    }
+    appQueryClient.setQueryData([`${audience}-existing-session`], false);
+    });
+  },
+  async removeRejectedToken(audience: TokenAudience, authorization: unknown) {
+    return sessionWrite(audience, async () => {
+      const current = await SecureStore.getItemAsync(keys[audience]);
+      if (!current || authorization !== `Bearer ${current}`) return;
+      await SecureStore.deleteItemAsync(keys[audience]);
+      appQueryClient.setQueryData([`${audience}-existing-session`], false);
+    });
   },
 };
 
@@ -35,7 +72,11 @@ export function createApiClient(audience?: TokenAudience) {
       // Do not clear React Query from inside the response interceptor. Clearing the
       // query that is currently rejecting can recreate it immediately and cause an
       // endless loading loop on auth screens. Explicit login/logout still clears cache.
-      if (audience && error?.response?.status === 401) await tokenStore.remove(audience, false);
+      // A late 401 from an old request must never sign out a newly logged-in user.
+      const credentialRequest = /\/auth\/(?:login|register|forgot-password|reset-password)\/?$/.test(error.config?.url ?? '');
+      if (audience && error?.response?.status === 401 && !credentialRequest) {
+        await tokenStore.removeRejectedToken(audience, error.config?.headers?.Authorization);
+      }
       return Promise.reject(error);
     },
   );

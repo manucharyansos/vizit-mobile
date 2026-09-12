@@ -7,6 +7,7 @@ import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { businessApi } from '@/services/api/business';
+import { useBusinessPermissions } from '@/hooks/use-business-permissions';
 
 const labels = {
   hy: { title: 'Բոլոր բաժինները', subtitle: 'Կառավարման ամբողջ գործիքակազմը', booking: 'Նոր ամրագրում', services: 'Ծառայություններ', staff: 'Աշխատակիցներ և գրաֆիկ', hours: 'Աշխատանքային ժամեր', blocks: 'Փակ ժամեր և բացակայություններ', locations: 'Հասցեներ և մասնաճյուղեր', media: 'Լոգո և նկարներ', tasks: 'Առաջադրանքներ', analytics: 'Վերլուծություն', gifts: 'Նվեր քարտեր', loyalty: 'Հավատարմություն', growth: 'Աճ և marketing', settings: 'Բիզնեսի կարգավորումներ', billing: 'Պլան և վճարումներ', telegram: 'Telegram ծանուցումներ', logout: 'Դուրս գալ', logoutConfirm: 'Դուրս գա՞լ բիզնես հաշվից։', cancel: 'Չեղարկել', operations: 'Գործառույթներ', insights: 'Աճ և վերլուծություն', workspace: 'Աշխատանքային տարածք', language: 'Լեզու', theme: 'Թեմա' },
@@ -24,6 +25,7 @@ type MenuItem = {
 export default function BusinessMore() {
   const { locale, theme } = useApp();
   const c = labels[locale];
+  const permissions = useBusinessPermissions();
   const groups: { title: string; items: MenuItem[] }[] = [
     { title: c.operations, items: [
       { title: c.services, target: '/(business)/services', ios: 'square.grid.2x2.fill', android: 'grid_view' },
@@ -55,8 +57,8 @@ export default function BusinessMore() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <PageHeader eyebrow="Vizit Business" title={c.title} subtitle={c.subtitle} />
         <PreferenceBar languageLabel={c.language} themeLabel={c.theme} />
-        <PremiumButton title={c.booking} onPress={() => open('new-booking')} icon={{ ios: 'calendar.badge.plus', android: 'add_circle' }} style={styles.booking} />
-        {groups.map((group) => <MenuGroup key={group.title} title={group.title} items={group.items} onOpen={open} />)}
+        {permissions.canManage ? <PremiumButton title={c.booking} onPress={() => open('new-booking')} icon={{ ios: 'calendar.badge.plus', android: 'add_circle' }} style={styles.booking} /> : null}
+        {groups.map((group) => ({ ...group, items: group.items.filter((item) => item.target === 'billing' ? permissions.canBill : ['tasks', 'telegram'].includes(item.target) || permissions.canManage) })).filter((group) => group.items.length).map((group) => <MenuGroup key={group.title} title={group.title} items={group.items} onOpen={open} />)}
         <PremiumButton title={c.logout} loading={logout.isPending} onPress={confirmLogout} tone="danger" icon={{ ios: 'rectangle.portrait.and.arrow.right', android: 'logout' }} />
       </ScrollView>
     </SafeAreaView>

@@ -60,7 +60,7 @@ export default function BusinessAdmin() {
     onSuccess: async () => { setService({ name: '', duration: '60', price: '' }); await cache.invalidateQueries({ queryKey: ['business-services'] }); await refreshOnboarding(); },
     onError: fail,
   });
-  const complete = useMutation({ mutationFn: businessApi.completeOnboarding, onSuccess: () => { cache.clear(); router.replace('/(business)/today'); }, onError: fail });
+  const complete = useMutation({ mutationFn: businessApi.completeOnboarding, onSuccess: async () => { await cache.invalidateQueries({ queryKey: ['business-me'] }); await cache.invalidateQueries({ queryKey: ['business-onboarding'] }); router.replace('/(business)/today'); }, onError: fail });
 
   const onboarding = onboardingQuery.data;
   const incomplete = Boolean(onboarding && !onboarding.is_onboarding_completed);

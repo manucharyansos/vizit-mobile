@@ -56,5 +56,10 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: Regression checks
+        run: npm test
+
       - name: Publish preview OTA
-        run: eas update --channel preview --environment preview --message "${{ inputs.message }}" --non-interactive
+        env:
+          UPDATE_MESSAGE: ${{ inputs.message }}
+        run: eas update --channel preview --environment preview --message "$UPDATE_MESSAGE" --non-interactive

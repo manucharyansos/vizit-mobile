@@ -29,14 +29,14 @@ export const ui = {
     large: 24,
   },
   type: {
-    display: { fontSize: 32, lineHeight: 38, fontWeight: '800', letterSpacing: -0.8 },
-    pageTitle: { fontSize: 28, lineHeight: 34, fontWeight: '800', letterSpacing: -0.55 },
-    sectionTitle: { fontSize: 18, lineHeight: 24, fontWeight: '800', letterSpacing: -0.18 },
-    cardTitle: { fontSize: 16, lineHeight: 22, fontWeight: '800' },
+    display: { fontSize: 32, lineHeight: 38, fontWeight: '700', letterSpacing: -0.8 },
+    pageTitle: { fontSize: 28, lineHeight: 34, fontWeight: '700', letterSpacing: -0.55 },
+    sectionTitle: { fontSize: 18, lineHeight: 24, fontWeight: '700', letterSpacing: -0.18 },
+    cardTitle: { fontSize: 16, lineHeight: 22, fontWeight: '700' },
     body: { fontSize: 14, lineHeight: 20, fontWeight: '500' },
     caption: { fontSize: 12, lineHeight: 17, fontWeight: '600' },
     eyebrow: { fontSize: 10, lineHeight: 14, fontWeight: '800', letterSpacing: 1.35 },
-    button: { fontSize: 14, lineHeight: 18, fontWeight: '800' },
+    button: { fontSize: 14, lineHeight: 18, fontWeight: '700' },
   },
   shadow: {
     card: {
@@ -116,7 +116,7 @@ export const themes = {
     text: '#F3F5F5',
     textSecondary: '#C1C8CC',
     muted: '#98A2A9',
-    faint: '#717D85',
+    faint: '#8B969E',
     border: '#293138',
     borderStrong: '#39434B',
     divider: '#242B31',

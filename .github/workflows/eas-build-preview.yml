@@ -1,0 +1,35 @@
+name: Build Preview APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-android-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.13.1
+          cache: npm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+      - run: npx expo install --check
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - name: Queue installable Android preview
+        run: eas build --platform android --profile preview --non-interactive --no-wait
+      - name: Installation link
+        run: echo 'Open the EAS build link above after the build finishes, then install the APK on your phone.' >> "$GITHUB_STEP_SUMMARY"

@@ -1,16 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BrandLockup, IconButton, SectionHeader } from '@/components/premium-ui';
+import { BrandLockup, IconButton, PremiumButton, SectionHeader, StateCard } from '@/components/premium-ui';
 import { BusinessListSkeleton } from '@/components/loading-skeleton';
 import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { clientAccountApi } from '@/services/api/client-account';
-import { tokenStore } from '@/services/api/client';
+import { useClientSession } from '@/hooks/use-client-session';
+import { APP_TIME_ZONE, apiDateToLocal, formatApiTime } from '@/services/date-time';
+import { isBookingTerminal } from '@/services/booking-status';
+import { businessCategory } from '@/services/business-category';
 import { publicApi, type PublicBusiness } from '@/services/api/public';
 
 const copy = {
@@ -68,39 +71,32 @@ const copy = {
 };
 
 export default function DiscoverScreen() {
-  const { locale, setLocale, mode, theme, toggleMode } = useApp();
+  const { locale, setLocale, mode, theme, toggleMode, t } = useApp();
   const c = copy[locale];
   const [search, setSearch] = useState('');
-  const [openedAt] = useState(() => Date.now());
-  const token = useQuery({ queryKey: ['client-token'], queryFn: () => tokenStore.get('client'), staleTime: Infinity });
+  const [category, setCategory] = useState<string | null>(null);
+  const [openedAt, setOpenedAt] = useState(() => Date.now());
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => { const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300); return () => clearTimeout(timer); }, [search]);
+  const token = useClientSession();
   const me = useQuery({ queryKey: ['client-me'], queryFn: clientAccountApi.me, enabled: Boolean(token.data), retry: false });
   const bookings = useQuery({ queryKey: ['client-bookings'], queryFn: clientAccountApi.bookings, enabled: Boolean(token.data), retry: false });
-  const businesses = useQuery({ queryKey: ['businesses', locale], queryFn: () => publicApi.businesses({ locale }) });
+  const businesses = useQuery({ queryKey: ['businesses', locale, debouncedSearch], queryFn: () => publicApi.businesses({ locale, search: debouncedSearch || undefined }) });
 
-  const filtered = useMemo(() => {
-    const value = search.trim().toLocaleLowerCase(locale);
-    if (!value) return businesses.data ?? [];
-    return (businesses.data ?? []).filter((item) =>
-      [item.name, item.category_name, item.address].some((field) => field?.toLocaleLowerCase(locale).includes(value)),
-    );
-  }, [businesses.data, locale, search]);
+  const filtered = (businesses.data ?? []).filter((item) => !category || item.category_name === category);
   const categories = useMemo(
-    () => Array.from(new Set((businesses.data ?? []).map((item) => item.category_name).filter((value): value is string => Boolean(value)))).slice(0, 8),
-    [businesses.data],
+    () => Array.from(new Set((businesses.data ?? []).map((item) => businessCategory(item, locale)).filter((value): value is string => Boolean(value)))).slice(0, 8),
+    [businesses.data, locale],
   );
   const nextBooking = useMemo(
-    () => (bookings.data ?? [])
-      .filter((item) => new Date(item.starts_at).getTime() >= openedAt && !['cancelled', 'canceled'].includes(item.status))
+    () => (token.data ? bookings.data ?? [] : [])
+      .filter((item) => (apiDateToLocal(item.starts_at)?.getTime() ?? 0) >= openedAt && !isBookingTerminal(item.status))
       .sort((a, b) => a.starts_at.localeCompare(b.starts_at))[0],
-    [bookings.data, openedAt],
+    [bookings.data, openedAt, token.data],
   );
-  const days = useMemo(() => Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(openedAt);
-    date.setDate(date.getDate() + index);
-    return date;
-  }), [openedAt]);
 
-  const displayName = me.data?.name?.split(' ')[0] ?? c.guest;
+
+  const displayName = token.data ? me.data?.name?.split(' ')[0] ?? c.guest : c.guest;
   const featureBackground = mode === 'dark' ? theme.surfaceElevated : theme.primary;
   const featureText = mode === 'dark' ? theme.text : theme.onPrimary;
   const featureMuted = mode === 'dark' ? theme.muted : 'rgba(255,255,255,0.70)';
@@ -109,6 +105,8 @@ export default function DiscoverScreen() {
     <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>
       <FlatList
         data={filtered}
+        refreshing={businesses.isRefetching}
+        onRefresh={() => { setOpenedAt(Date.now()); void businesses.refetch(); if (token.data) { void me.refetch(); void bookings.refetch(); } }}
         keyExtractor={(item) => `${item.business_id}-${item.slug}`}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
@@ -135,7 +133,7 @@ export default function DiscoverScreen() {
             </View>
 
             <View style={styles.heroBlock}>
-              <Text style={[styles.greeting, { color: theme.accentText }]}>{c.greeting}, {displayName}</Text>
+              <Text style={[styles.greeting, { color: theme.accentText }]}>{locale === 'hy' ? 'Բարի գալուստ' : locale === 'ru' ? 'Добро пожаловать' : 'Welcome'}, {displayName}</Text>
               <Text style={[styles.hero, { color: theme.text }]}>{c.title}</Text>
             </View>
 
@@ -143,7 +141,7 @@ export default function DiscoverScreen() {
               <VizitIcon ios="magnifyingglass" android="search" color={theme.faint} size={22} />
               <TextInput
                 value={search}
-                onChangeText={setSearch}
+                onChangeText={(value) => { setSearch(value); setCategory(null); }}
                 placeholder={c.search}
                 placeholderTextColor={theme.faint}
                 returnKeyType="search"
@@ -157,25 +155,7 @@ export default function DiscoverScreen() {
               ) : null}
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.days}>
-              {days.map((date, index) => (
-                <View
-                  key={date.toISOString()}
-                  style={[
-                    styles.day,
-                    {
-                      backgroundColor: index === 0 ? theme.primary : theme.surfaceRaised,
-                      borderColor: index === 0 ? theme.primary : theme.border,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.weekday, { color: index === 0 ? theme.onPrimary : theme.muted }]}>
-                    {new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date)}
-                  </Text>
-                  <Text style={[styles.dayNumber, { color: index === 0 ? theme.onPrimary : theme.text }]}>{date.getDate()}</Text>
-                </View>
-              ))}
-            </ScrollView>
+
 
             <SectionHeader title={c.next} />
             {nextBooking ? (
@@ -191,8 +171,8 @@ export default function DiscoverScreen() {
                   <Text numberOfLines={1} style={[styles.nextService, { color: featureMuted }]}>{nextBooking.service?.name ?? nextBooking.staff?.name ?? '—'}</Text>
                 </View>
                 <View style={[styles.nextTime, { backgroundColor: mode === 'dark' ? theme.accentSoft : 'rgba(255,255,255,0.10)', borderColor: mode === 'dark' ? theme.borderStrong : 'rgba(255,255,255,0.16)' }]}>
-                  <Text style={[styles.nextDay, { color: featureMuted }]}>{new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(nextBooking.starts_at))}</Text>
-                  <Text style={[styles.nextHour, { color: featureText }]}>{nextBooking.starts_at.slice(11, 16)}</Text>
+                  <Text style={[styles.nextDay, { color: featureMuted }]}>{new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: APP_TIME_ZONE }).format(apiDateToLocal(nextBooking.starts_at) ?? new Date())}</Text>
+                  <Text style={[styles.nextHour, { color: featureText }]}>{formatApiTime(nextBooking.starts_at, locale)}</Text>
                 </View>
               </Pressable>
             ) : (
@@ -219,7 +199,8 @@ export default function DiscoverScreen() {
                     <Pressable
                       key={name}
                       accessibilityRole="button"
-                      onPress={() => setSearch(name)}
+                      accessibilityState={{ selected: (businesses.data ?? []).some((item) => item.category_name === category && businessCategory(item, locale) === name) }}
+                      onPress={() => { const key = businesses.data?.find((item) => businessCategory(item, locale) === name)?.category_name ?? null; setCategory((current) => current === key ? null : key); setSearch(''); }}
                       style={({ pressed }) => [styles.category, { backgroundColor: theme.surfaceRaised, borderColor: theme.border, opacity: pressed ? 0.74 : 1 }]}
                     >
                       <View style={[styles.categoryIcon, { backgroundColor: theme.accentSubtle }]}>
@@ -241,14 +222,14 @@ export default function DiscoverScreen() {
         }
         renderItem={({ item }) => <BusinessRow item={item} label={c.book} />}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListEmptyComponent={!businesses.isLoading ? <View style={styles.emptyList}><VizitIcon ios="magnifyingglass" android="search_off" color={theme.faint} size={28} /><Text style={[styles.emptyListText, { color: theme.muted }]}>{c.noResults}</Text></View> : null}
+        ListEmptyComponent={businesses.isError ? <StateCard title={t('loadError')} tone="danger" action={<PremiumButton title={locale === 'hy' ? 'Կրկին փորձել' : locale === 'ru' ? 'Повторить' : 'Try again'} onPress={() => void businesses.refetch()} tone="secondary" />} /> : !businesses.isLoading ? <View style={styles.emptyList}><VizitIcon ios="magnifyingglass" android="search_off" color={theme.faint} size={28} /><Text style={[styles.emptyListText, { color: theme.muted }]}>{c.noResults}</Text></View> : null}
       />
     </SafeAreaView>
   );
 }
 
 function BusinessRow({ item, label }: { item: PublicBusiness; label: string }) {
-  const { theme } = useApp();
+  const { theme, locale } = useApp();
   return (
     <Pressable
       accessibilityRole="button"
@@ -265,8 +246,8 @@ function BusinessRow({ item, label }: { item: PublicBusiness; label: string }) {
       </View>
       <View style={styles.businessInfo}>
         <Text numberOfLines={1} style={[styles.businessName, { color: theme.text }]}>{item.name}</Text>
-        <Text numberOfLines={1} style={[styles.businessMeta, { color: theme.muted }]}>{item.category_name ?? item.address ?? 'Vizit'}</Text>
-        {item.address && item.category_name ? <Text numberOfLines={1} style={[styles.businessAddress, { color: theme.faint }]}>{item.address}</Text> : null}
+        <Text numberOfLines={1} style={[styles.businessMeta, { color: theme.muted }]}>{businessCategory(item, locale) ?? item.address ?? 'Vizit'}</Text>
+        {item.address && businessCategory(item, locale) ? <Text numberOfLines={1} style={[styles.businessAddress, { color: theme.faint }]}>{item.address}</Text> : null}
       </View>
       <View style={[styles.open, { backgroundColor: theme.accentSoft }]}>
         <Text style={[styles.openText, { color: theme.accentText }]}>{label}</Text>

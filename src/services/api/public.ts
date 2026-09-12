@@ -1,8 +1,10 @@
 import { API_BASE_URL, publicClient } from './client';
 import { debugEmptyList, normalizeList, normalizeResource } from './normalize';
+import { validPoint } from '../geo';
 
 export type Location = { id: number; name: string; address?: string | null; lat?: number; lng?: number };
-export type PublicBusiness = { business_id: number; name: string; slug: string; category_name?: string | null; address?: string | null; phone?: string | null; description?: string | null; short_description?: string | null; cover_url?: string | null; logo_url?: string | null; locations: Location[] };
+export type PublicBusiness = { business_id: number; name: string; slug: string; category_name?: string | null; category_names?: { hy?: string; ru?: string; en?: string }; address?: string | null; phone?: string | null; description?: string | null; short_description?: string | null; cover_url?: string | null; logo_url?: string | null; locations: Location[] };
+export type BusinessPin = { business_id: number; name: string; slug: string; category_name?: string; location_id: number; location_name: string; address?: string; lat: number; lng: number };
 export type Service = { id: number; name: string; description?: string | null; duration_minutes: number; price: number; currency: string; image_url?: string | null; location_id?: number | null };
 export type Staff = { id: number; name: string; role?: string; avatar_url?: string | null; bio?: string | null; location_id?: number | null };
 export type Slot = { starts_at: string; ends_at: string; staff_id: number; staff_name: string; is_recommended?: boolean };
@@ -17,11 +19,13 @@ const mediaUrl = (value?: string | null): string | null => {
 
 function normalizeBusiness(v: Record<string, unknown>): PublicBusiness {
   const rawLocations = normalizeList<Record<string, unknown>>(v.locations, ['locations']);
+  const category = v.category as Record<string, string> | undefined;
   return {
     business_id: Number(v.business_id ?? v.id),
     name: String(v.name ?? ''),
     slug: String(v.slug ?? ''),
-    category_name: v.category_name == null ? null : String(v.category_name),
+    category_name: String(v.category_name ?? v.custom_category_name ?? category?.name ?? category?.name_hy ?? '') || null,
+    category_names: category ? { hy: category.name_hy, ru: category.name_ru, en: category.name_en } : undefined,
     address: v.address == null ? null : String(v.address),
     phone: v.phone == null ? null : String(v.phone),
     description: v.description == null ? null : String(v.description),
@@ -45,10 +49,24 @@ function normalizeBusinesses(payload: unknown): PublicBusiness[] {
 }
 
 export const publicApi = {
+  async mapBusinesses(): Promise<PublicBusiness[]> {
+    const response = await publicClient.get('/v1/public/businesses/map');
+    const meta = response.data?.meta;
+    if (meta?.error) throw new Error('Map unavailable');
+    const pins = normalizeList<BusinessPin>(response.data);
+    const groups = new Map<number, PublicBusiness>();
+    for (const pin of pins) {
+      if (!pin.slug || !validPoint(pin.lat, pin.lng)) continue;
+      const business = groups.get(pin.business_id) ?? { business_id: pin.business_id, name: pin.name, slug: pin.slug, category_name: pin.category_name, address: pin.address, locations: [] };
+      business.locations.push({ id: Number(pin.location_id), name: pin.location_name, address: pin.address, lat: Number(pin.lat), lng: Number(pin.lng) });
+      groups.set(pin.business_id, business);
+    }
+    return [...groups.values()];
+  },
   async businesses(params?: { locale?: string; search?: string }) {
     for (const path of ['/v1/public/businesses', '/public/businesses']) {
       try {
-        const response = await publicClient.get(path, { params: { ...params, _t: Date.now() } });
+        const response = await publicClient.get(path, { params: { ...params, per_page: 100, _t: Date.now() } });
         const list = normalizeBusinesses(response.data);
         debugEmptyList('public.businesses', response, list);
         return list;
