@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ui } from '@/constants/vizit-theme';
 import { PublicBusiness } from '@/services/api/public';
 import { useApp } from '@/providers/app-provider';
 
@@ -63,7 +64,7 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
 
     return (
       <View style={[styles.fallback, { backgroundColor: theme.map }]}>
-        <Text style={[styles.fallbackTitle, { color: theme.plum }]}>Yandex MapKit</Text>
+        <View style={[styles.fallbackBadge, { backgroundColor: theme.accentSoft }]}><Text style={[styles.fallbackTitle, { color: theme.accentText }]}>Yandex MapKit</Text></View>
         <Text style={[styles.fallbackHint, { color: theme.muted }]}>{hint}</Text>
       </View>
     );
@@ -84,8 +85,8 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
           handled
           onPress={() => onSelect(business, locationId)}
         >
-          <Pressable style={[styles.pin, { backgroundColor: theme.plum }]}>
-            <Text style={styles.pinText}>V</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={business.name} style={[styles.pin, ui.shadow.floating, { backgroundColor: theme.primary, borderColor: theme.surfaceElevated, shadowColor: theme.shadow }]}>
+            <Text style={[styles.pinText, { color: theme.onPrimary }]}>V</Text>
           </Pressable>
         </Marker>
       ))}
@@ -94,9 +95,10 @@ export function BusinessMap({ businesses, onSelect }: { businesses: PublicBusine
 }
 
 const styles = StyleSheet.create({
-  fallback: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30 },
-  fallbackTitle: { fontSize: 24, fontWeight: '900', marginBottom: 8 },
-  fallbackHint: { textAlign: 'center' },
-  pin: { width: 42, height: 42, borderRadius: 21, borderWidth: 3, borderColor: '#FFF', alignItems: 'center', justifyContent: 'center' },
-  pinText: { color: '#FFF', fontWeight: '900' },
+  fallback: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: ui.spacing.xl },
+  fallbackBadge: { borderRadius: ui.radius.pill, paddingHorizontal: 14, paddingVertical: 8, marginBottom: ui.spacing.sm },
+  fallbackTitle: { fontSize: 14, fontWeight: '900' },
+  fallbackHint: { ...ui.type.body, textAlign: 'center' },
+  pin: { width: 42, height: 42, borderRadius: 21, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
+  pinText: { fontWeight: '900' },
 });

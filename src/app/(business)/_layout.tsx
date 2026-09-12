@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VizitIcon } from '@/components/vizit-icon';
 import { useApp } from '@/providers/app-provider';
+import { ui } from '@/constants/vizit-theme';
 
 export default function BusinessLayout() {
   const { locale, theme } = useApp();
@@ -14,11 +15,17 @@ export default function BusinessLayout() {
   }[locale];
 
   const tabBarStyle = {
-    height: 62 + insets.bottom,
-    paddingBottom: Math.max(insets.bottom, 8),
+    height: 68 + insets.bottom,
+    paddingHorizontal: 8,
+    paddingBottom: Math.max(insets.bottom, 7),
     backgroundColor: theme.surfaceRaised,
     borderTopColor: theme.border,
     borderTopWidth: 1,
+    shadowColor: theme.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: -5 },
+    elevation: 10,
   } as const;
 
   return (
@@ -27,10 +34,13 @@ export default function BusinessLayout() {
       backBehavior="none"
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.plum,
-        tabBarInactiveTintColor: theme.muted,
-        tabBarShowLabel: false,
-        tabBarItemStyle: { paddingTop: 9 },
+        tabBarActiveTintColor: theme.accentText,
+        tabBarInactiveTintColor: theme.faint,
+        tabBarActiveBackgroundColor: theme.accentSubtle,
+        tabBarShowLabel: true,
+        tabBarLabelStyle: { fontSize: 10, lineHeight: 13, fontWeight: '700', marginTop: 1 },
+        tabBarIconStyle: { marginTop: 3 },
+        tabBarItemStyle: { marginHorizontal: 3, marginVertical: 7, borderRadius: ui.radius.medium },
         tabBarStyle,
       }}
     >

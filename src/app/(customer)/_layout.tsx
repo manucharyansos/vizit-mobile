@@ -3,6 +3,7 @@ import { router, Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/providers/app-provider';
 import { VizitIcon } from '@/components/vizit-icon';
+import { ui } from '@/constants/vizit-theme';
 import { tokenStore } from '@/services/api/client';
 
 export default function CustomerLayout() {
@@ -16,7 +17,29 @@ export default function CustomerLayout() {
     refetchOnMount: 'always',
   });
 
-  return <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: theme.plum, tabBarInactiveTintColor: theme.muted, tabBarShowLabel: false, tabBarItemStyle: { paddingTop: 9 }, tabBarStyle: { height: 62 + insets.bottom, paddingBottom: Math.max(insets.bottom, 8), backgroundColor: theme.surfaceRaised, borderTopColor: theme.border, borderTopWidth: 1 } }}>
+  return <Tabs screenOptions={{
+    headerShown: false,
+    tabBarActiveTintColor: theme.accentText,
+    tabBarInactiveTintColor: theme.faint,
+    tabBarActiveBackgroundColor: theme.accentSubtle,
+    tabBarShowLabel: true,
+    tabBarLabelStyle: { fontSize: 10, lineHeight: 13, fontWeight: '700', marginTop: 1 },
+    tabBarIconStyle: { marginTop: 3 },
+    tabBarItemStyle: { marginHorizontal: 4, marginVertical: 7, borderRadius: ui.radius.medium },
+    tabBarStyle: {
+      height: 68 + insets.bottom,
+      paddingHorizontal: 8,
+      paddingBottom: Math.max(insets.bottom, 7),
+      backgroundColor: theme.surfaceRaised,
+      borderTopColor: theme.border,
+      borderTopWidth: 1,
+      shadowColor: theme.shadow,
+      shadowOpacity: 0.08,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: -5 },
+      elevation: 10,
+    },
+  }}>
     <Tabs.Screen name="discover" options={{ title: t('discover'), tabBarIcon: ({ color }) => <VizitIcon ios="house.fill" android="home" color={color} size={25} /> }} />
     <Tabs.Screen name="bookings" options={{ title: t('bookings'), tabBarIcon: ({ color }) => <VizitIcon ios="calendar" android="calendar_month" color={color} size={23} /> }} />
     <Tabs.Screen

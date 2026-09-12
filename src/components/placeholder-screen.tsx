@@ -1,6 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PremiumButton, StateCard } from '@/components/premium-ui';
+import { ui } from '@/constants/vizit-theme';
 import { TranslationKey } from '@/i18n/translations';
 import { useApp } from '@/providers/app-provider';
-export function PlaceholderScreen({ titleKey, bodyKey, actionKey, onAction }: { titleKey: TranslationKey; bodyKey: TranslationKey; actionKey?: TranslationKey; onAction?: () => void }) { const { t, theme } = useApp(); return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}><View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}><Text style={[styles.title, { color: theme.plum }]}>{t(titleKey)}</Text><Text style={[styles.body, { color: theme.muted }]}>{t(bodyKey)}</Text>{actionKey && onAction ? <Pressable onPress={onAction} style={[styles.button, { backgroundColor: theme.plum }]}><Text style={styles.buttonText}>{t(actionKey)}</Text></Pressable> : null}</View></SafeAreaView>; }
-const styles = StyleSheet.create({ screen: { flex: 1, justifyContent: 'center', padding: 20 }, card: { padding: 24, borderRadius: 24, borderWidth: 1 }, title: { fontSize: 28, fontWeight: '800', marginBottom: 12 }, body: { fontSize: 16, lineHeight: 24 }, button: { padding: 15, borderRadius: 15, marginTop: 22, alignItems: 'center' }, buttonText: { color: '#FFF', fontWeight: '700' } });
+export function PlaceholderScreen({ titleKey, bodyKey, actionKey, onAction }: { titleKey: TranslationKey; bodyKey: TranslationKey; actionKey?: TranslationKey; onAction?: () => void }) { const { t, theme } = useApp(); return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}><StateCard title={t(titleKey)} message={t(bodyKey)} action={actionKey && onAction ? <PremiumButton title={t(actionKey)} onPress={onAction} /> : undefined} /></SafeAreaView>; }
+const styles = StyleSheet.create({ screen: { flex: 1, justifyContent: 'center', padding: ui.screenGutter } });

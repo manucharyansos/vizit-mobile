@@ -2,18 +2,21 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { IconButton, PageHeader, PremiumButton, StateCard, StatusPill, Surface } from '@/components/premium-ui';
+import { VizitIcon } from '@/components/vizit-icon';
+import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { businessApi, CalendarBooking } from '@/services/api/business';
 import { apiErrorMessage, tokenStore } from '@/services/api/client';
 import { localDateKey, formatApiTime } from '@/services/date-time';
 import { bookingStatusLabel, isBookingTerminal } from '@/services/booking-status';
-import { VizitIcon } from '@/components/vizit-icon';
 
 const copy = {
-  hy: { title: 'Այսօրվա օրացույց', empty: 'Այսօր ամրագրումներ չկան', client: 'Հաճախորդ', confirm: 'Հաստատել', done: 'Ավարտել', noShow: 'Նշել՝ չի ներկայացել', cancel: 'Չեղարկել', add: 'Նոր ամրագրում', logout: 'Դուրս գալ', delete: 'Ջնջել հաշիվը', deleteConfirm: 'Ուղարկե՞լ բիզնես հաշվի և տվյալների ջնջման հայտը։', auth: 'Մուտք գործիր բիզնես հաշվով', loadError: 'Չհաջողվեց բեռնել օրացույցը', actionError: 'Գործողությունը չհաջողվեց', retry: 'Կրկին փորձել', phone: 'Հեռախոս', notes: 'Նշումներ', actionConfirm: 'Հաստատե՞լ այս գործողությունը։', close: 'Փակել' },
-  ru: { title: 'Календарь на сегодня', empty: 'На сегодня записей нет', client: 'Клиент', confirm: 'Подтвердить', done: 'Завершить', noShow: 'Отметить неявку', cancel: 'Отменить', add: 'Новая запись', logout: 'Выйти', delete: 'Удалить аккаунт', deleteConfirm: 'Отправить запрос на удаление бизнес-аккаунта и данных?', auth: 'Войдите в аккаунт бизнеса', loadError: 'Не удалось загрузить календарь', actionError: 'Не удалось выполнить действие', retry: 'Повторить', phone: 'Телефон', notes: 'Заметки', actionConfirm: 'Подтвердить это действие?', close: 'Закрыть' },
-  en: { title: "Today's calendar", empty: 'No bookings today', client: 'Client', confirm: 'Confirm', done: 'Complete', noShow: 'Mark no-show', cancel: 'Cancel', add: 'New booking', logout: 'Sign out', delete: 'Delete account', deleteConfirm: 'Request deletion of the business account and its data?', auth: 'Sign in with a business account', loadError: 'Could not load calendar', actionError: 'Action failed', retry: 'Try again', phone: 'Phone', notes: 'Notes', actionConfirm: 'Confirm this action?', close: 'Close' },
+  hy: { title: 'Այսօրվա օրացույց', empty: 'Այսօր ամրագրումներ չկան', client: 'Հաճախորդ', confirm: 'Հաստատել', done: 'Ավարտել', noShow: 'Նշել՝ չի ներկայացել', cancel: 'Չեղարկել', add: 'Նոր ամրագրում', logout: 'Դուրս գալ', delete: 'Ջնջել հաշիվը', deleteConfirm: 'Ուղարկե՞լ բիզնես հաշվի և տվյալների ջնջման հայտը։', auth: 'Մուտք գործիր բիզնես հաշվով', loadError: 'Չհաջողվեց բեռնել օրացույցը', actionError: 'Գործողությունը չհաջողվեց', retry: 'Կրկին փորձել', phone: 'Հեռախոս', notes: 'Նշումներ', actionConfirm: 'Հաստատե՞լ այս գործողությունը։', close: 'Փակել', appointments: 'ամրագրում' },
+  ru: { title: 'Календарь на сегодня', empty: 'На сегодня записей нет', client: 'Клиент', confirm: 'Подтвердить', done: 'Завершить', noShow: 'Отметить неявку', cancel: 'Отменить', add: 'Новая запись', logout: 'Выйти', delete: 'Удалить аккаунт', deleteConfirm: 'Отправить запрос на удаление бизнес-аккаунта и данных?', auth: 'Войдите в аккаунт бизнеса', loadError: 'Не удалось загрузить календарь', actionError: 'Не удалось выполнить действие', retry: 'Повторить', phone: 'Телефон', notes: 'Заметки', actionConfirm: 'Подтвердить это действие?', close: 'Закрыть', appointments: 'записей' },
+  en: { title: "Today's calendar", empty: 'No bookings today', client: 'Client', confirm: 'Confirm', done: 'Complete', noShow: 'Mark no-show', cancel: 'Cancel', add: 'New booking', logout: 'Sign out', delete: 'Delete account', deleteConfirm: 'Request deletion of the business account and its data?', auth: 'Sign in with a business account', loadError: 'Could not load calendar', actionError: 'Action failed', retry: 'Try again', phone: 'Phone', notes: 'Notes', actionConfirm: 'Confirm this action?', close: 'Close', appointments: 'bookings' },
 };
+
 export default function TodayScreen() {
   const { locale, theme } = useApp();
   const c = copy[locale];
@@ -49,49 +52,145 @@ export default function TodayScreen() {
     { text: c.logout, onPress: async () => { await businessApi.logout(); queryClient.clear(); router.replace('/(business)/login'); } },
     { text: c.delete, style: 'destructive', onPress: requestDeletion },
   ]);
-  if (me.isLoading) return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><ActivityIndicator color={theme.plum} /></SafeAreaView>;
-  if (me.isError) return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><Text style={{ color: theme.muted }}>{c.auth}</Text><Pressable onPress={async () => { await tokenStore.remove('business'); router.replace('/(business)/login'); }} style={[styles.primary, { backgroundColor: theme.plum }]}><Text style={styles.white}>{c.auth}</Text></Pressable></SafeAreaView>;
+
+  if (me.isLoading) return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><ActivityIndicator color={theme.accent} size="large" /></SafeAreaView>;
+  if (me.isError) {
+    return (
+      <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}>
+        <StateCard title={c.auth} icon={{ ios: 'lock.shield.fill', android: 'shield_lock' }} action={<PremiumButton title={c.auth} onPress={async () => { await tokenStore.remove('business'); router.replace('/(business)/login'); }} />} />
+      </SafeAreaView>
+    );
+  }
+
   const isStaff = me.data?.role === 'staff';
   const dateLabel = new Intl.DateTimeFormat(locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Yerevan' }).format(new Date(`${date}T12:00:00+04:00`));
-  return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
-    <View style={styles.header}>
-      <View style={{ flex: 1 }}><Text style={[styles.eyebrow, { color: theme.gold }]}>VIZIT BUSINESS</Text><Text style={[styles.title, { color: theme.text }]}>{c.title}</Text><Text style={{ color: theme.muted, marginTop: 4 }}>{me.data?.name}</Text></View>
-      {!isStaff ? <Pressable accessibilityLabel={c.add} onPress={() => router.push('/(business)/new-booking' as never)} style={[styles.logout, { backgroundColor: theme.plum }]}><VizitIcon ios="plus" android="add" color="#FFF" size={22} /></Pressable> : null}
-      <Pressable accessibilityLabel={c.logout} onPress={logout} style={[styles.logout, { backgroundColor: theme.plumSoft }]}><VizitIcon ios="rectangle.portrait.and.arrow.right" android="logout" color={theme.plum} size={19} /></Pressable>
-    </View>
-    <View style={[styles.dateCard, { backgroundColor: theme.plumSoft }]}><View style={[styles.dateIcon, { backgroundColor: theme.surface }]}><VizitIcon ios="calendar" android="calendar_month" color={theme.plum} size={23} /></View><Text style={[styles.dateText, { color: theme.plumStrong }]}>{dateLabel}</Text><View style={[styles.countBadge, { backgroundColor: theme.plum }]}><Text style={styles.countText}>{bookings.data?.length ?? 0}</Text></View></View>
-    {bookings.isLoading ? <ActivityIndicator color={theme.plum} /> : bookings.isError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.loadError}</Text><Pressable onPress={() => bookings.refetch()}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : <FlatList data={bookings.data} keyExtractor={(item) => String(item.id)} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false} ListEmptyComponent={<View style={styles.emptyWrap}><VizitIcon ios="calendar.badge.checkmark" android="event_available" color={theme.muted} size={42} /><Text style={[styles.empty, { color: theme.muted }]}>{c.empty}</Text></View>} renderItem={({ item }) => <BookingCard item={item} onStatus={(action) => runAction(item, action)} labels={c} locale={locale} pending={status.isPending} />} />}
-  </SafeAreaView>;
+
+  return (
+    <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>
+      <View style={styles.headerWrap}>
+        <PageHeader
+          eyebrow="Vizit Business"
+          title={c.title}
+          subtitle={me.data?.name}
+          action={
+            <View style={styles.headerActions}>
+              {!isStaff ? <IconButton accessibilityLabel={c.add} ios="plus" android="add" onPress={() => router.push('/(business)/new-booking' as never)} tone="primary" /> : null}
+              <IconButton accessibilityLabel={c.logout} ios="rectangle.portrait.and.arrow.right" android="logout" onPress={logout} tone="accent" />
+            </View>
+          }
+        />
+        <Surface style={styles.dateCard}>
+          <View style={[styles.dateIcon, { backgroundColor: theme.accentSoft }]}><VizitIcon ios="calendar" android="calendar_month" color={theme.accentText} size={21} /></View>
+          <View style={styles.dateCopy}><Text style={[styles.dateText, { color: theme.text }]}>{dateLabel}</Text><Text style={[styles.dateMeta, { color: theme.muted }]}>{bookings.data?.length ?? 0} {c.appointments}</Text></View>
+          <View style={[styles.countBadge, { backgroundColor: theme.primary }]}><Text style={[styles.countText, { color: theme.onPrimary }]}>{bookings.data?.length ?? 0}</Text></View>
+        </Surface>
+      </View>
+
+      {bookings.isLoading ? <View style={styles.loader}><ActivityIndicator color={theme.accent} size="large" /></View> : bookings.isError ? (
+        <View style={styles.stateWrap}><StateCard title={c.loadError} message={apiErrorMessage(bookings.error)} tone="danger" action={<PremiumButton title={c.retry} onPress={() => bookings.refetch()} tone="secondary" />} /></View>
+      ) : (
+        <FlatList
+          data={bookings.data}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListEmptyComponent={<StateCard title={c.empty} icon={{ ios: 'calendar.badge.checkmark', android: 'event_available' }} />}
+          renderItem={({ item }) => <BookingCard item={item} onStatus={(action) => runAction(item, action)} labels={c} locale={locale} pending={status.isPending} />}
+        />
+      )}
+    </SafeAreaView>
+  );
 }
+
 function BookingCard({ item, onStatus, labels, locale, pending }: { item: CalendarBooking; onStatus: (action: 'confirm' | 'done' | 'no-show' | 'cancel') => void; labels: typeof copy.hy; locale: 'hy' | 'ru' | 'en'; pending: boolean }) {
   const { theme } = useApp();
   const starts = formatApiTime(item.starts_at, locale);
   const ends = formatApiTime(item.ends_at, locale);
   const terminal = isBookingTerminal(item.status);
-  const busy = item.status === 'pending' || item.status === 'confirmed' || item.status === 'in_progress';
   const client = item.client_name ?? item.customer_name ?? item.client?.name ?? labels.client;
   const phone = item.client_phone ?? item.client?.phone;
   const canConfirm = item.status === 'pending';
   const canComplete = item.status === 'confirmed';
   const canNoShowOrCancel = item.status === 'pending' || item.status === 'confirmed';
-  return <View style={[styles.card, { backgroundColor: busy ? theme.dangerSoft : theme.surface, borderColor: busy ? theme.danger : theme.border }]}>
-    <View style={styles.cardTop}><View style={[styles.timeBadge, { backgroundColor: busy ? theme.dangerSoft : theme.plumSoft }]}><Text style={[styles.time, { color: busy ? theme.danger : theme.plum }]}>{starts}</Text><Text style={[styles.timeEnd, { color: busy ? theme.danger : theme.muted }]}>– {ends}</Text></View><View style={[styles.statusBadge, { backgroundColor: terminal ? theme.plumSoft : theme.dangerSoft }]}><Text style={[styles.status, { color: terminal ? theme.muted : theme.danger }]}>{bookingStatusLabel(item.status, locale)}</Text></View></View>
-    <Text style={[styles.client, { color: theme.text }]}>{client}</Text>
-    {phone ? <Text style={{ color: theme.muted, fontSize: 12 }}>{labels.phone}: {phone}</Text> : null}
-    <View style={styles.detailRow}><VizitIcon ios="sparkles" android="spa" color={theme.muted} size={15} /><Text style={{ color: theme.muted, flex: 1 }}>{item.service?.name ?? '—'} · {item.staff?.name ?? '—'}</Text></View>
-    {item.notes ? <Text style={{ color: theme.muted, fontSize: 12 }}>{labels.notes}: {item.notes}</Text> : null}
-    {canConfirm || canComplete || canNoShowOrCancel ? <View style={styles.actions}>
-      {canConfirm ? <Action title={labels.confirm} disabled={pending} onPress={() => onStatus('confirm')} tone="primary" /> : null}
-      {canComplete ? <Action title={labels.done} disabled={pending} onPress={() => onStatus('done')} tone="success" /> : null}
-      {canNoShowOrCancel ? <Action title={labels.noShow} disabled={pending} onPress={() => onStatus('no-show')} /> : null}
-      {canNoShowOrCancel ? <Action title={labels.cancel} disabled={pending} onPress={() => onStatus('cancel')} tone="danger" /> : null}
-    </View> : null}
-  </View>;
+  const tone = bookingTone(item.status);
+
+  return (
+    <Surface style={[styles.card, { borderColor: tone === 'danger' ? theme.danger : theme.border }]} elevated>
+      <View style={styles.cardMain}>
+        <View style={[styles.timeRail, { backgroundColor: theme.primary }]}>
+          <Text style={[styles.time, { color: theme.onPrimary }]}>{starts}</Text>
+          <View style={[styles.timeDivider, { backgroundColor: theme.onPrimary }]} />
+          <Text style={[styles.timeEnd, { color: theme.onPrimary }]}>{ends}</Text>
+        </View>
+        <View style={styles.cardBody}>
+          <View style={styles.cardTop}>
+            <Text numberOfLines={1} style={[styles.client, { color: theme.text }]}>{client}</Text>
+            <StatusPill label={bookingStatusLabel(item.status, locale)} tone={tone} />
+          </View>
+          {phone ? <View style={styles.detailRow}><VizitIcon ios="phone.fill" android="call" color={theme.faint} size={14} /><Text style={[styles.detailText, { color: theme.muted }]}>{phone}</Text></View> : null}
+          <View style={styles.detailRow}><VizitIcon ios="sparkles" android="spa" color={theme.faint} size={14} /><Text numberOfLines={2} style={[styles.detailText, { color: theme.textSecondary }]}>{item.service?.name ?? '—'} · {item.staff?.name ?? '—'}</Text></View>
+          {item.notes ? <View style={[styles.notes, { backgroundColor: theme.accentSubtle }]}><Text numberOfLines={3} style={[styles.notesText, { color: theme.muted }]}>{labels.notes}: {item.notes}</Text></View> : null}
+        </View>
+      </View>
+      {!terminal && (canConfirm || canComplete || canNoShowOrCancel) ? (
+        <View style={styles.actions}>
+          {canConfirm ? <Action title={labels.confirm} disabled={pending} onPress={() => onStatus('confirm')} tone="primary" /> : null}
+          {canComplete ? <Action title={labels.done} disabled={pending} onPress={() => onStatus('done')} tone="success" /> : null}
+          {canNoShowOrCancel ? <Action title={labels.noShow} disabled={pending} onPress={() => onStatus('no-show')} /> : null}
+          {canNoShowOrCancel ? <Action title={labels.cancel} disabled={pending} onPress={() => onStatus('cancel')} tone="danger" /> : null}
+        </View>
+      ) : null}
+    </Surface>
+  );
 }
+
+function bookingTone(status: string): 'neutral' | 'accent' | 'success' | 'warning' | 'danger' {
+  const value = status.toLocaleLowerCase();
+  if (value.includes('cancel') || value.includes('no_show')) return 'danger';
+  if (value.includes('complete') || value.includes('done')) return 'success';
+  if (value.includes('pending')) return 'warning';
+  if (value.includes('confirm') || value.includes('progress')) return 'accent';
+  return 'neutral';
+}
+
 function Action({ title, onPress, tone, disabled = false }: { title: string; onPress: () => void; tone?: 'primary' | 'success' | 'danger'; disabled?: boolean }) {
   const { theme } = useApp();
-  const background = tone === 'primary' ? theme.plumSoft : tone === 'success' ? theme.successSoft : tone === 'danger' ? theme.dangerSoft : theme.background;
-  const color = tone === 'primary' ? theme.plum : tone === 'success' ? theme.success : tone === 'danger' ? theme.danger : theme.muted;
-  return <Pressable disabled={disabled} onPress={onPress} style={[styles.action, { backgroundColor: background, opacity: disabled ? 0.5 : 1 }]}><Text style={{ color, fontSize: 10, fontWeight: '800', textAlign: 'center' }}>{title}</Text></Pressable>;
+  const background = tone === 'primary' ? theme.primary : tone === 'success' ? theme.successSoft : tone === 'danger' ? theme.dangerSoft : theme.surface;
+  const color = tone === 'primary' ? theme.onPrimary : tone === 'success' ? theme.success : tone === 'danger' ? theme.danger : theme.textSecondary;
+  return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.action, { backgroundColor: background, borderColor: tone === 'primary' ? theme.primary : theme.border, opacity: disabled ? 0.42 : pressed ? 0.72 : 1 }]}><Text numberOfLines={2} style={[styles.actionText, { color }]}>{title}</Text></Pressable>;
 }
-const styles = StyleSheet.create({ screen: { flex: 1 }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 18 }, header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, eyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.5, marginBottom: 4 }, title: { fontSize: 27, fontWeight: '900', letterSpacing: -0.5 }, logout: { width: 43, height: 43, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, dateCard: { marginHorizontal: 18, padding: 13, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 11 }, dateIcon: { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, dateText: { flex: 1, fontSize: 14, fontWeight: '800', textTransform: 'capitalize' }, countBadge: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, countText: { color: '#FFF', fontWeight: '900', fontSize: 12 }, list: { padding: 18, gap: 12 }, emptyWrap: { alignItems: 'center', paddingTop: 70, gap: 12 }, empty: { textAlign: 'center' }, card: { padding: 14, borderRadius: 11, borderWidth: 1, gap: 8 }, cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, timeBadge: { paddingHorizontal: 11, height: 35, borderRadius: 9, flexDirection: 'row', alignItems: 'baseline' }, time: { fontSize: 18, fontWeight: '900' }, timeEnd: { fontSize: 12, fontWeight: '700', marginLeft: 3 }, statusBadge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 9, maxWidth: 130 }, status: { fontWeight: '900', fontSize: 9, textAlign: 'center' }, client: { fontSize: 17, fontWeight: '900', marginTop: 2 }, detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 }, actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }, action: { flexGrow: 1, flexBasis: '46%', minHeight: 39, borderRadius: 8, alignItems: 'center', justifyContent: 'center', padding: 5 }, primary: { paddingHorizontal: 18, paddingVertical: 13, borderRadius: 9 }, white: { color: '#FFF', fontWeight: '800' }, error: { margin: 18, borderWidth: 1, borderRadius: 9, padding: 14, gap: 8 } });
+
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  center: { flex: 1, alignItems: 'stretch', justifyContent: 'center', padding: ui.screenGutter },
+  headerWrap: { padding: ui.screenGutter, paddingBottom: 10, gap: 16 },
+  headerActions: { flexDirection: 'row', gap: 8 },
+  dateCard: { padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  dateIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  dateCopy: { flex: 1 },
+  dateText: { fontSize: 14, lineHeight: 19, fontWeight: '800', textTransform: 'capitalize' },
+  dateMeta: { ...ui.type.caption, marginTop: 2 },
+  countBadge: { minWidth: 34, height: 34, borderRadius: 12, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center' },
+  countText: { ...ui.type.caption, fontWeight: '800' },
+  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  stateWrap: { padding: ui.screenGutter },
+  list: { paddingHorizontal: ui.screenGutter, paddingTop: 4, paddingBottom: 34 },
+  separator: { height: 11 },
+  card: { padding: 13, gap: 12 },
+  cardMain: { flexDirection: 'row', alignItems: 'stretch', gap: 12 },
+  timeRail: { width: 68, minHeight: 106, borderRadius: ui.radius.medium, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
+  time: { fontSize: 17, lineHeight: 21, fontWeight: '800' },
+  timeDivider: { width: 14, height: 1, opacity: 0.35, marginVertical: 5 },
+  timeEnd: { fontSize: 11, lineHeight: 15, fontWeight: '700', opacity: 0.75 },
+  cardBody: { flex: 1, minWidth: 0, justifyContent: 'center', gap: 7 },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 7 },
+  client: { fontSize: 17, lineHeight: 22, fontWeight: '800', flex: 1 },
+  detailRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  detailText: { ...ui.type.caption, flex: 1 },
+  notes: { borderRadius: ui.radius.small, padding: 8 },
+  notesText: ui.type.caption,
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  action: { flexGrow: 1, flexBasis: '46%', minHeight: 42, borderRadius: ui.radius.small, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 6 },
+  actionText: { fontSize: 11, lineHeight: 14, fontWeight: '800', textAlign: 'center' },
+});

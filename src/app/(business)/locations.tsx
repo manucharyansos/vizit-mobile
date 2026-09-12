@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LocationPicker } from '@/components/location-picker';
+import { IconButton, PageHeader, PremiumButton, PremiumInput, SectionHeader, StateCard, StatusPill, Surface } from '@/components/premium-ui';
 import { VizitIcon } from '@/components/vizit-icon';
+import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { businessApi, BusinessLocation, BusinessSettings } from '@/services/api/business';
 import { apiErrorMessage } from '@/services/api/client';
@@ -57,41 +59,67 @@ export default function Locations() {
   const limit = Math.max(1, query.data?.location_limit ?? 1);
   const canAdd = locations.length < limit;
   const planName = query.data?.plan?.name ?? query.data?.plan?.code ?? '—';
+  const usage = Math.min(1, locations.length / limit);
 
   return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <Pressable accessibilityRole="button" onPress={() => safeBack('/(business)/more')} style={[styles.back, { borderColor: theme.border }]}><VizitIcon ios="chevron.left" android="arrow_back" color={theme.text} size={21} /></Pressable>
-        <Text style={[styles.title, { color: theme.text }]}>{c.title}</Text>
-      </View>
-      {query.isLoading ? <ActivityIndicator color={theme.plum} /> : null}
-      {query.isError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.loadError}</Text><Pressable onPress={() => query.refetch()}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : null}
-      {!query.isError && query.data ? <View style={[styles.usageCard, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}><View><Text style={{ color: theme.muted, fontSize: 11, fontWeight: '800' }}>{c.usage}</Text><Text style={{ color: theme.text, fontSize: 22, fontWeight: '900', marginTop: 3 }}>{locations.length} / {limit}</Text></View><View style={{ alignItems: 'flex-end' }}><Text style={{ color: theme.muted, fontSize: 11, fontWeight: '800' }}>{c.plan}</Text><Text style={{ color: theme.plum, fontSize: 14, fontWeight: '900', marginTop: 3 }}>{planName}</Text></View></View> : null}
-      {!query.isError ? locations.map((item) => <View key={item.id} style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}>
-        <View style={[styles.pin, { backgroundColor: theme.plumSoft }]}><VizitIcon ios="mappin.and.ellipse" android="location_on" color={theme.plum} size={22} /></View>
-        <Pressable style={{ flex: 1 }} onPress={() => edit(item)}>
-          <Text style={{ color: theme.text, fontWeight: '900', fontSize: 15 }}>{item.name || item.address || '—'}</Text>
-          <Text style={{ color: theme.muted, marginTop: 4 }}>{item.address}{item.city ? `, ${item.city}` : ''}</Text>
-          {item.latitude != null && item.longitude != null ? <Text style={{ color: theme.muted, fontSize: 11, marginTop: 4 }}>{c.point}: {item.latitude.toFixed(5)}, {item.longitude.toFixed(5)}</Text> : null}
-          {item.is_primary ? <Text style={{ color: theme.plum, fontSize: 11, fontWeight: '900', marginTop: 5 }}>{c.primary}</Text> : null}
+      <PageHeader title={c.title} eyebrow="Vizit Pro" onBack={() => safeBack('/(business)/more')} backLabel={c.cancel} action={!editing && canAdd ? <IconButton ios="plus" android="add" accessibilityLabel={c.add} tone="primary" onPress={() => { setForm(empty()); setEditing('new'); }} /> : undefined} />
+      {query.isLoading ? <ActivityIndicator color={theme.accent} style={styles.loader} /> : null}
+      {query.isError ? <StateCard title={c.loadError} message={apiErrorMessage(query.error)} tone="danger" action={<PremiumButton title={c.retry} tone="secondary" onPress={() => void query.refetch()} />} /> : null}
+      {!query.isError && query.data ? <Surface style={styles.usageCard}>
+        <View style={styles.usageTop}><View><Text style={[styles.kicker, { color: theme.muted }]}>{c.usage}</Text><Text style={[styles.usageValue, { color: theme.text }]}>{locations.length} <Text style={{ color: theme.faint }}>/ {limit}</Text></Text></View><View style={styles.plan}><Text style={[styles.kicker, { color: theme.muted }]}>{c.plan}</Text><StatusPill label={planName} tone="accent" /></View></View>
+        <View style={[styles.track, { backgroundColor: theme.surface }]}><View style={[styles.trackFill, { width: `${usage * 100}%`, backgroundColor: theme.accent }]} /></View>
+      </Surface> : null}
+      {!query.isError && locations.length ? <SectionHeader title={c.title} detail={`${locations.length} / ${limit}`} /> : null}
+      {!query.isError ? locations.map((item) => <Surface key={item.id} style={styles.card}>
+        <View style={[styles.pin, { backgroundColor: theme.accentSoft }]}><VizitIcon ios="mappin.and.ellipse" android="location_on" color={theme.accentText} size={22} /></View>
+        <Pressable accessibilityRole="button" style={styles.locationBody} onPress={() => edit(item)}>
+          <View style={styles.locationTitle}><Text numberOfLines={1} style={[styles.name, { color: theme.text }]}>{item.name || item.address || '—'}</Text>{item.is_primary ? <StatusPill label={c.primary} tone="accent" /> : null}</View>
+          <Text style={[styles.address, { color: theme.muted }]}>{item.address}{item.city ? `, ${item.city}` : ''}</Text>
+          {item.latitude != null && item.longitude != null ? <Text style={[styles.coords, { color: theme.faint }]}>{c.point}: {item.latitude.toFixed(5)}, {item.longitude.toFixed(5)}</Text> : null}
         </Pressable>
-        {locations.length > 1 ? <Pressable accessibilityRole="button" onPress={() => Alert.alert(c.delete, c.confirm, [{ text: c.cancel }, { text: c.delete, style: 'destructive', onPress: () => remove.mutate(item.id) }])}><VizitIcon ios="trash" android="delete" color={theme.danger} size={20} /></Pressable> : null}
-      </View>) : null}
-      {editing ? <View style={[styles.editor, { borderColor: theme.plum, backgroundColor: theme.surfaceRaised }]}>
-        {(['name', 'address', 'city', 'phone'] as const).map((key) => <TextInput key={key} value={form[key]} onChangeText={(value) => setForm((current) => ({ ...current, [key]: value }))} placeholder={c[key]} placeholderTextColor={theme.muted} keyboardType={key === 'phone' ? 'phone-pad' : 'default'} style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]} />)}
+        {locations.length > 1 ? <IconButton accessibilityLabel={c.delete} ios="trash" android="delete" tone="danger" onPress={() => Alert.alert(c.delete, c.confirm, [{ text: c.cancel }, { text: c.delete, style: 'destructive', onPress: () => remove.mutate(item.id) }])} /> : null}
+      </Surface>) : null}
+      {editing ? <Surface elevated style={styles.editor}>
+        <SectionHeader title={editing === 'new' ? c.add : c.title} />
+        {(['name', 'address', 'city', 'phone'] as const).map((key) => <PremiumInput key={key} label={c[key]} value={form[key]} onChangeText={(value) => setForm((current) => ({ ...current, [key]: value }))} placeholder={c[key]} keyboardType={key === 'phone' ? 'phone-pad' : 'default'} icon={key === 'name' ? { ios: 'building.2', android: 'storefront' } : key === 'address' ? { ios: 'mappin', android: 'location_on' } : key === 'city' ? { ios: 'building.2.crop.circle', android: 'location_city' } : { ios: 'phone', android: 'phone' }} />)}
         <LocationPicker latitude={form.latitude} longitude={form.longitude} onChange={(point) => setForm((current) => ({ ...current, ...point }))} />
-        <View style={styles.toggle}><Text style={{ color: theme.text, fontWeight: '800' }}>{c.primary}</Text><Switch value={form.is_primary} onValueChange={(value) => setForm((current) => ({ ...current, is_primary: value }))} trackColor={{ false: theme.border, true: theme.plum }} /></View>
+        <View style={[styles.toggle, { backgroundColor: theme.surface }]}><View style={styles.toggleText}><Text style={[styles.toggleTitle, { color: theme.text }]}>{c.primary}</Text><Text style={[styles.coords, { color: theme.muted }]}>{c.point}</Text></View><Switch value={form.is_primary} onValueChange={(value) => setForm((current) => ({ ...current, is_primary: value }))} trackColor={{ false: theme.borderStrong, true: theme.accent }} thumbColor={theme.surfaceElevated} /></View>
         <View style={styles.actions}>
-          <Pressable onPress={() => setEditing(null)} style={[styles.secondary, { borderColor: theme.border }]}><Text style={{ color: theme.text, fontWeight: '800' }}>{c.cancel}</Text></Pressable>
-          <Pressable disabled={!form.address.trim() || save.isPending} onPress={() => save.mutate()} style={[styles.primary, { backgroundColor: theme.plum, opacity: form.address.trim() ? 1 : 0.4 }]}>{save.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.white}>{c.save}</Text>}</Pressable>
+          <PremiumButton title={c.cancel} tone="secondary" onPress={() => setEditing(null)} style={styles.flex} />
+          <PremiumButton title={c.save} loading={save.isPending} disabled={!form.address.trim()} onPress={() => save.mutate()} style={styles.flex} />
         </View>
-      </View> : null}
-      {!editing && !query.isError && canAdd ? <Pressable onPress={() => { setForm(empty()); setEditing('new'); }} style={[styles.add, { borderColor: theme.plum }]}><VizitIcon ios="plus" android="add" color={theme.plum} size={20} /><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.add}</Text></Pressable> : null}
-      {!editing && !query.isError && !canAdd ? <View style={[styles.limitCard, { backgroundColor: theme.plumSoft, borderColor: theme.border }]}><Text style={{ color: theme.text, fontWeight: '800', flex: 1 }}>{c.limit}</Text><Pressable onPress={() => router.push('/(business)/billing' as never)}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.upgrade}</Text></Pressable></View> : null}
+      </Surface> : null}
+      {!editing && !query.isError && !canAdd ? <Surface style={styles.limitCard}><View style={[styles.limitIcon, { backgroundColor: theme.warningSoft }]}><VizitIcon ios="lock.fill" android="lock" color={theme.warning} size={20} /></View><Text style={[styles.limitText, { color: theme.text }]}>{c.limit}</Text><PremiumButton title={c.upgrade} compact tone="secondary" onPress={() => router.push('/(business)/billing' as never)} /></Surface> : null}
     </ScrollView>
   </SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 }, content: { padding: 18, paddingBottom: 44, gap: 10 }, header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }, back: { width: 43, height: 43, borderWidth: 1, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, title: { fontSize: 26, fontWeight: '900' }, usageCard: { borderWidth: 1, borderRadius: 10, padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, card: { borderWidth: 1, borderRadius: 10, minHeight: 88, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11 }, pin: { width: 44, height: 44, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, editor: { borderWidth: 1, borderRadius: 10, padding: 13, gap: 9 }, input: { height: 50, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12 }, toggle: { flexDirection: 'row', minHeight: 46, alignItems: 'center', justifyContent: 'space-between' }, actions: { flexDirection: 'row', gap: 8 }, secondary: { flex: 1, height: 50, borderWidth: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, primary: { flex: 1, height: 50, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, white: { color: '#FFF', fontWeight: '900' }, add: { minHeight: 55, borderWidth: 1, borderRadius: 9, borderStyle: 'dashed', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, padding: 8 }, limitCard: { minHeight: 62, borderWidth: 1, borderRadius: 10, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12 }, error: { borderWidth: 1, borderRadius: 10, padding: 14, gap: 10 },
+  screen: { flex: 1 },
+  content: { padding: ui.screenGutter, paddingBottom: ui.spacing.xxl, gap: ui.spacing.md },
+  loader: { marginVertical: ui.spacing.md },
+  usageCard: { gap: ui.spacing.sm },
+  usageTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  kicker: ui.type.caption,
+  usageValue: { ...ui.type.pageTitle, marginTop: 2 },
+  plan: { alignItems: 'flex-end', gap: 6 },
+  track: { height: 5, borderRadius: ui.radius.pill, overflow: 'hidden' },
+  trackFill: { height: '100%', borderRadius: ui.radius.pill },
+  card: { minHeight: 94, padding: ui.spacing.sm, flexDirection: 'row', alignItems: 'center', gap: ui.spacing.sm },
+  pin: { width: 46, height: 46, borderRadius: ui.radius.medium, alignItems: 'center', justifyContent: 'center' },
+  locationBody: { flex: 1, minHeight: ui.touchTarget, justifyContent: 'center' },
+  locationTitle: { flexDirection: 'row', alignItems: 'center', gap: ui.spacing.xs },
+  name: { ...ui.type.cardTitle, flexShrink: 1 },
+  address: { ...ui.type.body, marginTop: 3 },
+  coords: ui.type.caption,
+  editor: { gap: ui.spacing.sm, borderColor: 'transparent' },
+  toggle: { flexDirection: 'row', minHeight: 58, alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: ui.spacing.sm, borderRadius: ui.radius.medium },
+  toggleText: { gap: 2 },
+  toggleTitle: ui.type.cardTitle,
+  actions: { flexDirection: 'row', gap: ui.spacing.xs },
+  flex: { flex: 1 },
+  limitCard: { minHeight: 74, padding: ui.spacing.sm, flexDirection: 'row', alignItems: 'center', gap: ui.spacing.sm },
+  limitIcon: { width: 42, height: 42, borderRadius: ui.radius.small, alignItems: 'center', justifyContent: 'center' },
+  limitText: { ...ui.type.body, flex: 1 },
 });

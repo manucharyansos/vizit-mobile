@@ -2,17 +2,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { IconButton, PageHeader, PremiumButton, PremiumInput, StateCard, StatusPill, Surface } from '@/components/premium-ui';
 import { VizitIcon } from '@/components/vizit-icon';
+import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { businessApi, BusinessLocation, BusinessService, LocalImageFile } from '@/services/api/business';
 import { apiErrorMessage } from '@/services/api/client';
 
 const copy = {
-  hy: { title: 'Ծառայություններ', empty: 'Ծառայություններ դեռ չկան', add: 'Նոր ծառայություն', name: 'Անվանում', description: 'Նկարագրություն', duration: 'Տևողություն՝ րոպե', price: 'Գին՝ ֏', image: 'Ծառայության նկար', chooseImage: 'Ընտրել նկար', removeImage: 'Հեռացնել նկարը', permission: 'Թույլատրեք gallery-ի հասանելիությունը։', save: 'Պահպանել', cancel: 'Չեղարկել', active: 'Ակտիվ', edit: 'Խմբագրել', remove: 'Ջնջել', confirm: 'Ջնջե՞լ այս ծառայությունը', error: 'Չհաջողվեց պահպանել', location: 'Մասնաճյուղ', loadError: 'Չհաջողվեց բեռնել ծառայությունները', retry: 'Կրկին փորձել' },
-  ru: { title: 'Услуги', empty: 'Услуг пока нет', add: 'Новая услуга', name: 'Название', description: 'Описание', duration: 'Длительность, минуты', price: 'Цена, ֏', image: 'Фото услуги', chooseImage: 'Выбрать фото', removeImage: 'Удалить фото', permission: 'Разрешите доступ к галерее.', save: 'Сохранить', cancel: 'Отмена', active: 'Активна', edit: 'Изменить', remove: 'Удалить', confirm: 'Удалить эту услугу?', error: 'Не удалось сохранить', location: 'Филиал', loadError: 'Не удалось загрузить услуги', retry: 'Повторить' },
-  en: { title: 'Services', empty: 'No services yet', add: 'New service', name: 'Name', description: 'Description', duration: 'Duration, minutes', price: 'Price, ֏', image: 'Service image', chooseImage: 'Choose image', removeImage: 'Remove image', permission: 'Allow photo library access.', save: 'Save', cancel: 'Cancel', active: 'Active', edit: 'Edit', remove: 'Delete', confirm: 'Delete this service?', error: 'Could not save', location: 'Location', loadError: 'Could not load services', retry: 'Try again' },
+  hy: { title: 'Ծառայություններ', empty: 'Ծառայություններ դեռ չկան', add: 'Նոր ծառայություն', name: 'Անվանում', description: 'Նկարագրություն', duration: 'Տևողություն՝ րոպե', price: 'Գին՝ ֏', image: 'Ծառայության նկար', chooseImage: 'Ընտրել նկար', removeImage: 'Հեռացնել նկարը', permission: 'Թույլատրեք gallery-ի հասանելիությունը։', save: 'Պահպանել', cancel: 'Չեղարկել', active: 'Ակտիվ', inactive: 'Անջատված', edit: 'Խմբագրել', remove: 'Ջնջել', confirm: 'Ջնջե՞լ այս ծառայությունը', error: 'Չհաջողվեց պահպանել', location: 'Մասնաճյուղ', loadError: 'Չհաջողվեց բեռնել ծառայությունները', retry: 'Կրկին փորձել', subtitle: 'Կատալոգ և հասանելիություն' },
+  ru: { title: 'Услуги', empty: 'Услуг пока нет', add: 'Новая услуга', name: 'Название', description: 'Описание', duration: 'Длительность, минуты', price: 'Цена, ֏', image: 'Фото услуги', chooseImage: 'Выбрать фото', removeImage: 'Удалить фото', permission: 'Разрешите доступ к галерее.', save: 'Сохранить', cancel: 'Отмена', active: 'Активна', inactive: 'Отключена', edit: 'Изменить', remove: 'Удалить', confirm: 'Удалить эту услугу?', error: 'Не удалось сохранить', location: 'Филиал', loadError: 'Не удалось загрузить услуги', retry: 'Повторить', subtitle: 'Каталог и доступность' },
+  en: { title: 'Services', empty: 'No services yet', add: 'New service', name: 'Name', description: 'Description', duration: 'Duration, minutes', price: 'Price, ֏', image: 'Service image', chooseImage: 'Choose image', removeImage: 'Remove image', permission: 'Allow photo library access.', save: 'Save', cancel: 'Cancel', active: 'Active', inactive: 'Inactive', edit: 'Edit', remove: 'Delete', confirm: 'Delete this service?', error: 'Could not save', location: 'Location', loadError: 'Could not load services', retry: 'Try again', subtitle: 'Catalog and availability' },
 };
 
 type ServiceForm = { name: string; description: string; duration: string; price: string; imageUrl: string | null; locationId?: number };
@@ -51,7 +53,7 @@ export default function ServicesScreen() {
   const beginEdit = (item: BusinessService) => { setEditing(item); setForm({ name: item.name, description: item.description ?? '', duration: String(item.duration_minutes), price: String(item.price ?? 0), imageUrl: item.image_url ?? null, locationId: item.location_id ?? defaultLocationId }); };
   const beginCreate = () => { setEditing(null); setForm(blank(defaultLocationId)); };
   const confirmRemove = (item: BusinessService) => Alert.alert(c.remove, c.confirm, [{ text: c.cancel, style: 'cancel' }, { text: c.remove, style: 'destructive', onPress: () => remove.mutate(item.id) }]);
-  const valid = form.name.trim().length >= 2 && Number(form.duration) >= 5 && (locations.length <= 1 || !!form.locationId);
+  const valid = form.name.trim().length >= 2 && Number(form.duration) >= 5 && (locations.length <= 1 || Boolean(form.locationId));
 
   const chooseImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -71,23 +73,96 @@ export default function ServicesScreen() {
     }
   };
 
-  return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <View style={styles.header}><View style={[styles.headerIcon, { backgroundColor: theme.plumSoft }]}><VizitIcon ios="square.grid.2x2.fill" android="grid_view" color={theme.plum} size={25} /></View><Text style={[styles.title, { color: theme.text }]}>{c.title}</Text><Pressable accessibilityRole="button" onPress={beginCreate} style={[styles.add, { backgroundColor: theme.plum }]}><VizitIcon ios="plus" android="add" color="#FFF" size={22} /></Pressable></View>
-      {editing !== undefined ? <View style={[styles.form, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
-        <Text style={[styles.formTitle, { color: theme.text }]}>{editing ? c.edit : c.add}</Text>
-        <Text style={[styles.imageLabel, { color: theme.text }]}>{c.image}</Text>
-        <View style={[styles.imagePreview, { backgroundColor: theme.plumSoft, borderColor: theme.border }]}>{form.imageUrl ? <Image source={{ uri: form.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <VizitIcon ios="photo" android="image" color={theme.plum} size={34} />}</View>
-        <View style={styles.formRow}><Pressable disabled={uploading} onPress={() => void chooseImage()} style={[styles.secondary, styles.flex, { borderColor: theme.border }]}>{uploading ? <ActivityIndicator color={theme.plum} /> : <Text style={{ color: theme.text, fontWeight: '800' }}>{c.chooseImage}</Text>}</Pressable>{form.imageUrl ? <Pressable onPress={() => setForm((value) => ({ ...value, imageUrl: null }))} style={[styles.secondary, styles.flex, { borderColor: theme.border }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.removeImage}</Text></Pressable> : null}</View>
-        <TextInput value={form.name} onChangeText={(name) => setForm((value) => ({ ...value, name }))} placeholder={c.name} placeholderTextColor={theme.muted} style={[styles.input, { color: theme.text, borderColor: theme.border }]} />
-        <TextInput value={form.description} onChangeText={(description) => setForm((value) => ({ ...value, description }))} placeholder={c.description} placeholderTextColor={theme.muted} multiline style={[styles.input, styles.description, { color: theme.text, borderColor: theme.border }]} />
-        <View style={styles.formRow}><TextInput value={form.duration} onChangeText={(duration) => setForm((value) => ({ ...value, duration }))} keyboardType="number-pad" placeholder={c.duration} placeholderTextColor={theme.muted} style={[styles.input, styles.flex, { color: theme.text, borderColor: theme.border }]} /><TextInput value={form.price} onChangeText={(price) => setForm((value) => ({ ...value, price }))} keyboardType="number-pad" placeholder={c.price} placeholderTextColor={theme.muted} style={[styles.input, styles.flex, { color: theme.text, borderColor: theme.border }]} /></View>
-        {locations.length > 1 ? <View style={styles.locationBlock}><Text style={[styles.locationLabel, { color: theme.text }]}>{c.location}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.locationRow}>{locations.map((location) => { const selected = form.locationId === location.id; return <Pressable key={location.id} onPress={() => setForm((value) => ({ ...value, locationId: location.id }))} style={[styles.locationChip, { borderColor: selected ? theme.plum : theme.border, backgroundColor: selected ? theme.plumSoft : theme.background }]}><Text style={{ color: selected ? theme.plum : theme.text, fontWeight: '800' }}>{location.name || location.address || `#${location.id}`}</Text></Pressable>; })}</ScrollView></View> : null}
-        <View style={styles.formRow}><Pressable onPress={close} style={[styles.secondary, styles.flex, { borderColor: theme.border }]}><Text style={{ color: theme.text, fontWeight: '800' }}>{c.cancel}</Text></Pressable><Pressable disabled={!valid || save.isPending || uploading} onPress={() => save.mutate()} style={[styles.primary, styles.flex, { backgroundColor: theme.plum, opacity: valid && !uploading ? 1 : 0.4 }]}>{save.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.white}>{c.save}</Text>}</Pressable></View>
-      </View> : null}
-      {query.isLoading ? <ActivityIndicator color={theme.plum} /> : query.isError ? <View style={[styles.error, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.loadError}</Text><Pressable onPress={() => query.refetch()}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : query.data?.length ? query.data.map((item) => <View key={item.id} style={[styles.card, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}><View style={styles.cardTop}>{item.image_url ? <Image source={{ uri: item.image_url }} style={styles.thumb} contentFit="cover" /> : <View style={[styles.thumb, styles.thumbFallback, { backgroundColor: theme.plumSoft }]}><VizitIcon ios="photo" android="image" color={theme.plum} size={23} /></View>}<View style={styles.body}><Text style={[styles.name, { color: theme.text }]}>{item.name}</Text><Text style={{ color: theme.muted }}>{item.duration_minutes} min · {Number(item.price).toLocaleString()} {item.currency}</Text>{locations.length > 1 ? <Text style={{ color: theme.muted, fontSize: 11, marginTop: 4 }}>{locations.find((location) => location.id === item.location_id)?.name ?? c.location}</Text> : null}</View><Switch value={item.is_active} onValueChange={() => toggle.mutate(item)} trackColor={{ false: theme.border, true: theme.plum }} /></View><View style={styles.actions}><Pressable onPress={() => beginEdit(item)} style={[styles.action, { backgroundColor: theme.plumSoft }]}><Text style={{ color: theme.plum, fontWeight: '800' }}>{c.edit}</Text></Pressable><Pressable onPress={() => confirmRemove(item)} style={[styles.action, { backgroundColor: theme.goldSoft }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.remove}</Text></Pressable></View></View>) : <Text style={{ color: theme.muted }}>{c.empty}</Text>}
-    </ScrollView>
-  </SafeAreaView>;
+  const formOpen = editing !== undefined;
+  return (
+    <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <PageHeader
+          eyebrow="Vizit Business"
+          title={c.title}
+          subtitle={query.isSuccess ? `${c.subtitle} · ${query.data.length}` : c.subtitle}
+          action={<IconButton accessibilityLabel={formOpen ? c.cancel : c.add} ios={formOpen ? 'xmark' : 'plus'} android={formOpen ? 'close' : 'add'} onPress={formOpen ? close : beginCreate} tone="primary" />}
+        />
+
+        {formOpen ? (
+          <Surface style={styles.form} elevated>
+            <Text style={[styles.formTitle, { color: theme.text }]}>{editing ? c.edit : c.add}</Text>
+            <Text style={[styles.imageLabel, { color: theme.textSecondary }]}>{c.image}</Text>
+            <View style={[styles.imagePreview, { backgroundColor: theme.accentSubtle, borderColor: theme.border }]}>
+              {form.imageUrl ? <Image source={{ uri: form.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <View style={[styles.imagePlaceholder, { backgroundColor: theme.accentSoft }]}><VizitIcon ios="photo" android="image" color={theme.accentText} size={30} /></View>}
+            </View>
+            <View style={styles.formRow}>
+              <PremiumButton title={c.chooseImage} loading={uploading} onPress={() => void chooseImage()} tone="secondary" compact style={styles.flex} icon={{ ios: 'photo.badge.plus', android: 'add_photo_alternate' }} />
+              {form.imageUrl ? <PremiumButton title={c.removeImage} onPress={() => setForm((value) => ({ ...value, imageUrl: null }))} tone="danger" compact style={styles.flex} /> : null}
+            </View>
+            <PremiumInput label={c.name} value={form.name} onChangeText={(name) => setForm((value) => ({ ...value, name }))} placeholder={c.name} icon={{ ios: 'tag.fill', android: 'label' }} />
+            <PremiumInput label={c.description} value={form.description} onChangeText={(description) => setForm((value) => ({ ...value, description }))} placeholder={c.description} multiline icon={{ ios: 'text.alignleft', android: 'notes' }} />
+            <View style={styles.formRow}>
+              <PremiumInput label={c.duration} value={form.duration} onChangeText={(duration) => setForm((value) => ({ ...value, duration }))} placeholder={c.duration} keyboardType="number-pad" containerStyle={styles.flex} icon={{ ios: 'clock.fill', android: 'schedule' }} />
+              <PremiumInput label={c.price} value={form.price} onChangeText={(price) => setForm((value) => ({ ...value, price }))} placeholder={c.price} keyboardType="number-pad" containerStyle={styles.flex} icon={{ ios: 'banknote.fill', android: 'payments' }} />
+            </View>
+            {locations.length > 1 ? (
+              <View style={styles.locationBlock}>
+                <Text style={[styles.locationLabel, { color: theme.textSecondary }]}>{c.location}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.locationRow}>
+                  {locations.map((location, index) => {
+                    const selected = form.locationId === location.id;
+                    return <Pressable accessibilityRole="button" accessibilityState={{ selected }} key={location.id} onPress={() => setForm((value) => ({ ...value, locationId: location.id }))} style={({ pressed }) => [styles.locationChip, { borderColor: selected ? theme.accent : theme.border, backgroundColor: selected ? theme.accentSoft : theme.surface, opacity: pressed ? 0.74 : 1 }]}><Text style={[styles.locationText, { color: selected ? theme.accentText : theme.text }]}>{location.name || location.address || `${c.location} ${index + 1}`}</Text></Pressable>;
+                  })}
+                </ScrollView>
+              </View>
+            ) : null}
+            <View style={styles.formRow}>
+              <PremiumButton title={c.cancel} onPress={close} tone="secondary" style={styles.flex} />
+              <PremiumButton title={c.save} loading={save.isPending} disabled={!valid || uploading} onPress={() => save.mutate()} style={styles.flex} />
+            </View>
+          </Surface>
+        ) : null}
+
+        {query.isLoading ? <View style={styles.loader}><ActivityIndicator color={theme.accent} size="large" /></View> : query.isError ? (
+          <StateCard title={c.loadError} message={apiErrorMessage(query.error)} tone="danger" action={<PremiumButton title={c.retry} onPress={() => query.refetch()} tone="secondary" />} />
+        ) : query.data?.length ? query.data.map((item) => (
+          <Surface key={item.id} style={styles.card} elevated>
+            <View style={styles.cardTop}>
+              {item.image_url ? <Image source={{ uri: item.image_url }} style={styles.thumb} contentFit="cover" /> : <View style={[styles.thumb, styles.thumbFallback, { backgroundColor: theme.accentSubtle }]}><VizitIcon ios="photo" android="image" color={theme.accentText} size={22} /></View>}
+              <View style={styles.body}><Text numberOfLines={2} style={[styles.name, { color: theme.text }]}>{item.name}</Text><Text style={[styles.meta, { color: theme.muted }]}>{item.duration_minutes} min · {Number(item.price).toLocaleString()} {item.currency}</Text>{locations.length > 1 ? <Text numberOfLines={1} style={[styles.locationMeta, { color: theme.faint }]}>{locations.find((location) => location.id === item.location_id)?.name ?? c.location}</Text> : null}</View>
+              <View style={styles.statusControl}><StatusPill label={item.is_active ? c.active : c.inactive} tone={item.is_active ? 'success' : 'neutral'} /><Switch value={item.is_active} onValueChange={() => toggle.mutate(item)} trackColor={{ false: theme.borderStrong, true: theme.accent }} thumbColor={theme.surfaceRaised} /></View>
+            </View>
+            <View style={styles.actions}>
+              <PremiumButton title={c.edit} onPress={() => beginEdit(item)} tone="secondary" compact style={styles.flex} icon={{ ios: 'pencil', android: 'edit' }} />
+              <PremiumButton title={c.remove} onPress={() => confirmRemove(item)} tone="danger" compact style={styles.flex} icon={{ ios: 'trash', android: 'delete' }} />
+            </View>
+          </Surface>
+        )) : <StateCard title={c.empty} icon={{ ios: 'square.grid.2x2.fill', android: 'grid_view' }} action={<PremiumButton title={c.add} onPress={beginCreate} />} />}
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
-const styles = StyleSheet.create({ screen: { flex: 1 }, content: { padding: 18, gap: 11, paddingBottom: 35 }, header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }, headerIcon: { width: 50, height: 50, borderRadius: 11, alignItems: 'center', justifyContent: 'center' }, title: { flex: 1, fontSize: 27, fontWeight: '900' }, add: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, form: { borderWidth: 1, borderRadius: 12, padding: 14, gap: 10 }, formTitle: { fontSize: 18, fontWeight: '900' }, imageLabel: { fontSize: 12, fontWeight: '900' }, imagePreview: { width: '100%', aspectRatio: 4 / 3, borderRadius: 10, overflow: 'hidden', borderWidth: 1, alignItems: 'center', justifyContent: 'center' }, input: { minHeight: 51, borderWidth: 1, borderRadius: 9, paddingHorizontal: 13 }, description: { height: 80, paddingTop: 12, textAlignVertical: 'top' }, formRow: { flexDirection: 'row', gap: 9 }, flex: { flex: 1 }, primary: { height: 49, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, secondary: { minHeight: 49, borderWidth: 1, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }, white: { color: '#FFF', fontWeight: '900' }, card: { borderWidth: 1, borderRadius: 12, padding: 14, gap: 12 }, cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10 }, thumb: { width: 58, height: 58, borderRadius: 10, overflow: 'hidden' }, thumbFallback: { alignItems: 'center', justifyContent: 'center' }, body: { flex: 1 }, name: { fontSize: 16, fontWeight: '900', marginBottom: 4 }, actions: { flexDirection: 'row', gap: 8 }, action: { flex: 1, minHeight: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, locationBlock: { gap: 7 }, locationLabel: { fontSize: 12, fontWeight: '900' }, locationRow: { gap: 7 }, locationChip: { minHeight: 40, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }, error: { borderWidth: 1, borderRadius: 10, padding: 14, gap: 10 } });
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  content: { padding: ui.screenGutter, gap: 11, paddingBottom: 36 },
+  form: { padding: 15, gap: 12, marginBottom: 4 },
+  formTitle: ui.type.sectionTitle,
+  imageLabel: ui.type.caption,
+  imagePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: ui.radius.medium, overflow: 'hidden', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  imagePlaceholder: { width: 58, height: 58, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  formRow: { flexDirection: 'row', gap: 8 },
+  flex: { flex: 1 },
+  locationBlock: { gap: 7 },
+  locationLabel: ui.type.caption,
+  locationRow: { gap: 7 },
+  locationChip: { minHeight: 40, paddingHorizontal: 12, borderRadius: ui.radius.small, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  locationText: ui.type.caption,
+  loader: { minHeight: 220, alignItems: 'center', justifyContent: 'center' },
+  card: { padding: 13, gap: 12 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  thumb: { width: 64, height: 64, borderRadius: ui.radius.medium, overflow: 'hidden' },
+  thumbFallback: { alignItems: 'center', justifyContent: 'center' },
+  body: { flex: 1, minWidth: 0 },
+  name: { fontSize: 16, lineHeight: 21, fontWeight: '800' },
+  meta: { ...ui.type.caption, marginTop: 4 },
+  locationMeta: { fontSize: 10, lineHeight: 14, fontWeight: '600', marginTop: 3 },
+  statusControl: { alignItems: 'flex-end', gap: 6 },
+  actions: { flexDirection: 'row', gap: 8 },
+});

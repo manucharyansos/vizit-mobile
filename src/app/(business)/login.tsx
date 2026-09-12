@@ -11,7 +11,7 @@ export default function BusinessLogin() {
   if (existingSession.isLoading) {
     return (
       <SafeAreaView style={[styles.loading, { backgroundColor: theme.background }]}>
-        <ActivityIndicator color={theme.plum} />
+        <ActivityIndicator color={theme.accent} />
       </SafeAreaView>
     );
   }

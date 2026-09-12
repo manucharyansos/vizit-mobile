@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { VizitIcon } from '@/components/vizit-icon';
+import { IconButton } from '@/components/premium-ui';
+import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { localDateKey } from '@/services/date-time';
 
@@ -40,6 +41,8 @@ export function CalendarDatePicker({ value, onChange, minDate = localDateKey() }
   const monthLabel = new Intl.DateTimeFormat(LOCALE_TAG[locale], { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
     new Date(Date.UTC(visibleMonth.year, visibleMonth.month, 1)),
   );
+  const previousLabel = locale === 'hy' ? 'Նախորդ ամիս' : locale === 'ru' ? 'Предыдущий месяц' : 'Previous month';
+  const nextLabel = locale === 'hy' ? 'Հաջորդ ամիս' : locale === 'ru' ? 'Следующий месяц' : 'Next month';
 
   const shiftMonth = (delta: number) => {
     const next = new Date(Date.UTC(visibleMonth.year, visibleMonth.month + delta, 1));
@@ -47,15 +50,11 @@ export function CalendarDatePicker({ value, onChange, minDate = localDateKey() }
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" onPress={() => shiftMonth(-1)} style={[styles.arrow, { borderColor: theme.border }]}>
-          <VizitIcon ios="chevron.left" android="chevron_left" color={theme.text} size={21} />
-        </Pressable>
+        <IconButton ios="chevron.left" android="chevron_left" accessibilityLabel={previousLabel} onPress={() => shiftMonth(-1)} size={40} style={{ backgroundColor: theme.surfaceRaised }} />
         <Text style={[styles.month, { color: theme.text }]}>{monthLabel}</Text>
-        <Pressable accessibilityRole="button" onPress={() => shiftMonth(1)} style={[styles.arrow, { borderColor: theme.border }]}>
-          <VizitIcon ios="chevron.right" android="chevron_right" color={theme.text} size={21} />
-        </Pressable>
+        <IconButton ios="chevron.right" android="chevron_right" accessibilityLabel={nextLabel} onPress={() => shiftMonth(1)} size={40} style={{ backgroundColor: theme.surfaceRaised }} />
       </View>
 
       <View style={styles.weekRow}>
@@ -75,15 +74,18 @@ export function CalendarDatePicker({ value, onChange, minDate = localDateKey() }
             <View key={key} style={styles.cell}>
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={key}
+                accessibilityState={{ disabled, selected }}
                 disabled={disabled}
                 onPress={() => onChange(key)}
-                style={[
+                style={({ pressed }) => [
                   styles.day,
-                  { borderColor: today ? theme.plum : 'transparent', opacity: disabled ? 0.28 : 1 },
-                  selected && { backgroundColor: theme.plum, borderColor: theme.plum },
+                  { borderColor: today ? theme.accent : 'transparent', opacity: disabled ? 0.25 : pressed ? 0.7 : 1 },
+                  selected && { backgroundColor: theme.primary, borderColor: theme.primary },
                 ]}
               >
-                <Text style={[styles.dayText, { color: selected ? '#FFFFFF' : theme.text }]}>{day}</Text>
+                <Text style={[styles.dayText, { color: selected ? theme.onPrimary : theme.text }]}>{day}</Text>
+                {today && !selected ? <View style={[styles.todayDot, { backgroundColor: theme.accent }]} /> : null}
               </Pressable>
             </View>
           );
@@ -94,14 +96,14 @@ export function CalendarDatePicker({ value, onChange, minDate = localDateKey() }
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 12, padding: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  arrow: { width: 38, height: 38, borderWidth: 1, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  month: { fontSize: 17, fontWeight: '900', textTransform: 'capitalize' },
-  weekRow: { flexDirection: 'row', marginBottom: 5 },
-  weekday: { width: '14.2857%', textAlign: 'center', fontSize: 11, fontWeight: '800' },
+  card: { borderWidth: 1, borderRadius: ui.radius.medium, padding: ui.spacing.sm },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: ui.spacing.sm },
+  month: { fontSize: 16, lineHeight: 21, fontWeight: '800', textTransform: 'capitalize' },
+  weekRow: { flexDirection: 'row', marginBottom: ui.spacing.xxs },
+  weekday: { width: '14.2857%', textAlign: 'center', fontSize: 10, lineHeight: 14, fontWeight: '800', letterSpacing: 0.4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: '14.2857%', height: 43, alignItems: 'center', justifyContent: 'center' },
-  day: { width: 36, height: 36, borderRadius: 9, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  day: { width: 36, height: 36, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   dayText: { fontSize: 14, fontWeight: '800' },
+  todayDot: { position: 'absolute', bottom: 3, width: 3, height: 3, borderRadius: 2 },
 });

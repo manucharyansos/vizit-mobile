@@ -4,7 +4,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { IconButton, PremiumButton, SectionHeader, StateCard, StatusPill, Surface } from '@/components/premium-ui';
 import { VizitIcon } from '@/components/vizit-icon';
+import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { publicApi } from '@/services/api/public';
 import { safeBack } from '@/services/navigation';
@@ -28,58 +30,160 @@ export default function BusinessScreen() {
   const services = useQuery({ queryKey: ['services', slug, locationId], queryFn: () => publicApi.services(slug, locationId), enabled: Boolean(slug && locationId), retry: false });
   const staff = useQuery({ queryKey: ['staff', slug, locationId], queryFn: () => publicApi.staff(slug, locationId), enabled: Boolean(slug && locationId), retry: false });
 
-  if (business.isLoading) return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><ActivityIndicator color={theme.plum} /></SafeAreaView>;
-  if (business.isError || !business.data) return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><Text style={{ color: theme.danger }}>{t('loadError')}</Text><Pressable onPress={() => business.refetch()}><Text style={{ color: theme.plum, fontWeight: '900', marginTop: 10 }}>{c.retry}</Text></Pressable></SafeAreaView>;
+  if (business.isLoading) {
+    return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><ActivityIndicator color={theme.accent} size="large" /></SafeAreaView>;
+  }
+  if (business.isError || !business.data) {
+    return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><StateCard title={t('loadError')} tone="danger" action={<PremiumButton title={c.retry} onPress={() => business.refetch()} tone="secondary" />} /></SafeAreaView>;
+  }
+
   const item = business.data;
   const address = selectedLocation?.address ?? item.address;
 
-  return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: 104 + insets.bottom }]}>
-      <View style={[styles.cover, { backgroundColor: theme.cream }]}>
-        {item.cover_url ? <Image source={item.cover_url} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} /> : item.logo_url ? <Image source={item.logo_url} style={styles.coverLogo} contentFit="contain" /> : <Text style={[styles.coverLetter, { color: theme.plum }]}>{item.name.slice(0, 1).toUpperCase()}</Text>}
-        <View style={styles.coverShade} />
-        <Pressable accessibilityRole="button" accessibilityLabel={t('back')} onPress={() => safeBack('/(customer)/discover')} style={[styles.circleButton, styles.back, { backgroundColor: theme.surface }]}><VizitIcon ios="chevron.left" android="chevron_left" color={theme.text} size={22} /></Pressable>
+  return (
+    <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: 104 + insets.bottom }]}>
+        <View style={[styles.cover, { backgroundColor: theme.surface }]}>
+          {item.cover_url ? <Image source={item.cover_url} style={StyleSheet.absoluteFill} contentFit="cover" transition={220} /> : item.logo_url ? <Image source={item.logo_url} style={styles.coverLogo} contentFit="contain" /> : <Text style={[styles.coverLetter, { color: theme.accentText }]}>{item.name.slice(0, 1).toLocaleUpperCase()}</Text>}
+          <View style={[styles.coverShade, { backgroundColor: theme.scrim }]} />
+          <IconButton accessibilityLabel={t('back')} ios="chevron.left" android="chevron_left" onPress={() => safeBack('/(customer)/discover')} style={styles.back} />
+        </View>
+
+        <Surface style={styles.summary} elevated>
+          <View style={[styles.logo, { backgroundColor: theme.accentSubtle, borderColor: theme.surfaceRaised }]}>
+            {item.logo_url ? <Image source={item.logo_url} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Text style={[styles.logoLetter, { color: theme.accentText }]}>{item.name.slice(0, 1).toLocaleUpperCase()}</Text>}
+          </View>
+          <View style={styles.summaryBody}>
+            <Text style={[styles.title, { color: theme.text }]}>{item.name}</Text>
+            {item.category_name ? <View style={styles.category}><StatusPill label={item.category_name} tone="accent" /></View> : null}
+            {address ? <MetaRow icon={{ ios: 'location.fill', android: 'location_on' }} value={address} /> : null}
+            {item.phone ? <MetaRow icon={{ ios: 'phone.fill', android: 'call' }} value={item.phone} /> : null}
+          </View>
+        </Surface>
+
+        {item.locations.length > 1 ? (
+          <View style={styles.locationSection}>
+            <SectionHeader title={c.location} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.locations}>
+              {item.locations.map((location, index) => {
+                const selected = location.id === locationId;
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={location.id}
+                    onPress={() => setChosenLocationId(location.id)}
+                    style={({ pressed }) => [styles.locationChip, { borderColor: selected ? theme.accent : theme.border, backgroundColor: selected ? theme.accentSoft : theme.surfaceRaised, opacity: pressed ? 0.75 : 1 }]}
+                  >
+                    <VizitIcon ios="mappin" android="location_on" color={selected ? theme.accentText : theme.faint} size={16} />
+                    <Text style={[styles.locationText, { color: selected ? theme.accentText : theme.text }]}>{location.name || location.address || `${c.location} ${index + 1}`}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {item.short_description || item.description ? <Text style={[styles.description, { color: theme.textSecondary }]}>{item.short_description ?? item.description}</Text> : null}
+
+        <Section title={t('services')} loading={services.isLoading} error={services.isError} retry={() => services.refetch()} empty={!services.data?.length ? c.emptyServices : undefined}>
+          <View style={styles.verticalList}>
+            {services.data?.map((service) => (
+              <View key={service.id} style={[styles.service, { backgroundColor: theme.surfaceRaised, borderColor: theme.border, shadowColor: theme.shadow }]}>
+                {service.image_url ? <Image source={service.image_url} style={styles.serviceImage} contentFit="cover" /> : <View style={[styles.serviceIcon, { backgroundColor: theme.accentSubtle }]}><VizitIcon ios="sparkles" android="spa" color={theme.accentText} size={20} /></View>}
+                <View style={styles.serviceBody}>
+                  <Text numberOfLines={2} style={[styles.rowTitle, { color: theme.text }]}>{service.name}</Text>
+                  <View style={styles.duration}><VizitIcon ios="clock" android="schedule" color={theme.faint} size={14} /><Text style={[styles.smallText, { color: theme.muted }]}>{service.duration_minutes} min</Text></View>
+                </View>
+                <Text style={[styles.price, { color: theme.text }]}>{service.price.toLocaleString()} <Text style={[styles.currency, { color: theme.muted }]}>{service.currency}</Text></Text>
+              </View>
+            ))}
+          </View>
+        </Section>
+
+        <Section title={t('staff')} loading={staff.isLoading} error={staff.isError} retry={() => staff.refetch()} empty={!staff.data?.length ? c.emptyStaff : undefined}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.people}>
+            {staff.data?.map((person) => (
+              <View key={person.id} style={[styles.person, { backgroundColor: theme.surfaceRaised, borderColor: theme.border, shadowColor: theme.shadow }]}>
+                {person.avatar_url ? <Image source={person.avatar_url} style={styles.avatar} contentFit="cover" /> : <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.accentSubtle }]}><VizitIcon ios="person.fill" android="person" color={theme.accentText} size={27} /></View>}
+                <Text numberOfLines={1} style={[styles.personName, { color: theme.text }]}>{person.name}</Text>
+                {person.role ? <Text numberOfLines={1} style={[styles.personRole, { color: theme.muted }]}>{person.role}</Text> : null}
+              </View>
+            ))}
+          </ScrollView>
+        </Section>
+      </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12), backgroundColor: theme.surfaceRaised, borderColor: theme.border, shadowColor: theme.shadow }]}>
+        <PremiumButton
+          disabled={!locationId}
+          title={t('bookNow')}
+          onPress={() => router.push({ pathname: '/book/[slug]', params: { slug, locationId: String(locationId ?? '') } })}
+          icon={{ ios: 'arrow.right', android: 'arrow_forward' }}
+        />
       </View>
-      <View style={[styles.summary, { backgroundColor: theme.surface, shadowColor: theme.shadow }]}>
-        <View style={[styles.logo, { backgroundColor: theme.peachSoft, borderColor: theme.surface }]}>{item.logo_url ? <Image source={item.logo_url} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Text style={[styles.logoLetter, { color: theme.plum }]}>{item.name.slice(0, 1).toUpperCase()}</Text>}</View>
-        <Text style={[styles.title, { color: theme.text }]}>{item.name}</Text>
-        {item.category_name ? <Text style={[styles.category, { color: theme.gold }]}>{item.category_name}</Text> : null}
-        {address ? <View style={styles.metaRow}><VizitIcon ios="location.fill" android="location_on" color={theme.muted} size={17} /><Text style={[styles.metaText, { color: theme.muted }]}>{address}</Text></View> : null}
-        {item.phone ? <View style={styles.metaRow}><VizitIcon ios="phone.fill" android="call" color={theme.muted} size={16} /><Text style={[styles.metaText, { color: theme.muted }]}>{item.phone}</Text></View> : null}
-      </View>
-      {item.locations.length > 1 ? <View style={styles.locationSection}><Text style={[styles.locationTitle, { color: theme.text }]}>{c.location}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.locations}>{item.locations.map((location) => { const selected = location.id === locationId; return <Pressable key={location.id} onPress={() => setChosenLocationId(location.id)} style={[styles.locationChip, { borderColor: selected ? theme.plum : theme.border, backgroundColor: selected ? theme.plumSoft : theme.surfaceRaised }]}><Text style={{ color: selected ? theme.plum : theme.text, fontWeight: '800' }}>{location.name || location.address || `#${location.id}`}</Text></Pressable>; })}</ScrollView></View> : null}
-      {item.short_description || item.description ? <Text style={[styles.description, { color: theme.muted }]}>{item.short_description ?? item.description}</Text> : null}
-      <Section title={t('services')} loading={services.isLoading} error={services.isError} retry={() => services.refetch()} empty={!services.data?.length ? c.emptyServices : undefined}>
-        {services.data?.map((service) => <View key={service.id} style={[styles.service, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          {service.image_url ? <Image source={service.image_url} style={styles.serviceImage} contentFit="cover" /> : <View style={[styles.serviceIcon, { backgroundColor: theme.plumSoft }]}><VizitIcon ios="sparkles" android="spa" color={theme.plum} size={20} /></View>}
-          <View style={styles.serviceBody}><Text style={[styles.rowTitle, { color: theme.text }]}>{service.name}</Text><View style={styles.duration}><VizitIcon ios="clock" android="schedule" color={theme.muted} size={14} /><Text style={[styles.smallText, { color: theme.muted }]}>{service.duration_minutes} min</Text></View></View>
-          <Text style={[styles.price, { color: theme.plumStrong }]}>{service.price.toLocaleString()} {service.currency}</Text>
-        </View>)}
-      </Section>
-      <Section title={t('staff')} loading={staff.isLoading} error={staff.isError} retry={() => staff.refetch()} empty={!staff.data?.length ? c.emptyStaff : undefined}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.people}>
-          {staff.data?.map((person) => <View key={person.id} style={[styles.person, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            {person.avatar_url ? <Image source={person.avatar_url} style={styles.avatar} contentFit="cover" /> : <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.peachSoft }]}><VizitIcon ios="person.fill" android="person" color={theme.plum} size={27} /></View>}
-            <Text numberOfLines={1} style={[styles.personName, { color: theme.text }]}>{person.name}</Text>{person.role ? <Text numberOfLines={1} style={[styles.personRole, { color: theme.muted }]}>{person.role}</Text> : null}
-          </View>)}
-        </ScrollView>
-      </Section>
-    </ScrollView>
-    <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12), backgroundColor: theme.background, borderColor: theme.border }]}><Pressable disabled={!locationId} onPress={() => router.push({ pathname: '/book/[slug]', params: { slug, locationId: String(locationId ?? '') } })} style={({ pressed }) => [styles.cta, { backgroundColor: theme.plum, opacity: !locationId ? 0.45 : pressed ? 0.88 : 1 }]}><Text style={styles.ctaText}>{t('bookNow')}</Text><VizitIcon ios="arrow.right" android="arrow_forward" color="#FFFFFF" size={19} /></Pressable></View>
-  </SafeAreaView>;
+    </SafeAreaView>
+  );
+}
+
+function MetaRow({ icon, value }: { icon: { ios: 'location.fill' | 'phone.fill'; android: 'location_on' | 'call' }; value: string }) {
+  const { theme } = useApp();
+  return <View style={styles.metaRow}><VizitIcon ios={icon.ios} android={icon.android} color={theme.faint} size={16} /><Text style={[styles.metaText, { color: theme.muted }]}>{value}</Text></View>;
 }
 
 function Section({ title, loading, error, retry, empty, children }: { title: string; loading: boolean; error?: boolean; retry: () => void; empty?: string; children: React.ReactNode }) {
   const { t, theme } = useApp();
-  return <View style={styles.section}><Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>{loading ? <ActivityIndicator color={theme.plum} style={{ padding: 20 }} /> : error ? <Pressable onPress={retry} style={[styles.sectionState, { borderColor: theme.border }]}><Text style={{ color: theme.danger }}>{t('loadError')}</Text></Pressable> : empty ? <Text style={[styles.empty, { color: theme.muted }]}>{empty}</Text> : children}</View>;
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionTitle}><SectionHeader title={title} /></View>
+      {loading ? <ActivityIndicator color={theme.accent} style={styles.loader} /> : error ? (
+        <Pressable accessibilityRole="button" onPress={retry} style={[styles.sectionState, { borderColor: theme.danger, backgroundColor: theme.dangerSoft }]}><Text style={{ color: theme.danger, fontWeight: '700' }}>{t('loadError')}</Text></Pressable>
+      ) : empty ? <Text style={[styles.empty, { color: theme.muted }]}>{empty}</Text> : children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }, content: { paddingBottom: 112 }, cover: { height: 238, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, coverShade: { position: 'absolute', inset: 0, backgroundColor: '#090D184D' }, coverLogo: { width: 104, height: 104 }, coverLetter: { fontSize: 74, fontWeight: '900' }, circleButton: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, back: { position: 'absolute', left: 18, top: 14 },
-  summary: { marginHorizontal: 18, marginTop: -28, padding: 18, paddingTop: 42, borderRadius: 12, alignItems: 'center', shadowOpacity: 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 4 }, logo: { position: 'absolute', top: -32, width: 68, height: 68, borderRadius: 10, borderWidth: 4, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, logoLetter: { fontSize: 27, fontWeight: '900' }, title: { fontSize: 25, lineHeight: 30, fontWeight: '900', letterSpacing: -0.55, textAlign: 'center' }, category: { fontSize: 12, fontWeight: '800', marginTop: 5 }, metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 9 }, metaText: { fontSize: 13, textAlign: 'center', flexShrink: 1 }, description: { fontSize: 15, lineHeight: 23, marginHorizontal: 22, marginTop: 20 },
-  locationSection: { marginTop: 20, gap: 9 }, locationTitle: { marginHorizontal: 20, fontSize: 15, fontWeight: '900' }, locations: { paddingHorizontal: 18, gap: 8 }, locationChip: { minHeight: 42, borderWidth: 1, borderRadius: 9, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
-  section: { marginTop: 28, gap: 10 }, sectionTitle: { fontSize: 21, fontWeight: '900', letterSpacing: -0.35, marginHorizontal: 20, marginBottom: 2 }, service: { minHeight: 82, marginHorizontal: 18, padding: 13, borderRadius: 11, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }, serviceIcon: { width: 45, height: 45, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, serviceImage: { width: 45, height: 45, borderRadius: 10 }, serviceBody: { flex: 1 }, rowTitle: { fontSize: 15, lineHeight: 19, fontWeight: '800' }, duration: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 }, smallText: { fontSize: 12 }, price: { fontSize: 13, fontWeight: '900' },
-  people: { paddingHorizontal: 18, gap: 10 }, person: { width: 124, padding: 10, borderRadius: 11, borderWidth: 1, alignItems: 'center' }, avatar: { width: 72, height: 72, borderRadius: 12 }, avatarFallback: { alignItems: 'center', justifyContent: 'center' }, personName: { width: '100%', textAlign: 'center', fontSize: 13, fontWeight: '800', marginTop: 9 }, personRole: { width: '100%', textAlign: 'center', fontSize: 11, marginTop: 3 },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1 }, cta: { height: 56, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }, ctaText: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
-  sectionState: { marginHorizontal: 18, borderWidth: 1, borderRadius: 9, padding: 13 }, empty: { marginHorizontal: 20, fontSize: 13 },
+  screen: { flex: 1 },
+  center: { flex: 1, alignItems: 'stretch', justifyContent: 'center', padding: ui.screenGutter },
+  content: { paddingBottom: 112 },
+  cover: { height: 228, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  coverShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, opacity: 0.54 },
+  coverLogo: { width: 104, height: 104 },
+  coverLetter: { fontSize: 72, lineHeight: 80, fontWeight: '800' },
+  back: { position: 'absolute', left: ui.screenGutter, top: 14 },
+  summary: { marginHorizontal: ui.screenGutter, marginTop: -34, padding: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  logo: { width: 68, height: 68, borderRadius: ui.radius.medium, borderWidth: 3, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  logoLetter: { fontSize: 27, lineHeight: 32, fontWeight: '800' },
+  summaryBody: { flex: 1, minWidth: 0 },
+  title: { fontSize: 23, lineHeight: 28, fontWeight: '800', letterSpacing: -0.42 },
+  category: { alignSelf: 'flex-start', marginTop: 7, marginBottom: 3 },
+  metaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 8 },
+  metaText: { ...ui.type.caption, flex: 1 },
+  description: { ...ui.type.body, marginHorizontal: ui.screenGutter, marginTop: 18 },
+  locationSection: { marginTop: 22, gap: 10, paddingHorizontal: ui.screenGutter },
+  locations: { gap: 8, paddingRight: ui.screenGutter },
+  locationChip: { minHeight: 42, borderWidth: 1, borderRadius: ui.radius.small, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  locationText: { ...ui.type.caption },
+  section: { marginTop: 28, gap: 10 },
+  sectionTitle: { paddingHorizontal: ui.screenGutter },
+  loader: { paddingVertical: 24 },
+  verticalList: { gap: 9 },
+  service: { minHeight: 82, marginHorizontal: ui.screenGutter, padding: 11, borderRadius: ui.radius.medium, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 11, ...ui.shadow.card },
+  serviceIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  serviceImage: { width: 48, height: 48, borderRadius: 14 },
+  serviceBody: { flex: 1, minWidth: 0 },
+  rowTitle: { fontSize: 14, lineHeight: 19, fontWeight: '800' },
+  duration: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
+  smallText: ui.type.caption,
+  price: { fontSize: 14, lineHeight: 19, fontWeight: '800', textAlign: 'right' },
+  currency: { fontSize: 10, fontWeight: '700' },
+  people: { paddingHorizontal: ui.screenGutter, gap: 9 },
+  person: { width: 126, padding: 10, borderRadius: ui.radius.large, borderWidth: 1, alignItems: 'center', ...ui.shadow.card },
+  avatar: { width: 72, height: 72, borderRadius: ui.radius.medium },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center' },
+  personName: { width: '100%', textAlign: 'center', fontSize: 13, lineHeight: 18, fontWeight: '800', marginTop: 9 },
+  personRole: { width: '100%', textAlign: 'center', fontSize: 11, lineHeight: 15, marginTop: 2 },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: ui.screenGutter, paddingTop: 12, borderTopWidth: 1, shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: -4 }, elevation: 8 },
+  sectionState: { marginHorizontal: ui.screenGutter, borderWidth: 1, borderRadius: ui.radius.medium, padding: 14 },
+  empty: { marginHorizontal: ui.screenGutter, ...ui.type.body },
 });

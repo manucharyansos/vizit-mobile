@@ -2,6 +2,7 @@ import { PropsWithChildren, createContext, useCallback, useContext, useEffect, u
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { VizitIcon } from '@/components/vizit-icon';
+import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 
 type NoticeTone = 'success' | 'error' | 'info';
@@ -82,8 +83,8 @@ export function NoticeProvider({ children }: PropsWithChildren) {
   }, [locale, showNotice]);
 
   const value = useMemo(() => ({ showNotice, hideNotice }), [hideNotice, showNotice]);
-  const accent = notice?.tone === 'error' ? theme.danger : notice?.tone === 'success' ? theme.success : theme.plum;
-  const soft = notice?.tone === 'error' ? theme.dangerSoft : notice?.tone === 'success' ? theme.goldSoft : theme.plumSoft;
+  const accent = notice?.tone === 'error' ? theme.danger : notice?.tone === 'success' ? theme.success : theme.info;
+  const soft = notice?.tone === 'error' ? theme.dangerSoft : notice?.tone === 'success' ? theme.successSoft : theme.infoSoft;
   const icon = notice?.tone === 'error' ? 'error' : notice?.tone === 'success' ? 'check_circle' : 'info';
   const iosIcon = notice?.tone === 'error' ? 'exclamationmark.circle.fill' : notice?.tone === 'success' ? 'checkmark.circle.fill' : 'info.circle.fill';
   const runAction = () => {
@@ -96,7 +97,7 @@ export function NoticeProvider({ children }: PropsWithChildren) {
     <NoticeContext.Provider value={value}>
       {children}
       {notice ? (
-        <SafeAreaView pointerEvents="box-none" edges={['top']} style={styles.layer}>
+    <SafeAreaView pointerEvents="box-none" edges={['top']} style={styles.layer}>
           <View pointerEvents="box-none" style={styles.wrap}>
             <View style={[styles.card, { backgroundColor: theme.surfaceRaised, borderColor: theme.border, shadowColor: theme.shadow }]}>
               <View style={[styles.icon, { backgroundColor: soft }]}>
@@ -133,14 +134,14 @@ export function useNotice() {
 
 const styles = StyleSheet.create({
   layer: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000 },
-  wrap: { paddingHorizontal: 14, paddingTop: 8 },
-  card: { minHeight: 78, borderRadius: 18, borderWidth: 1, padding: 12, paddingLeft: 15, flexDirection: 'row', alignItems: 'center', gap: 11, overflow: 'hidden', elevation: 12, shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 7 } },
-  icon: { width: 43, height: 43, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  wrap: { paddingHorizontal: ui.screenGutter, paddingTop: ui.spacing.xs },
+  card: { minHeight: 80, borderRadius: ui.radius.large, borderWidth: 1, padding: ui.spacing.sm, paddingLeft: ui.spacing.md, flexDirection: 'row', alignItems: 'center', gap: ui.spacing.sm, overflow: 'hidden', ...ui.shadow.floating },
+  icon: { width: 44, height: 44, borderRadius: ui.radius.medium, alignItems: 'center', justifyContent: 'center' },
   textWrap: { flex: 1, gap: 4 },
-  title: { fontSize: 15, lineHeight: 20, fontWeight: '900' },
-  message: { fontSize: 12, lineHeight: 17, fontWeight: '600' },
-  action: { alignSelf: 'flex-start', minHeight: 32, borderRadius: 10, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  actionText: { fontSize: 12, fontWeight: '900' },
+  title: ui.type.cardTitle,
+  message: ui.type.caption,
+  action: { alignSelf: 'flex-start', minHeight: 34, borderRadius: ui.radius.small, paddingHorizontal: ui.spacing.sm, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  actionText: ui.type.button,
   close: { width: 28, height: 36, alignItems: 'center', justifyContent: 'center' },
   accent: { position: 'absolute', left: 0, top: 14, bottom: 14, width: 4, borderTopRightRadius: 4, borderBottomRightRadius: 4 },
 });

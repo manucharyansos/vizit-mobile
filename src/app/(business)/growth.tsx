@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalendarDatePicker } from '@/components/calendar-date-picker';
+import { IconButton, PageHeader, PremiumButton, PremiumInput, SectionHeader, StateCard, StatusPill, Surface } from '@/components/premium-ui';
+import { VizitIcon } from '@/components/vizit-icon';
+import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { apiErrorMessage } from '@/services/api/client';
 import { AvailabilitySlot, CampaignPayload, CampaignSegment, CampaignStatus, MarketingCampaign, MarketingDelivery, WaitlistEntry, WaitlistStatus, growthApi } from '@/services/api/growth';
@@ -10,19 +13,19 @@ import { formatApiDateTime, formatApiTime, localDateKey, localDateKeyFromApi } f
 
 const copy = {
   hy: {
-    title: 'Աճի գործիքներ', waitlist: 'Սպասման ցուցակ', campaigns: 'Campaign-ներ', emptyWaitlist: 'Սպասող հաճախորդներ դեռ չկան', emptyCampaigns: 'Campaign դեռ չկա', cancel: 'Չեղարկել', return: 'Վերադարձնել սպասման մեջ', offer: 'Առաջարկել ժամ', available: 'Ազատ ժամեր', noSlots: 'Այս օրվա համար ազատ ժամ չկա', create: 'Նոր campaign', edit: 'Խմբագրել', name: 'Ներքին անուն', subject: 'Email-ի թեմա', body: 'Հաղորդագրություն', segment: 'Սեգմենտ', save: 'Պահպանել', send: 'Ուղարկել հիմա', deliveries: 'Ուղարկումների պատմություն', close: 'Փակել', recipients: 'ստացող', sent: 'ուղարկված', failed: 'ձախողված', actionFailed: 'Գործողությունը չհաջողվեց', retry: 'Կրկին փորձել', all: 'Բոլորը', new: 'Նոր', returning: 'Վերադարձող', inactive: '90+ օր ոչ ակտիվ', vip: 'VIP', recommended: 'Առաջարկվող', scheduleAuto: 'Պլանավորել ավտոմատ ուղարկում', scheduleHint: 'Եթե անջատված է՝ campaign-ը կպահպանվի որպես սևագիր։', chooseDate: 'Ընտրեք ուղարկման օրը', chooseTime: 'Ընտրեք ժամը', draftSaved: 'Սևագիր',
+    title: 'Աճի գործիքներ', waitlist: 'Սպասման ցուցակ', campaigns: 'Campaign-ներ', emptyWaitlist: 'Սպասող հաճախորդներ դեռ չկան', emptyCampaigns: 'Campaign դեռ չկա', cancel: 'Չեղարկել', return: 'Վերադարձնել սպասման մեջ', offer: 'Առաջարկել ժամ', available: 'Ազատ ժամեր', noSlots: 'Այս օրվա համար ազատ ժամ չկա', create: 'Նոր campaign', edit: 'Խմբագրել', name: 'Ներքին անուն', subject: 'Email-ի թեմա', body: 'Հաղորդագրություն', segment: 'Սեգմենտ', save: 'Պահպանել', send: 'Ուղարկել հիմա', deliveries: 'Ուղարկումների պատմություն', close: 'Փակել', recipients: 'ստացող', sent: 'ուղարկված', failed: 'ձախողված', actionFailed: 'Գործողությունը չհաջողվեց', retry: 'Կրկին փորձել', all: 'Բոլորը', new: 'Նոր', returning: 'Վերադարձող', inactive: '90+ օր ոչ ակտիվ', vip: 'VIP', recommended: 'Առաջարկվող', scheduleAuto: 'Պլանավորել ավտոմատ ուղարկում', scheduleHint: 'Եթե անջատված է՝ campaign-ը կպահպանվի որպես սևագիր։', chooseDate: 'Ընտրեք ուղարկման օրը', chooseTime: 'Ընտրեք ժամը', draftSaved: 'Սևագիր', overview: 'Հաճախորդների պահպանում և հաղորդակցություն', customer: 'Հաճախորդ', phone: 'Հեռախոս',
     waitlistStatus: { waiting: 'Սպասում է', offered: 'Ժամ առաջարկված', booked: 'Ամրագրված', cancelled: 'Չեղարկված', expired: 'Ժամկետանց' },
     campaignStatus: { draft: 'Սևագիր', scheduled: 'Պլանավորված', sending: 'Ուղարկվում է', sent: 'Ուղարկված', failed: 'Ձախողված', cancelled: 'Չեղարկված' },
     deliveryStatus: { pending: 'Սպասում է', sent: 'Ուղարկված', failed: 'Ձախողված' },
   },
   ru: {
-    title: 'Инструменты роста', waitlist: 'Лист ожидания', campaigns: 'Кампании', emptyWaitlist: 'Ожидающих клиентов пока нет', emptyCampaigns: 'Кампаний пока нет', cancel: 'Отменить', return: 'Вернуть в ожидание', offer: 'Предложить время', available: 'Свободные слоты', noSlots: 'На этот день свободных слотов нет', create: 'Новая кампания', edit: 'Изменить', name: 'Внутреннее название', subject: 'Тема email', body: 'Сообщение', segment: 'Сегмент', save: 'Сохранить', send: 'Отправить сейчас', deliveries: 'История отправок', close: 'Закрыть', recipients: 'получателей', sent: 'отправлено', failed: 'ошибок', actionFailed: 'Не удалось выполнить действие', retry: 'Повторить', all: 'Все', new: 'Новые', returning: 'Возвращающиеся', inactive: 'Неактивны 90+ дней', vip: 'VIP', recommended: 'Рекомендуемое', scheduleAuto: 'Запланировать автоматическую отправку', scheduleHint: 'Если выключено, кампания сохранится как черновик.', chooseDate: 'Выберите дату отправки', chooseTime: 'Выберите время', draftSaved: 'Черновик',
+    title: 'Инструменты роста', waitlist: 'Лист ожидания', campaigns: 'Кампании', emptyWaitlist: 'Ожидающих клиентов пока нет', emptyCampaigns: 'Кампаний пока нет', cancel: 'Отменить', return: 'Вернуть в ожидание', offer: 'Предложить время', available: 'Свободные слоты', noSlots: 'На этот день свободных слотов нет', create: 'Новая кампания', edit: 'Изменить', name: 'Внутреннее название', subject: 'Тема email', body: 'Сообщение', segment: 'Сегмент', save: 'Сохранить', send: 'Отправить сейчас', deliveries: 'История отправок', close: 'Закрыть', recipients: 'получателей', sent: 'отправлено', failed: 'ошибок', actionFailed: 'Не удалось выполнить действие', retry: 'Повторить', all: 'Все', new: 'Новые', returning: 'Возвращающиеся', inactive: 'Неактивны 90+ дней', vip: 'VIP', recommended: 'Рекомендуемое', scheduleAuto: 'Запланировать автоматическую отправку', scheduleHint: 'Если выключено, кампания сохранится как черновик.', chooseDate: 'Выберите дату отправки', chooseTime: 'Выберите время', draftSaved: 'Черновик', overview: 'Удержание клиентов и коммуникации', customer: 'Клиент', phone: 'Телефон',
     waitlistStatus: { waiting: 'Ожидает', offered: 'Время предложено', booked: 'Записан', cancelled: 'Отменён', expired: 'Истекло' },
     campaignStatus: { draft: 'Черновик', scheduled: 'Запланирована', sending: 'Отправляется', sent: 'Отправлена', failed: 'Ошибка', cancelled: 'Отменена' },
     deliveryStatus: { pending: 'Ожидает', sent: 'Отправлено', failed: 'Ошибка' },
   },
   en: {
-    title: 'Growth tools', waitlist: 'Waitlist', campaigns: 'Campaigns', emptyWaitlist: 'No waiting customers yet', emptyCampaigns: 'No campaigns yet', cancel: 'Cancel', return: 'Return to waiting', offer: 'Offer a time', available: 'Available times', noSlots: 'No available slots on this day', create: 'New campaign', edit: 'Edit', name: 'Internal name', subject: 'Email subject', body: 'Message', segment: 'Segment', save: 'Save', send: 'Send now', deliveries: 'Delivery history', close: 'Close', recipients: 'recipients', sent: 'sent', failed: 'failed', actionFailed: 'Action failed', retry: 'Try again', all: 'All', new: 'New', returning: 'Returning', inactive: 'Inactive 90+ days', vip: 'VIP', recommended: 'Recommended', scheduleAuto: 'Schedule automatic delivery', scheduleHint: 'When off, the campaign is saved as a draft.', chooseDate: 'Choose delivery date', chooseTime: 'Choose time', draftSaved: 'Draft',
+    title: 'Growth tools', waitlist: 'Waitlist', campaigns: 'Campaigns', emptyWaitlist: 'No waiting customers yet', emptyCampaigns: 'No campaigns yet', cancel: 'Cancel', return: 'Return to waiting', offer: 'Offer a time', available: 'Available times', noSlots: 'No available slots on this day', create: 'New campaign', edit: 'Edit', name: 'Internal name', subject: 'Email subject', body: 'Message', segment: 'Segment', save: 'Save', send: 'Send now', deliveries: 'Delivery history', close: 'Close', recipients: 'recipients', sent: 'sent', failed: 'failed', actionFailed: 'Action failed', retry: 'Try again', all: 'All', new: 'New', returning: 'Returning', inactive: 'Inactive 90+ days', vip: 'VIP', recommended: 'Recommended', scheduleAuto: 'Schedule automatic delivery', scheduleHint: 'When off, the campaign is saved as a draft.', chooseDate: 'Choose delivery date', chooseTime: 'Choose time', draftSaved: 'Draft', overview: 'Customer retention and communication', customer: 'Customer', phone: 'Phone',
     waitlistStatus: { waiting: 'Waiting', offered: 'Time offered', booked: 'Booked', cancelled: 'Cancelled', expired: 'Expired' },
     campaignStatus: { draft: 'Draft', scheduled: 'Scheduled', sending: 'Sending', sent: 'Sent', failed: 'Failed', cancelled: 'Cancelled' },
     deliveryStatus: { pending: 'Pending', sent: 'Sent', failed: 'Failed' },
@@ -39,18 +42,18 @@ function formatDateKey(value: string, locale: 'hy' | 'ru' | 'en') {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Yerevan' }).format(date);
 }
 
-function waitlistStatusTone(status: WaitlistStatus, theme: ReturnType<typeof useApp>['theme']) {
-  if (status === 'booked') return theme.success;
-  if (status === 'cancelled' || status === 'expired') return theme.danger;
-  if (status === 'offered') return theme.plum;
-  return theme.gold;
+function waitlistTone(status: WaitlistStatus): 'neutral' | 'accent' | 'success' | 'warning' | 'danger' {
+  if (status === 'booked') return 'success';
+  if (status === 'cancelled' || status === 'expired') return 'danger';
+  if (status === 'offered') return 'accent';
+  return 'warning';
 }
 
-function campaignStatusTone(status: CampaignStatus, theme: ReturnType<typeof useApp>['theme']) {
-  if (status === 'sent') return theme.success;
-  if (status === 'failed' || status === 'cancelled') return theme.danger;
-  if (status === 'scheduled' || status === 'sending') return theme.plum;
-  return theme.muted;
+function campaignTone(status: CampaignStatus): 'neutral' | 'accent' | 'success' | 'warning' | 'danger' {
+  if (status === 'sent') return 'success';
+  if (status === 'failed' || status === 'cancelled') return 'danger';
+  if (status === 'scheduled' || status === 'sending') return 'accent';
+  return 'neutral';
 }
 
 export default function GrowthScreen() {
@@ -116,66 +119,118 @@ export default function GrowthScreen() {
 
   return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <Text style={[styles.title, { color: theme.text }]}>{c.title}</Text>
-      <View style={[styles.tabs, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <Tab title={c.waitlist} selected={tab === 'waitlist'} onPress={() => setTab('waitlist')} />
-        <Tab title={c.campaigns} selected={tab === 'campaigns'} onPress={() => setTab('campaigns')} />
-      </View>
+      <PageHeader
+        eyebrow="Vizit Pro"
+        title={c.title}
+        subtitle={c.overview}
+        action={tab === 'campaigns' ? <IconButton ios={editing ? 'xmark' : 'plus'} android={editing ? 'close' : 'add'} accessibilityLabel={editing ? c.close : c.create} tone={editing ? 'neutral' : 'primary'} onPress={() => editing ? setEditing(undefined) : beginCampaign()} /> : undefined}
+      />
+      <View style={[styles.tabs, { backgroundColor: theme.surface, borderColor: theme.border }]}><Tab title={c.waitlist} selected={tab === 'waitlist'} onPress={() => setTab('waitlist')} /><Tab title={c.campaigns} selected={tab === 'campaigns'} onPress={() => setTab('campaigns')} /></View>
 
       {tab === 'waitlist' ? <>
-        {waitlist.isLoading ? <ActivityIndicator color={theme.plum} /> : waitlist.isError ? <ErrorState onRetry={() => waitlist.refetch()} /> : waitlist.data?.length ? waitlist.data.map((item) => <View key={item.id} style={[styles.card, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
+        {!waitlist.isLoading && !waitlist.isError ? <SectionHeader title={c.waitlist} detail={String(waitlist.data?.length ?? 0)} /> : null}
+        {waitlist.isLoading ? <ActivityIndicator color={theme.accent} style={styles.loader} /> : waitlist.isError ? <ErrorState title={c.actionFailed} retry={c.retry} message={apiErrorMessage(waitlist.error)} onRetry={() => void waitlist.refetch()} /> : waitlist.data?.length ? waitlist.data.map((item) => <Surface key={item.id} style={styles.card}>
           <View style={styles.row}>
-            <View style={styles.flex}>
-              <Text style={[styles.name, { color: theme.text }]}>{item.customer_name}</Text>
-              <Text style={{ color: theme.muted }}>{item.service?.name ?? '—'} · {formatDateKey(item.desired_date, locale)}</Text>
-              <Text style={{ color: theme.muted, marginTop: 2 }}>{item.customer_phone}</Text>
-              {item.offered_starts_at ? <Text style={{ color: theme.plum, marginTop: 5, fontWeight: '800' }}>{formatApiDateTime(item.offered_starts_at, locale)} · {item.offered_staff?.name ?? item.staff?.name ?? ''}</Text> : null}
-            </View>
-            <Text style={[styles.status, { color: waitlistStatusTone(item.status, theme) }]}>{c.waitlistStatus[item.status]}</Text>
+            <View style={[styles.avatar, { backgroundColor: theme.accentSoft }]}><Text style={[styles.avatarText, { color: theme.accentText }]}>{item.customer_name.slice(0, 1).toLocaleUpperCase()}</Text></View>
+            <View style={styles.flex}><Text style={[styles.name, { color: theme.text }]}>{item.customer_name}</Text><Text style={[styles.meta, { color: theme.textSecondary }]}>{item.service?.name ?? '—'} · {formatDateKey(item.desired_date, locale)}</Text><Text style={[styles.caption, { color: theme.muted }]}>{item.customer_phone}</Text></View>
+            <StatusPill label={c.waitlistStatus[item.status]} tone={waitlistTone(item.status)} />
           </View>
-          <View style={styles.actions}>{item.status === 'waiting' ? <Action title={c.offer} onPress={() => setOfferEntry(item)} primary /> : null}{item.status === 'cancelled' ? <Action title={c.return} onPress={() => updateWaitlist.mutate({ id: item.id, status: 'waiting' })} /> : item.status === 'waiting' ? <Action title={c.cancel} onPress={() => updateWaitlist.mutate({ id: item.id, status: 'cancelled' })} danger /> : null}</View>
-          {offerEntry?.id === item.id ? <View style={[styles.panel, { backgroundColor: theme.background, borderColor: theme.border }]}>
-            <View style={styles.panelHeader}><Text style={[styles.panelTitle, { color: theme.text }]}>{c.available}</Text><Pressable onPress={() => setOfferEntry(undefined)}><Text style={{ color: theme.muted, fontWeight: '800' }}>{c.close}</Text></Pressable></View>
-            {slots.isFetching ? <ActivityIndicator color={theme.plum} /> : slots.isError ? <ErrorState onRetry={() => slots.refetch()} /> : slots.data?.length ? <View style={styles.slotGrid}>{slots.data.slice(0, 30).map((slot) => <Pressable key={`${slot.starts_at}-${slot.staff_id}`} disabled={offer.isPending} onPress={() => offer.mutate({ id: item.id, slot })} style={[styles.slot, { backgroundColor: slot.is_recommended ? theme.plumSoft : theme.surface, borderColor: slot.is_recommended ? theme.success : theme.border }]}><Text style={{ color: slot.is_recommended ? theme.success : theme.text, fontWeight: '900' }}>{slot.is_recommended ? '★ ' : ''}{formatApiTime(slot.starts_at, locale)}</Text><Text numberOfLines={1} style={{ color: theme.muted, fontSize: 10 }}>{slot.is_recommended ? c.recommended : slot.staff_name ?? `#${slot.staff_id}`}</Text>{slot.is_recommended && slot.staff_name ? <Text numberOfLines={1} style={{ color: theme.muted, fontSize: 9 }}>{slot.staff_name}</Text> : null}</Pressable>)}</View> : <Text style={{ color: theme.muted }}>{c.noSlots}</Text>}
+          {item.offered_starts_at ? <View style={[styles.offerSummary, { backgroundColor: theme.accentSubtle }]}><VizitIcon ios="clock.fill" android="schedule" color={theme.accentText} size={17} /><Text style={[styles.offerText, { color: theme.accentText }]}>{formatApiDateTime(item.offered_starts_at, locale)} · {item.offered_staff?.name ?? item.staff?.name ?? ''}</Text></View> : null}
+          <View style={styles.actions}>{item.status === 'waiting' ? <SmallButton title={c.offer} onPress={() => setOfferEntry(item)} primary /> : null}{item.status === 'cancelled' ? <SmallButton title={c.return} onPress={() => updateWaitlist.mutate({ id: item.id, status: 'waiting' })} /> : item.status === 'waiting' ? <SmallButton title={c.cancel} onPress={() => updateWaitlist.mutate({ id: item.id, status: 'cancelled' })} danger /> : null}</View>
+          {offerEntry?.id === item.id ? <View style={[styles.panel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={styles.panelHeader}><SectionHeader title={c.available} /><IconButton ios="xmark" android="close" accessibilityLabel={c.close} size={36} onPress={() => setOfferEntry(undefined)} /></View>
+            {slots.isFetching ? <ActivityIndicator color={theme.accent} /> : slots.isError ? <ErrorState title={c.actionFailed} retry={c.retry} message={apiErrorMessage(slots.error)} onRetry={() => void slots.refetch()} /> : slots.data?.length ? <View style={styles.slotGrid}>{slots.data.slice(0, 30).map((slot) => <Pressable accessibilityRole="button" key={`${slot.starts_at}-${slot.staff_id}`} disabled={offer.isPending} onPress={() => offer.mutate({ id: item.id, slot })} style={({ pressed }) => [styles.slot, { backgroundColor: slot.is_recommended ? theme.successSoft : theme.surfaceRaised, borderColor: slot.is_recommended ? theme.success : theme.border, opacity: pressed ? 0.72 : 1 }]}><Text style={[styles.slotTime, { color: slot.is_recommended ? theme.success : theme.text }]}>{slot.is_recommended ? '★ ' : ''}{formatApiTime(slot.starts_at, locale)}</Text><Text numberOfLines={1} style={[styles.slotStaff, { color: theme.muted }]}>{slot.is_recommended ? c.recommended : slot.staff_name ?? c.customer}</Text>{slot.is_recommended && slot.staff_name ? <Text numberOfLines={1} style={[styles.slotStaff, { color: theme.muted }]}>{slot.staff_name}</Text> : null}</Pressable>)}</View> : <Text style={[styles.meta, { color: theme.muted }]}>{c.noSlots}</Text>}
           </View> : null}
-        </View>) : <View style={[styles.empty, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.muted, textAlign: 'center' }}>{c.emptyWaitlist}</Text></View>}
+        </Surface>) : <StateCard title={c.emptyWaitlist} icon={{ ios: 'person.2.slash', android: 'person_off' }} />}
       </> : <>
-        <Pressable onPress={() => beginCampaign()} style={[styles.createButton, { backgroundColor: theme.plum }]}><Text style={styles.white}>{c.create}</Text></Pressable>
-        {editing ? <View style={[styles.card, { backgroundColor: theme.surfaceRaised, borderColor: theme.plum }]}>
-          <Text style={[styles.panelTitle, { color: theme.text }]}>{editing === 'new' ? c.create : c.edit}</Text>
-          <Field value={campaignForm.name} onChangeText={(name) => setCampaignForm((value) => ({ ...value, name }))} placeholder={c.name} />
-          <Field value={campaignForm.subject} onChangeText={(subject) => setCampaignForm((value) => ({ ...value, subject }))} placeholder={c.subject} />
-          <Field value={campaignForm.body} onChangeText={(body) => setCampaignForm((value) => ({ ...value, body }))} placeholder={c.body} multiline />
-          <Text style={[styles.smallLabel, { color: theme.muted }]}>{c.segment}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segmentRow}>{segments.map((segment) => <Pressable key={segment} onPress={() => setCampaignForm((value) => ({ ...value, segment }))} style={[styles.segment, { borderColor: campaignForm.segment === segment ? theme.plum : theme.border, backgroundColor: campaignForm.segment === segment ? theme.plumSoft : theme.background }]}><Text style={{ color: campaignForm.segment === segment ? theme.plum : theme.text, fontWeight: '800' }}>{c[segment]}</Text></Pressable>)}</ScrollView>
+        {editing ? <Surface elevated style={styles.editor}>
+          <SectionHeader title={editing === 'new' ? c.create : c.edit} detail={c.campaigns} />
+          <PremiumInput label={c.name} value={campaignForm.name} onChangeText={(name) => setCampaignForm((value) => ({ ...value, name }))} placeholder={c.name} icon={{ ios: 'tag', android: 'label' }} />
+          <PremiumInput label={c.subject} value={campaignForm.subject} onChangeText={(subject) => setCampaignForm((value) => ({ ...value, subject }))} placeholder={c.subject} icon={{ ios: 'envelope', android: 'mail_outline' }} />
+          <PremiumInput label={c.body} value={campaignForm.body} onChangeText={(body) => setCampaignForm((value) => ({ ...value, body }))} placeholder={c.body} multiline icon={{ ios: 'text.alignleft', android: 'notes' }} />
+          <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{c.segment}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segmentRow}>{segments.map((segment) => <ScopeChip key={segment} title={c[segment]} selected={campaignForm.segment === segment} onPress={() => setCampaignForm((value) => ({ ...value, segment }))} />)}</ScrollView>
+          <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: scheduleEnabled }} onPress={() => setScheduleEnabled((value) => !value)} style={({ pressed }) => [styles.scheduleToggle, { borderColor: scheduleEnabled ? theme.accent : theme.border, backgroundColor: scheduleEnabled ? theme.accentSubtle : theme.surface, opacity: pressed ? 0.75 : 1 }]}><View style={[styles.check, { borderColor: scheduleEnabled ? theme.primary : theme.borderStrong, backgroundColor: scheduleEnabled ? theme.primary : 'transparent' }]}>{scheduleEnabled ? <VizitIcon ios="checkmark" android="check" color={theme.onPrimary} size={16} /> : null}</View><View style={styles.flex}><Text style={[styles.toggleTitle, { color: theme.text }]}>{c.scheduleAuto}</Text><Text style={[styles.caption, { color: theme.muted }]}>{c.scheduleHint}</Text></View></Pressable>
+          {scheduleEnabled ? <View style={[styles.schedulePanel, { borderColor: theme.border, backgroundColor: theme.surface }]}><SectionHeader title={c.chooseDate} /><CalendarDatePicker value={scheduleDate} onChange={setScheduleDate} minDate={localDateKey()} /><SectionHeader title={c.chooseTime} /><View style={styles.timeGrid}>{scheduleTimes.map((time) => <ScopeChip key={time} title={time} selected={scheduleTime === time} onPress={() => setScheduleTime(time)} compact />)}</View></View> : null}
+          <View style={styles.actions}><PremiumButton title={c.close} tone="secondary" onPress={() => setEditing(undefined)} style={styles.flex} /><PremiumButton title={c.save} loading={saveCampaign.isPending} disabled={!validCampaign} onPress={() => saveCampaign.mutate()} style={styles.flex} /></View>
+        </Surface> : null}
 
-          <Pressable onPress={() => setScheduleEnabled((value) => !value)} style={[styles.scheduleToggle, { borderColor: scheduleEnabled ? theme.success : theme.border, backgroundColor: scheduleEnabled ? theme.plumSoft : theme.background }]}>
-            <View style={[styles.check, { borderColor: scheduleEnabled ? theme.success : theme.border, backgroundColor: scheduleEnabled ? theme.success : 'transparent' }]}><Text style={styles.checkText}>{scheduleEnabled ? '✓' : ''}</Text></View>
-            <View style={styles.flex}><Text style={{ color: theme.text, fontWeight: '900' }}>{c.scheduleAuto}</Text><Text style={{ color: theme.muted, fontSize: 11, marginTop: 2 }}>{c.scheduleHint}</Text></View>
-          </Pressable>
-          {scheduleEnabled ? <View style={[styles.schedulePanel, { borderColor: theme.border, backgroundColor: theme.background }]}>
-            <Text style={[styles.smallLabel, { color: theme.text }]}>{c.chooseDate}</Text>
-            <CalendarDatePicker value={scheduleDate} onChange={setScheduleDate} minDate={localDateKey()} />
-            <Text style={[styles.smallLabel, { color: theme.text }]}>{c.chooseTime}</Text>
-            <View style={styles.timeGrid}>{scheduleTimes.map((time) => <Pressable key={time} onPress={() => setScheduleTime(time)} style={[styles.timeChip, { borderColor: scheduleTime === time ? theme.success : theme.border, backgroundColor: scheduleTime === time ? theme.plumSoft : theme.surfaceRaised }]}><Text style={{ color: scheduleTime === time ? theme.success : theme.text, fontWeight: '900' }}>{time}</Text></Pressable>)}</View>
-          </View> : null}
-          <View style={styles.actions}><Action title={c.close} onPress={() => setEditing(undefined)} /><Pressable disabled={!validCampaign || saveCampaign.isPending} onPress={() => saveCampaign.mutate()} style={[styles.action, { backgroundColor: theme.plum, opacity: validCampaign ? 1 : 0.4 }]}>{saveCampaign.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.white}>{c.save}</Text>}</Pressable></View>
-        </View> : null}
-        {campaigns.isLoading ? <ActivityIndicator color={theme.plum} /> : campaigns.isError ? <ErrorState onRetry={() => campaigns.refetch()} /> : campaigns.data?.length ? campaigns.data.map((campaign) => <View key={campaign.id} style={[styles.card, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
-          <View style={styles.row}><View style={styles.flex}><Text style={[styles.name, { color: theme.text }]}>{campaign.name}</Text><Text style={{ color: theme.muted }}>{campaign.subject}</Text><Text style={{ color: theme.muted, marginTop: 4 }}>{c.recipients}: {campaign.recipient_count} · {c.sent}: {campaign.sent_count} · {c.failed}: {campaign.failed_count}</Text>{campaign.scheduled_for ? <Text style={{ color: theme.plum, marginTop: 4, fontWeight: '800' }}>{formatApiDateTime(campaign.scheduled_for, locale)}</Text> : null}</View><Text style={[styles.status, { color: campaignStatusTone(campaign.status, theme) }]}>{c.campaignStatus[campaign.status]}</Text></View>
-          <View style={styles.actions}>{!['sending', 'sent'].includes(campaign.status) ? <Action title={c.edit} onPress={() => beginCampaign(campaign)} /> : null}{!['sending', 'sent', 'cancelled'].includes(campaign.status) ? <Action title={c.send} onPress={() => sendCampaign.mutate(campaign.id)} primary /> : null}{!['sending', 'sent', 'cancelled'].includes(campaign.status) ? <Action title={c.cancel} onPress={() => cancelCampaign.mutate(campaign.id)} danger /> : null}<Action title={c.deliveries} onPress={() => setDeliveriesCampaign(campaign)} /></View>
-          {deliveriesCampaign?.id === campaign.id ? <View style={[styles.panel, { backgroundColor: theme.background, borderColor: theme.border }]}><View style={styles.panelHeader}><Text style={[styles.panelTitle, { color: theme.text }]}>{c.deliveries}</Text><Pressable onPress={() => setDeliveriesCampaign(undefined)}><Text style={{ color: theme.muted, fontWeight: '800' }}>{c.close}</Text></Pressable></View>{deliveries.isLoading ? <ActivityIndicator color={theme.plum} /> : deliveries.isError ? <ErrorState onRetry={() => deliveries.refetch()} /> : deliveries.data?.length ? deliveries.data.slice(0, 100).map((delivery: MarketingDelivery) => <View key={delivery.id} style={[styles.delivery, { borderColor: theme.border }]}><View style={styles.flex}><Text numberOfLines={1} style={{ color: theme.text }}>{delivery.email}</Text>{delivery.sent_at ? <Text style={{ color: theme.muted, fontSize: 10, marginTop: 2 }}>{formatApiDateTime(delivery.sent_at, locale)}</Text> : null}</View><Text style={{ color: delivery.status === 'failed' ? theme.danger : delivery.status === 'sent' ? theme.success : theme.muted, fontWeight: '800', fontSize: 11 }}>{c.deliveryStatus[delivery.status]}</Text></View>) : <Text style={{ color: theme.muted }}>—</Text>}</View> : null}
-        </View>) : <View style={[styles.empty, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.muted, textAlign: 'center' }}>{c.emptyCampaigns}</Text></View>}
+        {!campaigns.isLoading && !campaigns.isError ? <SectionHeader title={c.campaigns} detail={String(campaigns.data?.length ?? 0)} action={!editing ? <PremiumButton title={c.create} compact tone="ghost" icon={{ ios: 'plus', android: 'add' }} onPress={() => beginCampaign()} /> : undefined} /> : null}
+        {campaigns.isLoading ? <ActivityIndicator color={theme.accent} style={styles.loader} /> : campaigns.isError ? <ErrorState title={c.actionFailed} retry={c.retry} message={apiErrorMessage(campaigns.error)} onRetry={() => void campaigns.refetch()} /> : campaigns.data?.length ? campaigns.data.map((campaign) => <Surface key={campaign.id} style={styles.card}>
+          <View style={styles.row}><View style={styles.flex}><Text style={[styles.name, { color: theme.text }]}>{campaign.name}</Text><Text style={[styles.meta, { color: theme.textSecondary }]}>{campaign.subject}</Text>{campaign.scheduled_for ? <Text style={[styles.scheduled, { color: theme.accentText }]}>{formatApiDateTime(campaign.scheduled_for, locale)}</Text> : null}</View><StatusPill label={c.campaignStatus[campaign.status]} tone={campaignTone(campaign.status)} /></View>
+          <View style={[styles.metrics, { backgroundColor: theme.surface }]}><Metric value={campaign.recipient_count} label={c.recipients} /><Metric value={campaign.sent_count} label={c.sent} tone="success" /><Metric value={campaign.failed_count} label={c.failed} tone={campaign.failed_count ? 'danger' : 'neutral'} /></View>
+          <View style={styles.actions}>{!['sending', 'sent'].includes(campaign.status) ? <SmallButton title={c.edit} onPress={() => beginCampaign(campaign)} /> : null}{!['sending', 'sent', 'cancelled'].includes(campaign.status) ? <SmallButton title={c.send} onPress={() => sendCampaign.mutate(campaign.id)} primary /> : null}{!['sending', 'sent', 'cancelled'].includes(campaign.status) ? <SmallButton title={c.cancel} onPress={() => cancelCampaign.mutate(campaign.id)} danger /> : null}<SmallButton title={c.deliveries} onPress={() => setDeliveriesCampaign(campaign)} /></View>
+          {deliveriesCampaign?.id === campaign.id ? <View style={[styles.panel, { backgroundColor: theme.surface, borderColor: theme.border }]}><View style={styles.panelHeader}><SectionHeader title={c.deliveries} /><IconButton ios="xmark" android="close" accessibilityLabel={c.close} size={36} onPress={() => setDeliveriesCampaign(undefined)} /></View>{deliveries.isLoading ? <ActivityIndicator color={theme.accent} /> : deliveries.isError ? <ErrorState title={c.actionFailed} retry={c.retry} message={apiErrorMessage(deliveries.error)} onRetry={() => void deliveries.refetch()} /> : deliveries.data?.length ? deliveries.data.slice(0, 100).map((delivery: MarketingDelivery) => <View key={delivery.id} style={[styles.delivery, { borderColor: theme.divider }]}><View style={styles.flex}><Text numberOfLines={1} style={[styles.meta, { color: theme.text }]}>{delivery.email}</Text>{delivery.sent_at ? <Text style={[styles.caption, { color: theme.muted }]}>{formatApiDateTime(delivery.sent_at, locale)}</Text> : null}</View><StatusPill label={c.deliveryStatus[delivery.status]} tone={delivery.status === 'failed' ? 'danger' : delivery.status === 'sent' ? 'success' : 'neutral'} /></View>) : <Text style={[styles.meta, { color: theme.muted }]}>—</Text>}</View> : null}
+        </Surface>) : <StateCard title={c.emptyCampaigns} icon={{ ios: 'envelope.badge', android: 'drafts' }} action={<PremiumButton title={c.create} tone="secondary" onPress={() => beginCampaign()} />} />}
       </>}
     </ScrollView>
   </SafeAreaView>;
+}
 
-  function Tab({ title, selected, onPress }: { title: string; selected: boolean; onPress: () => void }) { return <Pressable onPress={onPress} style={[styles.tab, { backgroundColor: selected ? theme.plum : 'transparent' }]}><Text style={{ color: selected ? '#FFF' : theme.text, fontWeight: '900' }}>{title}</Text></Pressable>; }
-  function Action({ title, onPress, primary, danger }: { title: string; onPress: () => void; primary?: boolean; danger?: boolean }) { return <Pressable onPress={onPress} style={[styles.action, { backgroundColor: primary ? theme.plum : danger ? theme.dangerSoft : theme.plumSoft }]}><Text style={{ color: primary ? '#FFF' : danger ? theme.danger : theme.plum, fontWeight: '800', textAlign: 'center', fontSize: 12 }}>{title}</Text></Pressable>; }
-  function Field(props: React.ComponentProps<typeof TextInput>) { return <TextInput {...props} placeholderTextColor={theme.muted} style={[styles.input, props.multiline && styles.multiline, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]} />; }
-  function ErrorState({ onRetry }: { onRetry: () => void }) { return <Pressable onPress={onRetry} style={[styles.error, { borderColor: theme.border }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.actionFailed}</Text><Text style={{ color: theme.plum, fontWeight: '900', marginTop: 4 }}>{c.retry}</Text></Pressable>; }
+function Tab({ title, selected, onPress }: { title: string; selected: boolean; onPress: () => void }) {
+  const { theme } = useApp();
+  return <Pressable accessibilityRole="tab" accessibilityState={{ selected }} onPress={onPress} style={({ pressed }) => [styles.tab, { backgroundColor: selected ? theme.surfaceRaised : 'transparent', borderColor: selected ? theme.border : 'transparent', opacity: pressed ? 0.75 : 1 }]}><Text style={[styles.tabText, { color: selected ? theme.text : theme.muted }]}>{title}</Text></Pressable>;
+}
+
+function ScopeChip({ title, selected, onPress, compact = false }: { title: string; selected: boolean; onPress: () => void; compact?: boolean }) {
+  const { theme } = useApp();
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={({ pressed }) => [styles.segment, compact && styles.timeChip, { borderColor: selected ? theme.primary : theme.border, backgroundColor: selected ? theme.primary : theme.surfaceRaised, opacity: pressed ? 0.75 : 1 }]}><Text style={[styles.segmentText, { color: selected ? theme.onPrimary : theme.text }]}>{title}</Text></Pressable>;
+}
+
+function SmallButton({ title, onPress, primary = false, danger = false }: { title: string; onPress: () => void; primary?: boolean; danger?: boolean }) {
+  return <PremiumButton title={title} onPress={onPress} compact tone={primary ? 'primary' : danger ? 'danger' : 'secondary'} style={styles.smallButton} />;
+}
+
+function ErrorState({ title, message, retry, onRetry }: { title: string; message?: string; retry: string; onRetry: () => void }) {
+  return <StateCard title={title} message={message} tone="danger" action={<PremiumButton title={retry} tone="secondary" compact onPress={onRetry} />} />;
+}
+
+function Metric({ value, label, tone = 'neutral' }: { value: number; label: string; tone?: 'neutral' | 'success' | 'danger' }) {
+  const { theme } = useApp();
+  const color = tone === 'success' ? theme.success : tone === 'danger' ? theme.danger : theme.text;
+  return <View style={styles.metric}><Text style={[styles.metricValue, { color }]}>{value}</Text><Text numberOfLines={1} style={[styles.metricLabel, { color: theme.muted }]}>{label}</Text></View>;
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 }, content: { padding: 18, paddingBottom: 44, gap: 10 }, title: { fontSize: 28, fontWeight: '900', marginBottom: 4 }, tabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 10, padding: 3, marginBottom: 5 }, tab: { flex: 1, minHeight: 42, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, card: { borderWidth: 1, borderRadius: 10, padding: 13, gap: 11 }, row: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 }, flex: { flex: 1 }, name: { fontSize: 16, fontWeight: '900', marginBottom: 4 }, status: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase', maxWidth: 105, textAlign: 'right' }, actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 }, action: { minHeight: 40, minWidth: 86, flexGrow: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 9 }, panel: { borderWidth: 1, borderRadius: 9, padding: 11, gap: 9 }, panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }, panelTitle: { fontSize: 15, fontWeight: '900' }, slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 }, slot: { width: '31.5%', minHeight: 60, borderWidth: 1.5, borderRadius: 8, padding: 7, alignItems: 'center', justifyContent: 'center', gap: 2 }, createButton: { minHeight: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 2 }, white: { color: '#FFF', fontWeight: '900' }, input: { minHeight: 50, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12 }, multiline: { minHeight: 100, paddingTop: 12, textAlignVertical: 'top' }, smallLabel: { fontSize: 12, fontWeight: '900' }, segmentRow: { gap: 7 }, segment: { minHeight: 39, borderWidth: 1, borderRadius: 8, justifyContent: 'center', paddingHorizontal: 11 }, delivery: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth }, error: { borderWidth: 1, borderRadius: 9, padding: 12 }, empty: { borderWidth: 1, borderRadius: 10, minHeight: 110, alignItems: 'center', justifyContent: 'center', padding: 18 }, scheduleToggle: { minHeight: 64, borderWidth: 1.5, borderRadius: 9, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10 }, check: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' }, checkText: { color: '#FFF', fontWeight: '900' }, schedulePanel: { borderWidth: 1, borderRadius: 10, padding: 10, gap: 10 }, timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 }, timeChip: { width: '22.5%', minHeight: 40, borderWidth: 1.5, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  screen: { flex: 1 },
+  content: { padding: ui.screenGutter, paddingBottom: ui.spacing.xxl, gap: ui.spacing.md },
+  tabs: { flexDirection: 'row', borderWidth: 1, borderRadius: ui.radius.medium, padding: 4 },
+  tab: { flex: 1, minHeight: 44, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  tabText: ui.type.button,
+  loader: { marginVertical: ui.spacing.lg },
+  card: { gap: ui.spacing.sm },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: ui.spacing.sm },
+  flex: { flex: 1 },
+  avatar: { width: 42, height: 42, borderRadius: ui.radius.medium, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 16, fontWeight: '900' },
+  name: ui.type.cardTitle,
+  meta: ui.type.body,
+  caption: { ...ui.type.caption, marginTop: 2 },
+  offerSummary: { minHeight: 42, borderRadius: ui.radius.small, paddingHorizontal: ui.spacing.sm, flexDirection: 'row', alignItems: 'center', gap: ui.spacing.xs },
+  offerText: { ...ui.type.caption, flex: 1 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: ui.spacing.xs },
+  smallButton: { minWidth: 96, flexGrow: 1 },
+  panel: { borderWidth: 1, borderRadius: ui.radius.medium, padding: ui.spacing.sm, gap: ui.spacing.sm },
+  panelHeader: { flexDirection: 'row', alignItems: 'center', gap: ui.spacing.sm },
+  slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: ui.spacing.xs },
+  slot: { width: '31%', flexGrow: 1, minWidth: 92, minHeight: 62, borderWidth: 1, borderRadius: ui.radius.small, padding: 7, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  slotTime: { fontSize: 13, fontWeight: '900' },
+  slotStaff: { fontSize: 9, lineHeight: 12 },
+  editor: { gap: ui.spacing.sm },
+  fieldLabel: { ...ui.type.caption, marginLeft: 2 },
+  segmentRow: { gap: ui.spacing.xs },
+  segment: { minHeight: 42, borderWidth: 1, borderRadius: ui.radius.pill, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 13 },
+  segmentText: { fontSize: 12, fontWeight: '800' },
+  scheduleToggle: { minHeight: 70, borderWidth: 1, borderRadius: ui.radius.medium, padding: ui.spacing.sm, flexDirection: 'row', alignItems: 'center', gap: ui.spacing.sm },
+  check: { width: 26, height: 26, borderRadius: 9, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  toggleTitle: { ...ui.type.body, fontWeight: '800' },
+  schedulePanel: { borderWidth: 1, borderRadius: ui.radius.large, padding: ui.spacing.sm, gap: ui.spacing.sm },
+  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: ui.spacing.xs },
+  timeChip: { width: '22%', flexGrow: 1, paddingHorizontal: 8, borderRadius: ui.radius.small },
+  scheduled: { ...ui.type.caption, marginTop: 5 },
+  metrics: { flexDirection: 'row', borderRadius: ui.radius.medium, paddingVertical: ui.spacing.sm },
+  metric: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
+  metricValue: { fontSize: 18, lineHeight: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  metricLabel: { fontSize: 9, lineHeight: 12, fontWeight: '700', marginTop: 2 },
+  delivery: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: ui.spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth },
 });

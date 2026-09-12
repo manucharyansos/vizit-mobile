@@ -1,21 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { router as expoRouter } from 'expo-router';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { IconButton, PageHeader, PremiumButton, PremiumInput, StateCard, Surface } from '@/components/premium-ui';
+import { VizitIcon } from '@/components/vizit-icon';
+import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { businessApi } from '@/services/api/business';
-import { VizitIcon } from '@/components/vizit-icon';
 import { apiErrorMessage } from '@/services/api/client';
-
-const router = { push: (href: unknown) => expoRouter.push(href as never) };
 
 export default function ClientsScreen() {
   const { locale, theme } = useApp();
   const c = {
-    hy: ['Հաճախորդներ', 'Հաճախորդներ դեռ չկան', 'ամրագրում', 'Որոնել անունով կամ հեռախոսով', 'Նոր հաճախորդ', 'Անուն', 'Հեռախոս', 'Էլ․ փոստ', 'Պահպանել', 'Չեղարկել', 'Չհաջողվեց բեռնել հաճախորդներին', 'Կրկին փորձել'],
-    ru: ['Клиенты', 'Клиентов пока нет', 'записей', 'Поиск по имени или телефону', 'Новый клиент', 'Имя', 'Телефон', 'Email', 'Сохранить', 'Отмена', 'Не удалось загрузить клиентов', 'Повторить'],
-    en: ['Clients', 'No clients yet', 'bookings', 'Search by name or phone', 'New client', 'Name', 'Phone', 'Email', 'Save', 'Cancel', 'Could not load clients', 'Try again'],
+    hy: ['Հաճախորդներ', 'Հաճախորդներ դեռ չկան', 'ամրագրում', 'Որոնել անունով կամ հեռախոսով', 'Նոր հաճախորդ', 'Անուն', 'Հեռախոս', 'Էլ․ փոստ', 'Պահպանել', 'Չեղարկել', 'Չհաջողվեց բեռնել հաճախորդներին', 'Կրկին փորձել', 'Հաճախորդների բազա'],
+    ru: ['Клиенты', 'Клиентов пока нет', 'записей', 'Поиск по имени или телефону', 'Новый клиент', 'Имя', 'Телефон', 'Email', 'Сохранить', 'Отмена', 'Не удалось загрузить клиентов', 'Повторить', 'Клиентская база'],
+    en: ['Clients', 'No clients yet', 'bookings', 'Search by name or phone', 'New client', 'Name', 'Phone', 'Email', 'Save', 'Cancel', 'Could not load clients', 'Try again', 'Customer database'],
   }[locale];
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -28,15 +28,88 @@ export default function ClientsScreen() {
   }, [locale, query.data, search]);
   const create = useMutation({
     mutationFn: () => businessApi.createClient({ name: form.name.trim(), phone: form.phone.trim() || undefined, email: form.email.trim() || undefined }),
-    onSuccess: async () => { setAdding(false); setForm({ name: '', phone: '', email: '' }); await queryClient.invalidateQueries({ queryKey: ['business-clients'] }); await queryClient.invalidateQueries({ queryKey: ['business-dashboard'] }); await queryClient.refetchQueries({ queryKey: ['business-clients'], type: 'active' }); },
+    onSuccess: async () => {
+      setAdding(false);
+      setForm({ name: '', phone: '', email: '' });
+      await queryClient.invalidateQueries({ queryKey: ['business-clients'] });
+      await queryClient.invalidateQueries({ queryKey: ['business-dashboard'] });
+      await queryClient.refetchQueries({ queryKey: ['business-clients'], type: 'active' });
+    },
     onError: (error) => Alert.alert(c[4], apiErrorMessage(error)),
   });
 
-  return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
-    <View style={styles.header}><View style={[styles.headerIcon, { backgroundColor: theme.plumSoft }]}><VizitIcon ios="person.2.fill" android="group" color={theme.plum} size={27} /></View><View style={{ flex: 1 }}><Text style={[styles.title, { color: theme.text }]}>{c[0]}</Text><Text style={[styles.total, { color: theme.muted }]}>{query.isSuccess ? query.data.length : '—'}</Text></View><Pressable disabled={query.isError} onPress={() => setAdding((value) => !value)} style={[styles.add, { backgroundColor: theme.plum, opacity: query.isError ? 0.4 : 1 }]}><VizitIcon ios="plus" android="add" color="#FFF" size={22} /></Pressable></View>
-    <View style={styles.tools}><View style={[styles.search, { backgroundColor: theme.surface, borderColor: theme.border }]}><VizitIcon ios="magnifyingglass" android="search" color={theme.muted} size={21} /><TextInput value={search} onChangeText={setSearch} placeholder={c[3]} placeholderTextColor={theme.muted} style={[styles.searchInput, { color: theme.text }]} /></View></View>
-    {adding ? <View style={[styles.editor, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}><Text style={[styles.editorTitle, { color: theme.text }]}>{c[4]}</Text>{(['name', 'phone', 'email'] as const).map((key, index) => <TextInput key={key} value={form[key]} onChangeText={(value) => setForm((current) => ({ ...current, [key]: value }))} placeholder={c[5 + index]} placeholderTextColor={theme.muted} keyboardType={key === 'phone' ? 'phone-pad' : key === 'email' ? 'email-address' : 'default'} autoCapitalize={key === 'email' ? 'none' : undefined} style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]} />)}<View style={styles.actions}><Pressable onPress={() => setAdding(false)} style={[styles.secondary, { borderColor: theme.border }]}><Text style={{ color: theme.text, fontWeight: '800' }}>{c[9]}</Text></Pressable><Pressable disabled={form.name.trim().length < 2 || create.isPending} onPress={() => create.mutate()} style={[styles.save, { backgroundColor: theme.plum, opacity: form.name.trim().length >= 2 ? 1 : 0.4 }]}>{create.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '900' }}>{c[8]}</Text>}</Pressable></View></View> : null}
-    {query.isLoading ? <ActivityIndicator color={theme.plum} /> : query.isError ? <View style={[styles.error, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}><VizitIcon ios="exclamationmark.triangle.fill" android="error_outline" color={theme.danger} size={28} /><Text style={[styles.errorTitle, { color: theme.text }]}>{c[10]}</Text><Text style={[styles.errorText, { color: theme.muted }]}>{apiErrorMessage(query.error)}</Text><Pressable onPress={() => query.refetch()} style={[styles.retry, { backgroundColor: theme.plum }]}><Text style={{ color: '#FFF', fontWeight: '900' }}>{c[11]}</Text></Pressable></View> : <FlatList data={data} keyExtractor={(item) => String(item.id)} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false} ListEmptyComponent={<Text style={{ color: theme.muted }}>{c[1]}</Text>} renderItem={({ item }) => <Pressable onPress={() => router.push({ pathname: '/(business)/client-detail', params: { id: item.id } })} style={({ pressed }) => [styles.card, { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.75 : 1 }]}><View style={[styles.avatar, { backgroundColor: theme.peachSoft }]}><Text style={{ color: theme.plum, fontWeight: '900', fontSize: 17 }}>{item.name?.slice(0, 1).toUpperCase()}</Text></View><View style={{ flex: 1 }}><Text style={[styles.name, { color: theme.text }]}>{item.name}</Text><Text style={[styles.contact, { color: theme.muted }]}>{item.phone ?? item.email ?? '—'}</Text></View><View style={[styles.bookings, { backgroundColor: theme.goldSoft }]}><Text style={[styles.bookingsCount, { color: theme.gold }]}>{item.bookings_count ?? 0}</Text><Text style={[styles.bookingsLabel, { color: theme.muted }]}>{c[2]}</Text></View></Pressable>} />}
-  </SafeAreaView>;
+  return (
+    <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>
+      <FlatList
+        data={data}
+        keyExtractor={(item) => String(item.id)}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <View style={styles.headerContent}>
+            <PageHeader
+              eyebrow="Vizit Business"
+              title={c[0]}
+              subtitle={query.isSuccess ? `${c[12]} · ${query.data.length}` : c[12]}
+              action={<IconButton disabled={query.isError} accessibilityLabel={c[4]} ios={adding ? 'xmark' : 'plus'} android={adding ? 'close' : 'person_add'} onPress={() => setAdding((value) => !value)} tone="primary" />}
+            />
+            <PremiumInput value={search} onChangeText={setSearch} placeholder={c[3]} returnKeyType="search" icon={{ ios: 'magnifyingglass', android: 'search' }} />
+            {adding ? (
+              <Surface style={styles.editor} elevated>
+                <View style={styles.editorHeader}><View style={[styles.editorIcon, { backgroundColor: theme.accentSoft }]}><VizitIcon ios="person.badge.plus" android="person_add" color={theme.accentText} size={21} /></View><Text style={[styles.editorTitle, { color: theme.text }]}>{c[4]}</Text></View>
+                <PremiumInput label={c[5]} value={form.name} onChangeText={(name) => setForm((value) => ({ ...value, name }))} placeholder={c[5]} icon={{ ios: 'person.fill', android: 'person' }} />
+                <PremiumInput label={c[6]} value={form.phone} onChangeText={(phone) => setForm((value) => ({ ...value, phone }))} placeholder={c[6]} keyboardType="phone-pad" icon={{ ios: 'phone.fill', android: 'call' }} />
+                <PremiumInput label={c[7]} value={form.email} onChangeText={(email) => setForm((value) => ({ ...value, email }))} placeholder={c[7]} keyboardType="email-address" autoCapitalize="none" icon={{ ios: 'envelope.fill', android: 'mail' }} />
+                <View style={styles.actions}>
+                  <PremiumButton title={c[9]} onPress={() => setAdding(false)} tone="secondary" style={styles.flex} />
+                  <PremiumButton title={c[8]} loading={create.isPending} disabled={form.name.trim().length < 2} onPress={() => create.mutate()} style={styles.flex} />
+                </View>
+              </Surface>
+            ) : null}
+          </View>
+        }
+        ListEmptyComponent={
+          query.isLoading ? <View style={styles.loader}><ActivityIndicator color={theme.accent} size="large" /></View> : query.isError ? (
+            <StateCard title={c[10]} message={apiErrorMessage(query.error)} tone="danger" action={<PremiumButton title={c[11]} onPress={() => query.refetch()} tone="secondary" />} />
+          ) : <StateCard title={c[1]} icon={{ ios: 'person.2.fill', android: 'group' }} />
+        }
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        renderItem={({ item }) => (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push({ pathname: '/(business)/client-detail', params: { id: item.id } })}
+            style={({ pressed }) => [styles.card, { backgroundColor: theme.surfaceRaised, borderColor: theme.border, shadowColor: theme.shadow, opacity: pressed ? 0.76 : 1 }]}
+          >
+            <View style={[styles.avatar, { backgroundColor: theme.accentSoft }]}><Text style={[styles.initial, { color: theme.accentText }]}>{item.name?.slice(0, 1).toLocaleUpperCase()}</Text></View>
+            <View style={styles.clientCopy}><Text numberOfLines={1} style={[styles.name, { color: theme.text }]}>{item.name}</Text><Text numberOfLines={1} style={[styles.contact, { color: theme.muted }]}>{item.phone ?? item.email ?? '—'}</Text></View>
+            <View style={[styles.bookings, { backgroundColor: theme.accentSubtle }]}><Text style={[styles.bookingsCount, { color: theme.text }]}>{item.bookings_count ?? 0}</Text><Text style={[styles.bookingsLabel, { color: theme.muted }]}>{c[2]}</Text></View>
+            <VizitIcon ios="chevron.right" android="chevron_right" color={theme.faint} size={18} />
+          </Pressable>
+        )}
+      />
+    </SafeAreaView>
+  );
 }
-const styles = StyleSheet.create({ screen: { flex: 1 }, header: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 13 }, headerIcon: { width: 52, height: 52, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, title: { fontSize: 27, fontWeight: '900', letterSpacing: -0.5 }, total: { fontSize: 12, marginTop: 2 }, add: { width: 46, height: 46, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, tools: { paddingHorizontal: 18, paddingBottom: 8 }, search: { height: 52, borderWidth: 1, borderRadius: 10, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9 }, searchInput: { flex: 1, fontSize: 14 }, editor: { marginHorizontal: 18, marginBottom: 8, padding: 14, borderWidth: 1, borderRadius: 12, gap: 9 }, editorTitle: { fontSize: 17, fontWeight: '900' }, input: { height: 49, borderWidth: 1, borderRadius: 9, paddingHorizontal: 12 }, actions: { flexDirection: 'row', gap: 8 }, secondary: { flex: 1, height: 48, borderWidth: 1, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, save: { flex: 1, height: 48, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, list: { padding: 18, gap: 10 }, card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderWidth: 1, borderRadius: 10 }, avatar: { width: 48, height: 48, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, name: { fontSize: 16, fontWeight: '900', marginBottom: 4 }, contact: { fontSize: 12 }, bookings: { minWidth: 58, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 8, alignItems: 'center' }, bookingsCount: { fontSize: 15, fontWeight: '900' }, bookingsLabel: { fontSize: 9, marginTop: 1 }, error: { margin: 18, padding: 18, borderWidth: 1, borderRadius: 10, alignItems: 'center', gap: 8 }, errorTitle: { fontSize: 17, fontWeight: '900', textAlign: 'center' }, errorText: { fontSize: 12, textAlign: 'center' }, retry: { minHeight: 46, paddingHorizontal: 20, borderRadius: 9, alignItems: 'center', justifyContent: 'center' } });
+
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  list: { padding: ui.screenGutter, paddingBottom: 34 },
+  headerContent: { gap: 15, marginBottom: 16 },
+  editor: { padding: 15, gap: 12 },
+  editorHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 },
+  editorIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  editorTitle: ui.type.sectionTitle,
+  actions: { flexDirection: 'row', gap: 8 },
+  flex: { flex: 1 },
+  loader: { minHeight: 200, alignItems: 'center', justifyContent: 'center' },
+  separator: { height: 9 },
+  card: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 11, borderWidth: 1, borderRadius: ui.radius.large, ...ui.shadow.card },
+  avatar: { width: 50, height: 50, borderRadius: ui.radius.medium, alignItems: 'center', justifyContent: 'center' },
+  initial: { fontSize: 18, lineHeight: 22, fontWeight: '800' },
+  clientCopy: { flex: 1, minWidth: 0 },
+  name: { fontSize: 15, lineHeight: 20, fontWeight: '800' },
+  contact: { ...ui.type.caption, marginTop: 3 },
+  bookings: { minWidth: 48, paddingHorizontal: 7, paddingVertical: 6, borderRadius: 11, alignItems: 'center' },
+  bookingsCount: { fontSize: 15, lineHeight: 19, fontWeight: '800' },
+  bookingsLabel: { fontSize: 9, lineHeight: 12, fontWeight: '600', marginTop: 1 },
+});

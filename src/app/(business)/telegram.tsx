@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PageHeader, PremiumButton, StateCard, StatusPill, Surface } from '@/components/premium-ui';
 import { VizitIcon } from '@/components/vizit-icon';
+import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { businessApi } from '@/services/api/business';
 import { apiErrorMessage } from '@/services/api/client';
+import { safeBack } from '@/services/navigation';
 
 const copy = {
   hy: ['Telegram ծանուցումներ', 'Ստացեք նոր ամրագրումները Telegram-ում', 'Միացված է', 'Միացնել Telegram-ը', 'Անջատել', 'Չհաջողվեց', 'Չհաջողվեց ստուգել Telegram կապը', 'Կրկին փորձել'],
@@ -29,6 +32,23 @@ export default function TelegramScreen() {
     onError: (error) => Alert.alert(c[5], apiErrorMessage(error)),
   });
 
-  return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}><View style={[styles.card, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}><View style={styles.icon}><VizitIcon ios="paperplane.fill" android="send" color="#229ED9" size={32} /></View><Text style={[styles.title, { color: theme.text }]}>{c[0]}</Text><Text style={[styles.text, { color: theme.muted }]}>{c[1]}</Text>{query.isLoading ? <ActivityIndicator color={theme.plum} /> : query.isError ? <><Text style={{ color: theme.danger, fontWeight: '900', textAlign: 'center' }}>{c[6]}</Text><Text style={{ color: theme.muted, fontSize: 12, textAlign: 'center' }}>{apiErrorMessage(query.error)}</Text><Pressable onPress={() => query.refetch()} style={[styles.button, { backgroundColor: theme.plum, borderColor: theme.plum }]}><Text style={styles.white}>{c[7]}</Text></Pressable></> : query.data?.connected ? <><Text style={{ color: theme.success, fontWeight: '900' }}>{c[2]}</Text><Pressable disabled={disconnect.isPending} onPress={() => disconnect.mutate()} style={[styles.button, { borderColor: theme.danger }]}>{disconnect.isPending ? <ActivityIndicator color={theme.danger} /> : <Text style={{ color: theme.danger, fontWeight: '900' }}>{c[4]}</Text>}</Pressable></> : <Pressable disabled={connect.isPending} onPress={() => connect.mutate()} style={[styles.button, { backgroundColor: theme.plum, borderColor: theme.plum }]}>{connect.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.white}>{c[3]}</Text>}</Pressable>}</View></SafeAreaView>;
+  return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <PageHeader eyebrow="Vizit Pro" title={c[0]} subtitle={c[1]} onBack={() => safeBack('/(business)/more')} backLabel={c[0]} />
+    {query.isError ? <StateCard title={c[6]} message={apiErrorMessage(query.error)} tone="danger" action={<PremiumButton title={c[7]} tone="secondary" onPress={() => void query.refetch()} />} /> : <Surface elevated style={styles.card}>
+      <View style={[styles.icon, { backgroundColor: theme.accentSoft }]}><VizitIcon ios="paperplane.fill" android="send" color={theme.accentText} size={30} /></View>
+      <View style={styles.heading}><Text style={[styles.title, { color: theme.text }]}>{c[0]}</Text>{query.data ? <StatusPill label={query.data.connected ? c[2] : c[3]} tone={query.data.connected ? 'success' : 'neutral'} /> : null}</View>
+      <Text style={[styles.text, { color: theme.muted }]}>{c[1]}</Text>
+      {query.isLoading ? <ActivityIndicator color={theme.accent} style={styles.loader} /> : query.data?.connected ? <PremiumButton title={c[4]} tone="danger" loading={disconnect.isPending} onPress={() => disconnect.mutate()} icon={{ ios: 'link', android: 'link_off' }} /> : <PremiumButton title={c[3]} loading={connect.isPending} onPress={() => connect.mutate()} icon={{ ios: 'paperplane.fill', android: 'send' }} />}
+    </Surface>}
+  </ScrollView></SafeAreaView>;
 }
-const styles = StyleSheet.create({ screen: { flex: 1, padding: 18, justifyContent: 'center' }, card: { padding: 22, borderWidth: 1, borderRadius: 11, alignItems: 'center', gap: 13 }, icon: { width: 62, height: 62, borderRadius: 12, backgroundColor: '#229ED922', alignItems: 'center', justifyContent: 'center' }, title: { fontSize: 23, fontWeight: '900', textAlign: 'center' }, text: { textAlign: 'center', lineHeight: 21 }, button: { width: '100%', height: 52, borderRadius: 9, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 8 }, white: { color: '#FFF', fontWeight: '900' } });
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  content: { flexGrow: 1, padding: ui.screenGutter, paddingBottom: ui.spacing.xxl, gap: ui.spacing.xl },
+  card: { marginTop: ui.spacing.lg, padding: ui.spacing.xl, gap: ui.spacing.md },
+  icon: { width: 62, height: 62, borderRadius: ui.radius.large, alignItems: 'center', justifyContent: 'center' },
+  heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: ui.spacing.sm },
+  title: ui.type.sectionTitle,
+  text: ui.type.body,
+  loader: { marginVertical: ui.spacing.sm },
+});

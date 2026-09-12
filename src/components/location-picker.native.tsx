@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 
 type MapKitModule = typeof import('expo-yandex-mapkit');
@@ -68,7 +69,7 @@ export function LocationPicker({ latitude, longitude, onChange, height = 238 }: 
       : locale === 'hy' ? 'Yandex քարտեզը բեռնվում է…' : locale === 'ru' ? 'Yandex-карта загружается…' : 'Loading Yandex MapKit…';
 
   if (!apiKey || !mapKit) {
-    return <View style={[styles.fallback, { height, backgroundColor: theme.map, borderColor: theme.border }]}><Text style={[styles.brand, { color: theme.plum }]}>Yandex MapKit</Text><Text style={[styles.hint, { color: theme.muted }]}>{fallback}</Text>{finite(latitude) && finite(longitude) ? <Text style={[styles.coords, { color: theme.text }]}>{latitude.toFixed(6)}, {longitude.toFixed(6)}</Text> : null}</View>;
+    return <View style={[styles.fallback, { height, backgroundColor: theme.map, borderColor: theme.border }]}><View style={[styles.mapBadge, { backgroundColor: theme.accentSoft }]}><Text style={[styles.brand, { color: theme.accentText }]}>Yandex MapKit</Text></View><Text style={[styles.hint, { color: theme.muted }]}>{fallback}</Text>{finite(latitude) && finite(longitude) ? <Text style={[styles.coords, { color: theme.text }]}>{latitude.toFixed(6)}, {longitude.toFixed(6)}</Text> : null}</View>;
   }
 
   const { YandexMapView, Marker } = mapKit;
@@ -88,21 +89,22 @@ export function LocationPicker({ latitude, longitude, onChange, height = 238 }: 
       onMapPress={select}
     >
       <Marker point={point}>
-        <View style={[styles.pin, { backgroundColor: theme.plum }]}><Text style={styles.pinText}>V</Text></View>
+        <View style={[styles.pin, { backgroundColor: theme.primary, borderColor: theme.surfaceElevated }]}><Text style={[styles.pinText, { color: theme.onPrimary }]}>V</Text></View>
       </Marker>
     </YandexMapView>
-    <View pointerEvents="none" style={[styles.instruction, { backgroundColor: theme.surfaceRaised }]}><Text style={[styles.instructionText, { color: theme.text }]}>{instruction}</Text></View>
+    <View pointerEvents="none" style={[styles.instruction, ui.shadow.floating, { backgroundColor: theme.surfaceElevated, borderColor: theme.border, shadowColor: theme.shadow }]}><Text style={[styles.instructionText, { color: theme.text }]}>{instruction}</Text></View>
   </View>;
 }
 
 const styles = StyleSheet.create({
-  mapWrap: { width: '100%', overflow: 'hidden', borderRadius: 10, borderWidth: 1 },
-  fallback: { width: '100%', borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  brand: { fontSize: 16, fontWeight: '900', marginBottom: 7 },
-  hint: { textAlign: 'center', fontSize: 12, lineHeight: 18 },
-  coords: { marginTop: 9, fontSize: 11, fontWeight: '700' },
-  pin: { width: 36, height: 36, borderRadius: 18, borderWidth: 3, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  pinText: { color: '#FFFFFF', fontWeight: '900' },
-  instruction: { position: 'absolute', left: 10, right: 10, bottom: 10, borderRadius: 8, paddingVertical: 7, paddingHorizontal: 10, opacity: 0.94 },
-  instructionText: { textAlign: 'center', fontSize: 11, fontWeight: '800' },
+  mapWrap: { width: '100%', overflow: 'hidden', borderRadius: ui.radius.large, borderWidth: 1 },
+  fallback: { width: '100%', borderRadius: ui.radius.large, borderWidth: 1, alignItems: 'center', justifyContent: 'center', padding: ui.spacing.lg },
+  mapBadge: { borderRadius: ui.radius.pill, paddingHorizontal: 12, paddingVertical: 7, marginBottom: ui.spacing.sm },
+  brand: { fontSize: 13, fontWeight: '900' },
+  hint: { ...ui.type.caption, textAlign: 'center' },
+  coords: { marginTop: ui.spacing.sm, fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  pin: { width: 38, height: 38, borderRadius: 19, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
+  pinText: { fontWeight: '900' },
+  instruction: { position: 'absolute', left: 12, right: 12, bottom: 12, borderRadius: ui.radius.medium, borderWidth: 1, paddingVertical: 9, paddingHorizontal: 12, opacity: 0.96 },
+  instructionText: { textAlign: 'center', fontSize: 11, lineHeight: 15, fontWeight: '800' },
 });

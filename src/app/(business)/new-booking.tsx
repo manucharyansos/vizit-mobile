@@ -1,9 +1,10 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalendarDatePicker } from '@/components/calendar-date-picker';
-import { VizitIcon } from '@/components/vizit-icon';
+import { PageHeader, PremiumButton, PremiumInput, SectionHeader, StateCard, Surface } from '@/components/premium-ui';
+import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { availabilityApi, AvailabilitySlot } from '@/services/api/availability';
 import { businessApi, BusinessLocation, CalendarBooking } from '@/services/api/business';
@@ -163,8 +164,17 @@ export default function NewBooking() {
     Alert.alert(c.occupiedTitle, `${range}\n${c.customer}: ${name}${phone ? ` · ${phone}` : ''}\n${serviceName} · ${employee}\n${c.status}: ${booking.status}${booking.notes ? `\n${booking.notes}` : ''}`, [{ text: c.close }]);
   };
 
-  const input = (key: 'name' | 'phone' | 'email' | 'notes', placeholder: string, keyboardType?: 'default' | 'phone-pad' | 'email-address') => (
-    <TextInput value={form[key]} onChangeText={(value) => setForm((current) => ({ ...current, [key]: value }))} placeholder={placeholder} placeholderTextColor={theme.muted} keyboardType={keyboardType} autoCapitalize={key === 'email' ? 'none' : undefined} multiline={key === 'notes'} style={[styles.input, key === 'notes' && styles.notes, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised }]} />
+  const input = (key: 'name' | 'phone' | 'email' | 'notes', label: string, keyboardType?: 'default' | 'phone-pad' | 'email-address') => (
+    <PremiumInput
+      label={label}
+      value={form[key]}
+      onChangeText={(value) => setForm((current) => ({ ...current, [key]: value }))}
+      placeholder={label}
+      keyboardType={keyboardType}
+      autoCapitalize={key === 'email' ? 'none' : undefined}
+      multiline={key === 'notes'}
+      icon={key === 'name' ? { ios: 'person', android: 'person_outline' } : key === 'phone' ? { ios: 'phone', android: 'phone' } : key === 'email' ? { ios: 'envelope', android: 'mail_outline' } : { ios: 'note.text', android: 'notes' }}
+    />
   );
 
   const slotQueriesLoading = effectiveStaffId ? selectedStaffSlots.isLoading : allStaffSlotQueries.some((query) => query.isLoading);
@@ -172,46 +182,65 @@ export default function NewBooking() {
   const timesLoading = slotQueriesLoading || dayBookings.isLoading;
   const timesError = slotQueriesError || dayBookings.isError;
 
-  return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-    <View style={styles.header}><Pressable onPress={() => safeBack('/(business)/today')} style={[styles.back, { borderColor: theme.border }]}><VizitIcon ios="chevron.left" android="arrow_back" color={theme.text} size={21} /></Pressable><Text style={[styles.title, { color: theme.text }]}>{c.title}</Text></View>
+  return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <PageHeader title={c.title} eyebrow="Vizit Pro" onBack={() => safeBack('/(business)/today')} backLabel={c.close} />
 
-    {settings.isLoading || services.isLoading || staff.isLoading || clients.isLoading ? <ActivityIndicator color={theme.plum} /> : null}
-    {anyLoadError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.loadError}</Text><Text style={{ color: theme.muted, fontSize: 12 }}>{apiErrorMessage(firstLoadError)}</Text><Pressable onPress={retryAll}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : null}
+    {settings.isLoading || services.isLoading || staff.isLoading || clients.isLoading ? <ActivityIndicator color={theme.accent} style={styles.loader} /> : null}
+    {anyLoadError ? <StateCard title={c.loadError} message={apiErrorMessage(firstLoadError)} tone="danger" action={<PremiumButton title={c.retry} tone="secondary" onPress={retryAll} />} /> : null}
 
-    {locations.length > 1 ? <><Text style={[styles.label, { color: theme.text }]}>{c.location}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}>{locations.map((location) => <Choice key={location.id} selected={effectiveLocationId === location.id} title={location.name || location.address || `#${location.id}`} onPress={() => selectLocation(location.id)} />)}</ScrollView></> : null}
+    {!anyLoadError ? <Surface style={styles.section}>
+      {locations.length > 1 ? <><SectionHeader title={c.location} /><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}>{locations.map((location) => <Choice key={location.id} selected={effectiveLocationId === location.id} title={location.name || location.address || c.location} onPress={() => selectLocation(location.id)} />)}</ScrollView></> : null}
+      <SectionHeader title={c.service} /><View style={styles.chips}>{visibleServices.map((item) => <Choice key={item.id} selected={effectiveServiceId === item.id} title={item.name} onPress={() => { setServiceId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedSlotKey(undefined); }} />)}</View>
+      <SectionHeader title={c.staff} /><View style={styles.chips}><Choice selected={showingAllStaff} title={c.allStaff} onPress={() => { setStaffId(undefined); setSelectedSlotKey(undefined); }} />{visibleStaff.map((item) => <Choice key={item.id} selected={effectiveStaffId === item.id} title={item.name} onPress={() => { setStaffId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedSlotKey(undefined); }} />)}</View>
+    </Surface> : null}
 
-    <Text style={[styles.label, { color: theme.text }]}>{c.service}</Text><View style={styles.chips}>{visibleServices.map((item) => <Choice key={item.id} selected={effectiveServiceId === item.id} title={item.name} onPress={() => { setServiceId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedSlotKey(undefined); }} />)}</View>
+    {!anyLoadError ? <Surface style={styles.section}>
+      <SectionHeader title={c.client} />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}><Choice selected={clientId == null} title={c.newClient} onPress={newClient} />{clients.data?.slice(0, 30).map((item) => <Pressable accessibilityRole="button" key={item.id} onPress={() => selectClient(item)} style={[styles.clientChip, { borderColor: clientId === item.id ? theme.accent : theme.border, backgroundColor: clientId === item.id ? theme.accentSoft : theme.surface }]}><View style={[styles.clientAvatar, { backgroundColor: theme.primary }]}><Text style={[styles.clientInitial, { color: theme.onPrimary }]}>{item.name.slice(0, 1).toUpperCase()}</Text></View><Text numberOfLines={1} style={{ color: theme.text, fontWeight: '800', maxWidth: 110 }}>{item.name}</Text></Pressable>)}</ScrollView>
+      {input('name', c.name)}{input('phone', c.phone, 'phone-pad')}{input('email', c.email, 'email-address')}
+    </Surface> : null}
 
-    <Text style={[styles.label, { color: theme.text }]}>{c.staff}</Text><View style={styles.chips}><Choice selected={showingAllStaff} title={c.allStaff} onPress={() => { setStaffId(undefined); setSelectedSlotKey(undefined); }} />{visibleStaff.map((item) => <Choice key={item.id} selected={effectiveStaffId === item.id} title={item.name} onPress={() => { setStaffId(item.id); if (!locationId && item.location_id) setLocationId(item.location_id); setSelectedSlotKey(undefined); }} />)}</View>
-
-    <Text style={[styles.label, { color: theme.text }]}>{c.client}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}><Choice selected={clientId == null} title={c.newClient} onPress={newClient} />{clients.data?.slice(0, 30).map((item) => <Pressable key={item.id} onPress={() => selectClient(item)} style={[styles.clientChip, { borderColor: clientId === item.id ? theme.plum : theme.border, backgroundColor: clientId === item.id ? theme.plumSoft : theme.surfaceRaised }]}><View style={[styles.clientAvatar, { backgroundColor: theme.plum }]}><Text style={styles.clientInitial}>{item.name.slice(0, 1).toUpperCase()}</Text></View><Text numberOfLines={1} style={{ color: theme.text, fontWeight: '800', maxWidth: 110 }}>{item.name}</Text></Pressable>)}</ScrollView>
-
-    {input('name', c.name)}{input('phone', c.phone, 'phone-pad')}{input('email', c.email, 'email-address')}
-    <Text style={[styles.label, { color: theme.text }]}>{c.date}</Text><CalendarDatePicker value={form.date} onChange={selectDate} />
-    <View style={styles.timeHeader}><Text style={[styles.label, { color: theme.text }]}>{c.time}</Text><View style={styles.legend}><View style={[styles.dot, { backgroundColor: theme.success }]} /><Text style={{ color: theme.muted, fontSize: 11 }}>{c.available}</Text><View style={[styles.dot, { backgroundColor: theme.danger }]} /><Text style={{ color: theme.muted, fontSize: 11 }}>{c.occupied}</Text></View></View>
-    {!effectiveServiceId ? <Text style={{ color: theme.muted }}>{c.chooseFirst}</Text> : timesLoading ? <ActivityIndicator color={theme.plum} /> : timesError ? <View style={[styles.error, { borderColor: theme.border, backgroundColor: theme.surfaceRaised }]}><Text style={{ color: theme.danger, fontWeight: '800' }}>{c.slotsError}</Text><Pressable onPress={() => void Promise.all([refetchSlots(), dayBookings.refetch()])}><Text style={{ color: theme.plum, fontWeight: '900' }}>{c.retry}</Text></Pressable></View> : schedule.length ? <View style={styles.slotGrid}>{schedule.map((item) => item.type === 'free' ? <FreeSlot key={item.key} slot={item.slot} selected={selectedSlotKey === slotKey(item.slot)} label={c.recommended} locale={locale} showStaff={showingAllStaff} onPress={() => setSelectedSlotKey(slotKey(item.slot))} /> : <BusySlot key={item.key} booking={item.booking} locale={locale} showStaff={showingAllStaff} onPress={() => showBusy(item.booking)} />)}</View> : <Text style={{ color: theme.muted }}>{c.noSlots}</Text>}
-    {input('notes', c.notes)}
-    <Pressable disabled={!valid || create.isPending || anyLoadError} onPress={() => create.mutate()} style={[styles.primary, { backgroundColor: theme.plum, opacity: valid && !anyLoadError ? 1 : 0.4 }]}>{create.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryText}>{c.save}</Text>}</Pressable>
+    {!anyLoadError ? <Surface style={styles.section}>
+      <SectionHeader title={c.date} /><CalendarDatePicker value={form.date} onChange={selectDate} />
+      <View style={styles.timeHeader}><SectionHeader title={c.time} /><View style={styles.legend}><View style={[styles.dot, { backgroundColor: theme.success }]} /><Text style={{ color: theme.muted, fontSize: 11 }}>{c.available}</Text><View style={[styles.dot, { backgroundColor: theme.danger }]} /><Text style={{ color: theme.muted, fontSize: 11 }}>{c.occupied}</Text></View></View>
+      {!effectiveServiceId ? <Text style={[styles.helper, { color: theme.muted }]}>{c.chooseFirst}</Text> : timesLoading ? <ActivityIndicator color={theme.accent} /> : timesError ? <StateCard title={c.slotsError} tone="danger" action={<PremiumButton title={c.retry} tone="secondary" compact onPress={() => void Promise.all([refetchSlots(), dayBookings.refetch()])} />} /> : schedule.length ? <View style={styles.slotGrid}>{schedule.map((item) => item.type === 'free' ? <FreeSlot key={item.key} slot={item.slot} selected={selectedSlotKey === slotKey(item.slot)} label={c.recommended} locale={locale} showStaff={showingAllStaff} onPress={() => setSelectedSlotKey(slotKey(item.slot))} /> : <BusySlot key={item.key} booking={item.booking} locale={locale} showStaff={showingAllStaff} onPress={() => showBusy(item.booking)} />)}</View> : <Text style={[styles.helper, { color: theme.muted }]}>{c.noSlots}</Text>}
+    </Surface> : null}
+    {!anyLoadError ? <Surface style={styles.section}>{input('notes', c.notes)}<PremiumButton title={c.save} loading={create.isPending} disabled={!valid || anyLoadError} onPress={() => create.mutate()} icon={{ ios: 'checkmark', android: 'check' }} /></Surface> : null}
   </ScrollView></SafeAreaView>;
 }
 
 function Choice({ selected, title, onPress }: { selected: boolean; title: string; onPress: () => void }) {
   const { theme } = useApp();
-  return <Pressable onPress={onPress} style={[styles.chip, { borderColor: selected ? theme.plum : theme.border, backgroundColor: selected ? theme.plumSoft : theme.surfaceRaised }]}><Text style={{ color: selected ? theme.plum : theme.text, fontWeight: '800' }}>{title}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={({ pressed }) => [styles.chip, { borderColor: selected ? theme.primary : theme.border, backgroundColor: selected ? theme.primary : theme.surface, opacity: pressed ? 0.76 : 1 }]}><Text style={{ color: selected ? theme.onPrimary : theme.text, fontWeight: '800' }}>{title}</Text></Pressable>;
 }
 function FreeSlot({ slot, selected, label, locale, showStaff, onPress }: { slot: AvailabilitySlot; selected: boolean; label: string; locale: 'hy' | 'ru' | 'en'; showStaff: boolean; onPress: () => void }) {
   const { theme } = useApp();
   const start = formatApiTime(slot.starts_at, locale);
   const end = formatApiTime(slot.ends_at, locale);
   const recommended = !!slot.is_recommended;
-  return <Pressable onPress={onPress} style={[styles.slot, { borderColor: selected || recommended ? theme.success : theme.border, backgroundColor: selected ? theme.success : theme.successSoft }]}><Text style={{ color: selected ? '#FFF' : theme.success, fontWeight: '900', fontSize: 14 }}>{start}–{end}</Text>{showStaff && slot.staff_name ? <Text numberOfLines={1} style={{ color: selected ? '#FFF' : theme.success, fontSize: 9, fontWeight: '800', marginTop: 3 }}>{slot.staff_name}</Text> : recommended ? <Text numberOfLines={1} style={{ color: selected ? '#FFF' : theme.success, fontSize: 9, fontWeight: '900', marginTop: 3 }}>★ {label}</Text> : null}</Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={({ pressed }) => [styles.slot, { borderColor: selected ? theme.primary : recommended ? theme.success : theme.border, backgroundColor: selected ? theme.primary : recommended ? theme.successSoft : theme.surface, opacity: pressed ? 0.78 : 1 }]}><Text style={{ color: selected ? theme.onPrimary : recommended ? theme.success : theme.text, fontWeight: '900', fontSize: 14 }}>{start}–{end}</Text>{showStaff && slot.staff_name ? <Text numberOfLines={1} style={{ color: selected ? theme.onPrimary : theme.muted, fontSize: 10, fontWeight: '700', marginTop: 3 }}>{slot.staff_name}</Text> : recommended ? <Text numberOfLines={1} style={{ color: selected ? theme.onPrimary : theme.success, fontSize: 9, fontWeight: '900', marginTop: 3 }}>★ {label}</Text> : null}</Pressable>;
 }
 function BusySlot({ booking, locale, showStaff, onPress }: { booking: CalendarBooking; locale: 'hy' | 'ru' | 'en'; showStaff: boolean; onPress: () => void }) {
   const { theme } = useApp();
   const subtitle = showStaff ? booking.staff?.name ?? booking.client_name ?? booking.customer_name ?? booking.client?.name ?? '—' : booking.client_name ?? booking.customer_name ?? booking.client?.name ?? '—';
-  return <Pressable onPress={onPress} style={[styles.slot, { borderColor: theme.danger, backgroundColor: theme.dangerSoft }]}><Text style={{ color: theme.danger, fontWeight: '900', fontSize: 14 }}>{formatApiTime(booking.starts_at, locale)}–{formatApiTime(booking.ends_at, locale)}</Text><Text numberOfLines={1} style={{ color: theme.danger, fontSize: 9, fontWeight: '800', marginTop: 3 }}>{subtitle}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.slot, { borderColor: theme.danger, backgroundColor: theme.dangerSoft, opacity: pressed ? 0.78 : 1 }]}><Text style={{ color: theme.danger, fontWeight: '900', fontSize: 14 }}>{formatApiTime(booking.starts_at, locale)}–{formatApiTime(booking.ends_at, locale)}</Text><Text numberOfLines={1} style={{ color: theme.danger, fontSize: 10, fontWeight: '700', marginTop: 3 }}>{subtitle}</Text></Pressable>;
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 }, content: { padding: 18, paddingBottom: 44, gap: 12 }, header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }, back: { width: 43, height: 43, borderWidth: 1, borderRadius: 9, alignItems: 'center', justifyContent: 'center' }, title: { fontSize: 25, fontWeight: '900', flex: 1 }, label: { fontSize: 15, fontWeight: '900', marginTop: 5 }, chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 }, horizontal: { gap: 8, paddingVertical: 2 }, chip: { minHeight: 43, justifyContent: 'center', borderWidth: 1, borderRadius: 9, paddingHorizontal: 13 }, timeHeader: { gap: 8 }, legend: { flexDirection: 'row', alignItems: 'center', gap: 5 }, dot: { width: 8, height: 8, borderRadius: 4, marginLeft: 4 }, slotGrid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, slot: { width: '31%', flexGrow: 1, minWidth: 98, minHeight: 58, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7, paddingVertical: 8 }, clientChip: { minHeight: 48, borderWidth: 1, borderRadius: 9, paddingHorizontal: 9, paddingRight: 12, flexDirection: 'row', alignItems: 'center', gap: 7 }, clientAvatar: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, clientInitial: { color: '#FFF', fontWeight: '900' }, input: { minHeight: 52, borderWidth: 1, borderRadius: 9, paddingHorizontal: 13 }, notes: { minHeight: 82, paddingTop: 13, textAlignVertical: 'top' }, primary: { height: 55, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginTop: 5 }, primaryText: { color: '#FFF', fontWeight: '900' }, error: { borderWidth: 1, borderRadius: 9, padding: 13, gap: 8 },
+  screen: { flex: 1 },
+  content: { padding: ui.screenGutter, paddingBottom: ui.spacing.xxl, gap: ui.spacing.md },
+  section: { gap: ui.spacing.sm },
+  loader: { marginVertical: ui.spacing.md },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: ui.spacing.xs },
+  horizontal: { gap: ui.spacing.xs, paddingVertical: 2 },
+  chip: { minHeight: ui.touchTarget, justifyContent: 'center', borderWidth: 1, borderRadius: ui.radius.pill, paddingHorizontal: 14 },
+  timeHeader: { gap: ui.spacing.xs },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  dot: { width: 7, height: 7, borderRadius: 4, marginLeft: 4 },
+  helper: { ...ui.type.body },
+  slotGrid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: ui.spacing.xs },
+  slot: { width: '31%', flexGrow: 1, minWidth: 98, minHeight: 62, borderWidth: 1, borderRadius: ui.radius.small, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7, paddingVertical: 8 },
+  clientChip: { minHeight: 50, borderWidth: 1, borderRadius: ui.radius.small, paddingHorizontal: 9, paddingRight: 12, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  clientAvatar: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  clientInitial: { fontWeight: '900' },
 });
