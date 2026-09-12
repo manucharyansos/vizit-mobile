@@ -13,6 +13,8 @@ import { apiErrorMessage, tokenStore } from '@/services/api/client';
 import { localDateKey, formatApiTime } from '@/services/date-time';
 import { bookingStatusLabel, isBookingTerminal } from '@/services/booking-status';
 import { CalendarDatePicker } from '@/components/calendar-date-picker';
+import { useSignOut } from '@/hooks/use-sign-out';
+import { useAuthNavigation } from '@/hooks/use-auth-navigation';
 
 const copy = {
   hy: { title: 'Այսօրվա օրացույց', empty: 'Այսօր ամրագրումներ չկան', client: 'Հաճախորդ', confirm: 'Հաստատել', done: 'Ավարտել', noShow: 'Նշել՝ չի ներկայացել', cancel: 'Չեղարկել', add: 'Նոր ամրագրում', logout: 'Դուրս գալ', delete: 'Ջնջել հաշիվը', deleteConfirm: 'Ուղարկե՞լ բիզնես հաշվի և տվյալների ջնջման հայտը։', auth: 'Մուտք գործիր բիզնես հաշվով', loadError: 'Չհաջողվեց բեռնել օրացույցը', actionError: 'Գործողությունը չհաջողվեց', retry: 'Կրկին փորձել', phone: 'Հեռախոս', notes: 'Նշումներ', actionConfirm: 'Հաստատե՞լ այս գործողությունը։', close: 'Փակել', appointments: 'ամրագրում' },
@@ -24,6 +26,8 @@ export default function TodayScreen() {
   const { locale, theme } = useApp();
   const c = copy[locale];
   const queryClient = useQueryClient();
+  const signOut = useSignOut('business');
+  const authNavigation = useAuthNavigation();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const date = selectedDate ?? localDateKey();
   const [showCalendar, setShowCalendar] = useState(false);
@@ -52,11 +56,12 @@ export default function TodayScreen() {
     status.mutate({ id: item.id, action });
   };
   const requestDeletion = () => Alert.alert(c.delete, c.deleteConfirm, [
-    { text: c.logout, style: 'cancel' },
-    { text: c.delete, style: 'destructive', onPress: async () => { try { await businessApi.requestAccountDeletion(); router.replace('/login'); } catch { Alert.alert(c.actionError, c.retry); } } },
+    { text: c.close, style: 'cancel' },
+    { text: c.delete, style: 'destructive', onPress: async () => { try { await businessApi.requestAccountDeletion(); authNavigation('login'); } catch { Alert.alert(c.actionError, c.retry); } } },
   ]);
   const logout = () => Alert.alert(c.title, '', [
-    { text: c.logout, onPress: async () => { await businessApi.logout(); router.replace('/login'); } },
+    { text: c.close, style: 'cancel' },
+    { text: c.logout, onPress: () => signOut.mutate() },
     { text: c.delete, style: 'destructive', onPress: requestDeletion },
   ]);
 
@@ -65,7 +70,7 @@ export default function TodayScreen() {
     const unauthorized = isAxiosError(me.error) && me.error.response?.status === 401;
     return (
       <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}>
-        <StateCard title={unauthorized ? c.auth : c.loadError} icon={{ ios: 'lock.shield.fill', android: 'shield_lock' }} action={<PremiumButton title={unauthorized ? c.auth : c.retry} onPress={async () => { if (unauthorized) { await tokenStore.remove('business'); router.replace('/login'); } else await me.refetch(); }} />} />
+        <StateCard title={unauthorized ? c.auth : c.loadError} icon={{ ios: 'lock.shield.fill', android: 'shield_lock' }} action={<PremiumButton title={unauthorized ? c.auth : c.retry} onPress={async () => { if (unauthorized) { await tokenStore.remove('business'); authNavigation('login'); } else await me.refetch(); }} />} />
       </SafeAreaView>
     );
   }
@@ -83,7 +88,7 @@ export default function TodayScreen() {
           action={
             <View style={styles.headerActions}>
               {!isStaff ? <IconButton accessibilityLabel={c.add} ios="plus" android="add" onPress={() => router.push('/(business)/new-booking' as never)} tone="primary" /> : null}
-              <IconButton accessibilityLabel={c.logout} ios="rectangle.portrait.and.arrow.right" android="logout" onPress={logout} tone="accent" />
+              <IconButton accessibilityLabel={c.logout} ios="rectangle.portrait.and.arrow.right" android="logout" onPress={logout} loading={signOut.isPending} tone="accent" />
             </View>
           }
         />

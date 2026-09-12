@@ -36,7 +36,7 @@ export default function TelegramScreen() {
     <PageHeader eyebrow="Vizit Pro" title={c[0]} subtitle={c[1]} onBack={() => safeBack('/(business)/more')} backLabel={c[0]} />
     {query.isError ? <StateCard title={c[6]} message={apiErrorMessage(query.error)} tone="danger" action={<PremiumButton title={c[7]} tone="secondary" onPress={() => void query.refetch()} />} /> : <Surface elevated style={styles.card}>
       <View style={[styles.icon, { backgroundColor: theme.accentSoft }]}><VizitIcon ios="paperplane.fill" android="send" color={theme.accentText} size={30} /></View>
-      <View style={styles.heading}><Text style={[styles.title, { color: theme.text }]}>{c[0]}</Text>{query.data ? <StatusPill label={query.data.connected ? c[2] : c[3]} tone={query.data.connected ? 'success' : 'neutral'} /> : null}</View>
+      {query.data?.connected ? <View style={styles.heading}><StatusPill label={c[2]} tone="success" /></View> : null}
       <Text style={[styles.text, { color: theme.muted }]}>{c[1]}</Text>
       {query.isLoading ? <ActivityIndicator color={theme.accent} style={styles.loader} /> : query.data?.connected ? <PremiumButton title={c[4]} tone="danger" loading={disconnect.isPending} onPress={() => disconnect.mutate()} icon={{ ios: 'link', android: 'link_off' }} /> : <PremiumButton title={c[3]} loading={connect.isPending} onPress={() => connect.mutate()} icon={{ ios: 'paperplane.fill', android: 'send' }} />}
     </Surface>}
@@ -45,10 +45,9 @@ export default function TelegramScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { flexGrow: 1, padding: ui.screenGutter, paddingBottom: ui.spacing.xxl, gap: ui.spacing.xl },
-  card: { marginTop: ui.spacing.lg, padding: ui.spacing.xl, gap: ui.spacing.md },
+  card: { padding: ui.spacing.lg, gap: ui.spacing.md },
   icon: { width: 62, height: 62, borderRadius: ui.radius.large, alignItems: 'center', justifyContent: 'center' },
-  heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: ui.spacing.sm },
-  title: ui.type.sectionTitle,
+  heading: { flexDirection: 'row', flexWrap: 'wrap', gap: ui.spacing.sm },
   text: ui.type.body,
   loader: { marginVertical: ui.spacing.sm },
 });

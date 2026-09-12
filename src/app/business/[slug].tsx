@@ -13,6 +13,7 @@ import { safeBack } from '@/services/navigation';
 import { validPoint } from '@/services/geo';
 import { openDirections } from '@/services/directions';
 import { businessCategory } from '@/services/business-category';
+import { BusinessAvatar } from '@/components/business-avatar';
 
 const copy = {
   hy: { location: 'Մասնաճյուղ', emptyServices: 'Այս մասնաճյուղում ծառայություններ չկան', emptyStaff: 'Այս մասնաճյուղում աշխատակիցներ չկան', retry: 'Կրկին փորձել' },
@@ -26,6 +27,7 @@ export default function BusinessScreen() {
   const c = copy[locale];
   const insets = useSafeAreaInsets();
   const [chosenLocationId, setChosenLocationId] = useState<number | undefined>(Number(initialLocation) || undefined);
+  const [failedCover, setFailedCover] = useState<string>();
   const business = useQuery({ queryKey: ['business', slug], queryFn: () => publicApi.business(slug), enabled: Boolean(slug), retry: false });
   const locations = business.data?.locations ?? [];
   const selectedLocation = locations.find((location) => location.id === chosenLocationId) ?? locations[0];
@@ -42,23 +44,24 @@ export default function BusinessScreen() {
 
   const item = business.data;
   const address = selectedLocation?.address ?? item.address;
+  const showCover = Boolean(item.cover_url && item.cover_url !== failedCover);
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: 104 + insets.bottom }]}>
-        <View style={[styles.cover, { backgroundColor: theme.surface }]}>
-          {item.cover_url ? <Image source={item.cover_url} style={StyleSheet.absoluteFill} contentFit="cover" transition={220} /> : item.logo_url ? <Image source={item.logo_url} style={styles.coverLogo} contentFit="contain" /> : <Text style={[styles.coverLetter, { color: theme.accentText }]}>{item.name.slice(0, 1).toLocaleUpperCase()}</Text>}
+        {showCover ? <View style={[styles.cover, { backgroundColor: theme.surface }]}>
+          <Image source={item.cover_url} style={StyleSheet.absoluteFill} contentFit="cover" transition={220} onError={() => setFailedCover(item.cover_url ?? undefined)} />
           <View style={[styles.coverShade, { backgroundColor: theme.scrim }]} />
           <IconButton accessibilityLabel={t('back')} ios="chevron.left" android="chevron_left" onPress={() => safeBack('/(customer)/discover')} style={styles.back} />
-        </View>
+        </View> : <View style={styles.compactHeader}><IconButton accessibilityLabel={t('back')} ios="chevron.left" android="chevron_left" onPress={() => safeBack('/(customer)/discover')} /><Text style={[ui.type.eyebrow, { color: theme.accentText }]}>VIZIT</Text></View>}
 
-        <Surface style={styles.summary} elevated>
-          <View style={[styles.logo, { backgroundColor: theme.accentSubtle, borderColor: theme.surfaceRaised }]}>
-            {item.logo_url ? <Image source={item.logo_url} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Text style={[styles.logoLetter, { color: theme.accentText }]}>{item.name.slice(0, 1).toLocaleUpperCase()}</Text>}
+        <Surface style={[styles.summary, showCover && styles.summaryOnCover]} elevated>
+          <View style={styles.identity}>
+            <BusinessAvatar name={item.name} uri={item.logo_url} />
+            {businessCategory(item, locale) ? <StatusPill label={businessCategory(item, locale)!} tone="accent" /> : null}
           </View>
           <View style={styles.summaryBody}>
             <Text style={[styles.title, { color: theme.text }]}>{item.name}</Text>
-            {businessCategory(item, locale) ? <View style={styles.category}><StatusPill label={businessCategory(item, locale)!} tone="accent" /></View> : null}
             {address ? <MetaRow icon={{ ios: 'location.fill', android: 'location_on' }} value={address} /> : null}
             {item.phone ? <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(`tel:${item.phone!.replace(/[^+\d]/g, '')}`).catch(() => Alert.alert(t('loadError')))}><MetaRow icon={{ ios: 'phone.fill', android: 'call' }} value={item.phone} /></Pressable> : null}
             {validPoint(selectedLocation?.lat, selectedLocation?.lng) ? <PremiumButton title={locale === 'hy' ? 'Ինչպես հասնել' : locale === 'ru' ? 'Как добраться' : 'Directions'} tone="ghost" compact icon={{ ios: 'arrow.turn.up.right', android: 'directions' }} onPress={() => void openDirections(validPoint(selectedLocation?.lat, selectedLocation?.lng)!).catch(() => Alert.alert(t('loadError')))} /> : null}
@@ -152,15 +155,13 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 112 },
   cover: { height: 228, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   coverShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, opacity: 0.54 },
-  coverLogo: { width: 104, height: 104 },
-  coverLetter: { fontSize: 72, lineHeight: 80, fontWeight: '800' },
+  compactHeader: { minHeight: 68, paddingHorizontal: ui.screenGutter, flexDirection: 'row', alignItems: 'center', gap: 12 },
   back: { position: 'absolute', left: ui.screenGutter, top: 14 },
-  summary: { marginHorizontal: ui.screenGutter, marginTop: -34, padding: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
-  logo: { width: 68, height: 68, borderRadius: ui.radius.medium, borderWidth: 3, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  logoLetter: { fontSize: 27, lineHeight: 32, fontWeight: '800' },
-  summaryBody: { flex: 1, minWidth: 0 },
-  title: { fontSize: 23, lineHeight: 28, fontWeight: '800', letterSpacing: -0.42 },
-  category: { alignSelf: 'flex-start', marginTop: 7, marginBottom: 3 },
+  summary: { marginHorizontal: ui.screenGutter, padding: 18, gap: 14 },
+  summaryOnCover: { marginTop: -24 },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  summaryBody: { minWidth: 0 },
+  title: { fontSize: 24, lineHeight: 32, fontWeight: '700', letterSpacing: -0.3 },
   metaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 8 },
   metaText: { ...ui.type.caption, flex: 1 },
   description: { ...ui.type.body, marginHorizontal: ui.screenGutter, marginTop: 18 },

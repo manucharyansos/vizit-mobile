@@ -4,7 +4,7 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 const { test } = require('node:test');
 const ts = require('typescript');
-const { QueryClient } = require('@tanstack/react-query');
+const { QueryClient, MutationObserver, onlineManager } = require('@tanstack/react-query');
 const root = path.resolve(__dirname, '..');
 
 // Run the actual TypeScript services with an in-memory native keychain.
@@ -34,7 +34,7 @@ function harness(overrides = {}) {
       }
       return requireFrom(name);
     };
-    const compiled = ts.transpileModule(readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
+    const compiled = ts.transpileModule(readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
     new Function('require', 'module', 'exports', '__DEV__', compiled)(resolve, module, module.exports, false);
     return module.exports;
   }
@@ -207,4 +207,86 @@ test('text tokens meet 4.5:1 contrast on primary reading surfaces in both themes
       assert.ok((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) >= 4.5, `${mode}: ${foreground}/${background}`);
     }
   }
+});
+
+test('sign-out selects the root login screen without leaving an authenticated tab in history', () => {
+  const { load } = harness();
+  const { authNavigationState } = load('src/services/auth-navigation.ts');
+  assert.deepEqual(authNavigationState('login'), { index: 0, routes: [{ name: 'login' }] });
+  assert.equal(authNavigationState('profile').routes[0].name, '(customer)');
+  assert.equal(authNavigationState('today').routes[0].name, '(business)');
+});
+
+test('the legacy business login renders the unified form when signed out, with no self-redirect', () => {
+  const UnifiedLogin = () => null;
+  const app = harness({
+    'expo-router': { Redirect: () => null },
+    'react-native': { StyleSheet: { create: (styles) => styles } },
+    'react-native-safe-area-context': { SafeAreaView: () => null },
+    '@/providers/app-provider': { useApp: () => ({ theme: {} }) },
+    '@/hooks/use-existing-business-session': { useExistingBusinessSession: () => ({ isLoading: false, data: false }) },
+    '../login': { default: UnifiedLogin, __esModule: true },
+  });
+  assert.equal(app.load('src/app/(business)/login.tsx').default().type, UnifiedLogin);
+});
+
+test('both logout flows complete offline, navigate once, and preserve the other audience and guest history', { timeout: 5000 }, async () => {
+  try {
+    onlineManager.setOnline(false);
+    for (const audience of ['client', 'business']) {
+      const destinations = []; const revocations = [];
+      const app = harness({
+        '@tanstack/react-query': { useMutation: (options) => options },
+        'react-native': { Alert: { alert: () => assert.fail('Logout should finish without an error alert') } },
+        '@/providers/app-provider': { useApp: () => ({ t: (key) => key }) },
+        './use-auth-navigation': { useAuthNavigation: () => (destination) => destinations.push(destination) },
+        '../notifications': { revokePushDevice: async (value) => { revocations.push(value); throw new Error('Device revocation unavailable'); }, synchronizePushDevice: async () => false },
+      });
+      const { tokenStore, clientAuthClient, businessAuthClient } = app.load('src/services/api/client.ts');
+      await tokenStore.set('client', 'client-session');
+      await tokenStore.set('business', 'business-session');
+      app.cache.setQueryData(['business-me'], { id: 7 });
+      app.cache.setQueryData(['client-me'], { id: 9 });
+      const store = app.load('src/services/guest-booking-store.ts').guestBookingStore;
+      await store.rememberGuestBooking('GUEST', { businessName: 'Saved guest visit' });
+      await store.save('GUEST', 'guest-access');
+      await store.rememberClientBookingReferences([{ bookingId: 1, code: 'ACCOUNT' }]);
+      await store.save('ACCOUNT', 'account-access');
+      const rejectOffline = async (config) => { assert.ok(config.timeout <= 2000); throw new Error('Offline'); };
+      clientAuthClient.defaults.adapter = rejectOffline;
+      businessAuthClient.defaults.adapter = rejectOffline;
+      const options = app.load('src/hooks/use-sign-out.ts').useSignOut(audience);
+      const observer = new MutationObserver(app.cache, options);
+      await observer.mutate();
+      assert.equal(observer.getCurrentResult().isPaused, false);
+      assert.deepEqual(destinations, ['login']);
+      assert.deepEqual(revocations, [audience]);
+      assert.equal(await tokenStore.get(audience), null);
+      const other = audience === 'client' ? 'business' : 'client';
+      assert.equal(await tokenStore.get(other), `${other}-session`);
+      assert.ok(app.cache.getQueryData([`${other}-me`]));
+      assert.equal((await store.listGuestBookings()).length, 1);
+      assert.equal((await store.restore('GUEST')).token, 'guest-access');
+      if (audience === 'client') assert.equal(await store.restore('ACCOUNT'), null);
+    }
+  } finally {
+    onlineManager.setOnline(true);
+  }
+});
+
+test('CRM visit summaries agree with calendar times instead of displaying raw UTC four hours early', async () => {
+  const app = harness({ '../notifications': { revokePushDevice: async () => {}, synchronizePushDevice: async () => false } });
+  const { businessAuthClient } = app.load('src/services/api/client.ts');
+  const client = { id: 1, name: 'Client', next_booking_at: '2026-09-14 05:15:00', last_booking_at: '2026-09-13 06:00:00', recent_bookings: [{ id: 8, starts_at: '2026-09-14T09:15:00+04:00', ends_at: '2026-09-14T09:30:00+04:00', status: 'confirmed' }], recent_notes: [{ id: 1, body: 'A note', created_at: '2026-09-12 10:00:00' }] };
+  businessAuthClient.defaults.adapter = async (config) => ({ data: config.url === '/clients' ? { data: [client], current_page: 1, last_page: 1 } : { data: client }, status: 200, statusText: 'OK', headers: {}, config });
+  const { businessApi } = app.load('src/services/api/business.ts');
+  const { formatApiTime, databaseUtcTimestamp } = app.load('src/services/date-time.ts');
+  const detail = await businessApi.client(1); const list = await businessApi.clients();
+  assert.equal(formatApiTime(detail.next_booking_at, 'hy'), '09:15');
+  assert.equal(formatApiTime(list[0].next_booking_at, 'ru'), '09:15');
+  assert.equal(formatApiTime(detail.next_booking_at, 'en'), formatApiTime(detail.recent_bookings[0].starts_at, 'en'));
+  assert.equal(detail.recent_bookings[0].starts_at, client.recent_bookings[0].starts_at);
+  assert.equal(formatApiTime(detail.recent_notes[0].created_at, 'hy'), '14:00');
+  assert.equal(databaseUtcTimestamp('2026-09-14T09:15:00+04:00'), '2026-09-14T09:15:00+04:00');
+  assert.equal(databaseUtcTimestamp(null), null);
 });

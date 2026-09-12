@@ -35,6 +35,8 @@ export default function BusinessDashboard() {
   const clientCount = dashboardClientCount;
   const upcoming = (data?.upcoming as { rows?: CalendarBooking[] } | undefined)?.rows ?? [];
   const upcomingLabel = locale === 'hy' ? 'Առաջիկա այցերը' : locale === 'ru' ? 'Ближайшие визиты' : 'Upcoming visits';
+  const emptyUpcoming = { hy: 'Առաջիկա այցեր դեռ չկան', ru: 'Ближайших визитов пока нет', en: 'No upcoming visits yet' }[locale];
+  const emptyHint = { hy: 'Նոր ամրագրումները կհայտնվեն այստեղ։', ru: 'Новые записи появятся здесь.', en: 'New bookings will appear here.' }[locale];
   const cards = data ? [
     { label: c[3], value: readNumber(data, 'today.total'), icon: 'calendar_month' as const, ios: 'calendar' as const },
     { label: c[4], value: clientCount, icon: 'group' as const, ios: 'person.2.fill' as const },
@@ -62,20 +64,27 @@ export default function BusinessDashboard() {
         {query.isLoading ? <View style={styles.loader}><ActivityIndicator color={theme.accent} size="large" /></View> : query.isError ? (
           <StateCard title={c[7]} message={apiErrorMessage(query.error)} tone="danger" icon={{ ios: 'exclamationmark.triangle.fill', android: 'error_outline' }} action={<PremiumButton title={c[8]} onPress={retryAll} tone="secondary" />} />
         ) : (
-          <View style={styles.grid}>
+          <Surface style={styles.grid}>
             {cards.map(({ label, value, icon, ios }, index) => (
-              <Surface key={label} style={styles.card} elevated>
+              <View key={label} style={[styles.card, { borderColor: theme.divider, borderBottomWidth: index < 2 ? StyleSheet.hairlineWidth : 0, borderRightWidth: index % 2 === 0 ? StyleSheet.hairlineWidth : 0 }]}>
                 <View style={styles.metricTop}>
-                  <View style={[styles.metricIcon, { backgroundColor: index === 0 ? theme.accentSoft : theme.accentSubtle }]}><VizitIcon ios={ios} android={icon} color={theme.accentText} size={20} /></View>
-                  <Text style={[styles.metricIndex, { color: theme.faint }]}>0{index + 1}</Text>
+                  <Text style={[styles.value, { color: theme.text }]}>{value == null ? '—' : value.toLocaleString()}</Text>
+                  <VizitIcon ios={ios} android={icon} color={theme.faint} size={18} />
                 </View>
-                <Text style={[styles.value, { color: theme.text }]}>{value == null ? '—' : value.toLocaleString()}</Text>
                 <Text style={[styles.label, { color: theme.muted }]}>{label}</Text>
-              </Surface>
+              </View>
             ))}
-          </View>
+          </Surface>
         )}
         {canManage && upcoming.length ? <View style={styles.upcoming}><SectionHeader title={upcomingLabel} />{upcoming.map((visit) => <Surface key={visit.id} style={styles.visit}><View style={styles.visitTop}><Text style={[styles.visitName, { color: theme.text }]}>{visit.client_name}</Text><StatusPill label={bookingStatusLabel(visit.status, locale)} tone={visit.status === 'confirmed' ? 'success' : 'warning'} /></View><Text style={[styles.visitDate, { color: theme.accentText }]}>{formatApiDateTime(visit.starts_at, locale)}</Text><Text style={[styles.label, { color: theme.muted }]}>{visit.service?.name} · {visit.staff?.name}</Text></Surface>)}</View> : null}
+        {query.isSuccess && canManage && !upcoming.length ? <View style={styles.upcoming}>
+          <SectionHeader title={upcomingLabel} />
+          <View style={styles.emptyUpcoming}>
+            <VizitIcon ios="calendar" android="event_available" color={theme.accentText} size={24} />
+            <View style={styles.emptyCopy}><Text style={[ui.type.cardTitle, { color: theme.text }]}>{emptyUpcoming}</Text><Text style={[ui.type.body, { color: theme.muted }]}>{emptyHint}</Text></View>
+          </View>
+          <PremiumButton title={c[9]} tone="secondary" onPress={() => router.push('/(business)/new-booking')} icon={{ ios: 'plus', android: 'add' }} />
+        </View> : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -88,14 +97,14 @@ const styles = StyleSheet.create({
   todayIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   todayCopy: { flex: 1 },
   todayLabel: { ...ui.type.eyebrow, opacity: 0.72 },
-  todayDate: { fontSize: 17, lineHeight: 22, fontWeight: '800', marginTop: 5, textTransform: 'capitalize' },
+  todayDate: { fontSize: 17, lineHeight: 24, fontWeight: '600', marginTop: 5, textTransform: 'capitalize' },
   loader: { minHeight: 220, alignItems: 'center', justifyContent: 'center' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  card: { flexBasis: '47%', flexGrow: 1, minHeight: 150, padding: 15, justifyContent: 'space-between' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', padding: 0, overflow: 'hidden' },
+  card: { width: '50%', padding: 16, minHeight: 102, justifyContent: 'center' },
   metricTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  metricIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  metricIndex: { ...ui.type.eyebrow },
-  value: { fontSize: 29, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 14 },
+  value: { fontSize: 28, lineHeight: 36, fontWeight: '600', letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
   label: { ...ui.type.caption, marginTop: 5 },
   upcoming: { gap: 10 }, visit: { padding: 15, gap: 4 }, visitTop: { flexDirection: 'row', gap: 8, alignItems: 'center' }, visitName: { ...ui.type.cardTitle, flex: 1 }, visitDate: { ...ui.type.body, fontWeight: '700' },
+  emptyUpcoming: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
+  emptyCopy: { flex: 1, gap: 4 },
 });

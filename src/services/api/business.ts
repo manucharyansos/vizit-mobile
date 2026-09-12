@@ -2,6 +2,7 @@ import { API_BASE_URL, businessAuthClient, tokenStore } from './client';
 import { debugEmptyList, normalizeList, normalizeResource } from './normalize';
 import { revokePushDevice, synchronizePushDevice } from '../notifications';
 import { collectPages } from './pagination';
+import { databaseUtcTimestamp } from '../date-time';
 
 export type BusinessUser = { id: number; name: string; email?: string; role?: string; audience?: 'business'; business_id?: number; business_name?: string; business_slug?: string; needs_onboarding?: boolean };
 export type CalendarBooking = { id: number; starts_at: string; ends_at: string; status: string; client_name?: string; client_phone?: string; customer_name?: string; notes?: string | null; final_price?: number | null; service?: { id: number; name: string }; staff?: { id: number; name: string }; client?: { id: number; name: string; phone?: string | null } | null };
@@ -85,16 +86,26 @@ function normalizeBusinessSettings(payload: unknown): BusinessSettings {
 const normalizeServices = (payload: unknown): BusinessService[] => normalizeList<BusinessService>(payload, ['services']).map((item) => ({ ...item, image_url: absoluteMediaUrl(item.image_url) }));
 const normalizeStaff = (payload: unknown): BusinessStaff[] => normalizeList<BusinessStaff>(payload, ['staff', 'users']).map((item) => ({ ...item, avatar_url: absoluteMediaUrl(item.avatar_url) }));
 
+// ClientController formats these database fields without the UTC suffix.
+// BookingResource's recent_bookings already includes its zone and stays intact.
+const normalizeCrmDates = (client: BusinessClientDetail): BusinessClientDetail => ({
+  ...client,
+  last_booking_at: databaseUtcTimestamp(client.last_booking_at) ?? undefined,
+  next_booking_at: databaseUtcTimestamp(client.next_booking_at),
+  recent_notes: client.recent_notes?.map((note) => ({ ...note, created_at: databaseUtcTimestamp(note.created_at) ?? undefined })),
+  timeline: client.timeline?.map((event) => ({ ...event, occurred_at: databaseUtcTimestamp(event.occurred_at) })),
+});
+
 export const businessApi = {
   async login(email: string, password: string): Promise<BusinessUser> { const { data } = await businessAuthClient.post('/auth/login', { email, password }); assertBusinessAudience(data); await tokenStore.set('business', data.token); void synchronizePushDevice('business'); return data.user as BusinessUser; },
   async register(payload: BusinessRegistration): Promise<BusinessUser> { const { data } = await businessAuthClient.post('/auth/register', payload); assertBusinessAudience(data); await tokenStore.set('business', data.token); void synchronizePushDevice('business'); return data.user as BusinessUser; },
   async me(): Promise<BusinessUser> { const { data } = await businessAuthClient.get('/auth/me'); return normalizeResource<BusinessUser>(data, ['user']); },
   async dashboard(): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.get('/dashboard'); return normalizeResource<Record<string, unknown>>(data); },
   async calendar(from: string, to: string): Promise<CalendarBooking[]> { const response = await businessAuthClient.get('/calendar', { params: { from, to } }); const list = normalizeList<CalendarBooking>(response.data, ['bookings']); debugEmptyList('business.calendar', response, list); return list; },
-  async clients(): Promise<BusinessClient[]> { return collectPages<BusinessClient>(async (page) => (await businessAuthClient.get('/clients', { params: { page, per_page: 100 } })).data, ['clients']); },
-  async createClient(payload: { name: string; phone?: string; email?: string }): Promise<BusinessClient> { const { data } = await businessAuthClient.post('/clients', payload); return normalizeResource<BusinessClient>(data, ['client']); },
-  async client(id: number): Promise<BusinessClientDetail> { const { data } = await businessAuthClient.get(`/clients/${id}`); return normalizeResource<BusinessClientDetail>(data, ['client']); },
-  async updateClient(id: number, payload: Partial<BusinessClientDetail>): Promise<BusinessClientDetail> { const { data } = await businessAuthClient.put(`/clients/${id}`, payload); return normalizeResource<BusinessClientDetail>(data, ['client']); },
+  async clients(): Promise<BusinessClient[]> { const clients = await collectPages<BusinessClient>(async (page) => (await businessAuthClient.get('/clients', { params: { page, per_page: 100 } })).data, ['clients']); return clients.map(normalizeCrmDates); },
+  async createClient(payload: { name: string; phone?: string; email?: string }): Promise<BusinessClient> { const { data } = await businessAuthClient.post('/clients', payload); return normalizeCrmDates(normalizeResource<BusinessClient>(data, ['client'])); },
+  async client(id: number): Promise<BusinessClientDetail> { const { data } = await businessAuthClient.get(`/clients/${id}`); return normalizeCrmDates(normalizeResource<BusinessClientDetail>(data, ['client'])); },
+  async updateClient(id: number, payload: Partial<BusinessClientDetail>): Promise<BusinessClientDetail> { const { data } = await businessAuthClient.put(`/clients/${id}`, payload); return normalizeCrmDates(normalizeResource<BusinessClientDetail>(data, ['client'])); },
   async services(): Promise<BusinessService[]> { const response = await businessAuthClient.get('/services'); const list = normalizeServices(response.data); debugEmptyList('business.services', response, list); return list; },
   async staff(): Promise<BusinessStaff[]> { const response = await businessAuthClient.get('/staff', { params: { only_active: false } }); const list = normalizeStaff(response.data); debugEmptyList('business.staff', response, list); return list; },
   async tasks(): Promise<BusinessTask[]> { const response = await businessAuthClient.get('/tasks'); const list = normalizeList<BusinessTask>(response.data, ['tasks']); debugEmptyList('business.tasks', response, list); return list; },
@@ -134,5 +145,5 @@ export const businessApi = {
   async createBooking(payload: { service_id: number; staff_id: number; location_id?: number; starts_at: string; client_name: string; client_phone: string; client_email?: string; client_id?: number; notes?: string }): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.post('/bookings', { ...payload, status: 'confirmed', source: 'admin' }); return normalizeResource<Record<string, unknown>>(data); },
   async updateStatus(id: number, status: 'confirm' | 'done' | 'no-show' | 'cancel'): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.patch(`/bookings/${id}/${status}`); return normalizeResource<Record<string, unknown>>(data); },
   async requestAccountDeletion(reason?: string): Promise<unknown> { const { data } = await businessAuthClient.post('/mobile/account-deletion-request', { reason }); await tokenStore.remove('business'); return data; },
-  async logout(): Promise<void> { try { await revokePushDevice('business'); try { await businessAuthClient.post('/auth/logout'); } catch { /* Expired or already-revoked sessions are already logged out. */ } } finally { await tokenStore.remove('business'); } },
+  async logout(): Promise<void> { try { await revokePushDevice('business').catch(() => undefined); try { await businessAuthClient.post('/auth/logout', undefined, { timeout: 2_000 }); } catch { /* Local sign-out still completes when offline or expired. */ } } finally { await tokenStore.remove('business'); } },
 };

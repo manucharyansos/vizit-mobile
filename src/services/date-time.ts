@@ -11,6 +11,12 @@ const localeTag: Record<AppLocale, string> = {
 const hasExplicitZone = (value: string) => /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value.trim());
 const two = (value: number) => String(value).padStart(2, '0');
 
+/** Only for endpoints that return raw UTC database datetimes, such as client CRM. */
+export function databaseUtcTimestamp(value?: string | null): string | null | undefined {
+  if (!value || hasExplicitZone(value)) return value;
+  return /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(value.trim()) ? `${value.trim().replace(' ', 'T')}Z` : value;
+}
+
 function normalizeZonedIso(value: string): string {
   return value
     .trim()
@@ -53,7 +59,8 @@ function parseLocalWallClock(value: string): Date | null {
   const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
   if (!match) return null;
   const [, year, month, day, hour, minute, second] = match;
-  // Unzoned API values are Armenia wall-clock time, regardless of the device zone.
+  // Wall-clock payloads are Armenia time. Raw UTC database fields are annotated
+  // at their API boundary before reaching this formatter.
   const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second ?? '00'}+04:00`);
   return Number.isNaN(date.getTime()) ? null : date;
 }

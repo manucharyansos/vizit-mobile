@@ -1,4 +1,3 @@
-import { useMutation } from '@tanstack/react-query';
 import { Href, router } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,8 +5,8 @@ import { Divider, PageHeader, PreferenceBar, PremiumButton, Surface } from '@/co
 import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
-import { businessApi } from '@/services/api/business';
 import { useBusinessPermissions } from '@/hooks/use-business-permissions';
+import { useSignOut } from '@/hooks/use-sign-out';
 
 const labels = {
   hy: { title: 'Բոլոր բաժինները', subtitle: 'Կառավարման ամբողջ գործիքակազմը', booking: 'Նոր ամրագրում', services: 'Ծառայություններ', staff: 'Աշխատակիցներ և գրաֆիկ', hours: 'Աշխատանքային ժամեր', blocks: 'Փակ ժամեր և բացակայություններ', locations: 'Հասցեներ և մասնաճյուղեր', media: 'Լոգո և նկարներ', tasks: 'Առաջադրանքներ', analytics: 'Վերլուծություն', gifts: 'Նվեր քարտեր', loyalty: 'Հավատարմություն', growth: 'Աճ և marketing', settings: 'Բիզնեսի կարգավորումներ', billing: 'Պլան և վճարումներ', telegram: 'Telegram ծանուցումներ', logout: 'Դուրս գալ', logoutConfirm: 'Դուրս գա՞լ բիզնես հաշվից։', cancel: 'Չեղարկել', operations: 'Գործառույթներ', insights: 'Աճ և վերլուծություն', workspace: 'Աշխատանքային տարածք', language: 'Լեզու', theme: 'Թեմա' },
@@ -49,7 +48,7 @@ export default function BusinessMore() {
     ] },
   ];
   const open = (target: string) => router.push((target.startsWith('/') ? target : `/(business)/${target}`) as Href);
-  const logout = useMutation({ mutationFn: businessApi.logout, onSettled: () => router.replace('/(business)/login') });
+  const logout = useSignOut('business');
   const confirmLogout = () => Alert.alert(c.logout, c.logoutConfirm, [{ text: c.cancel, style: 'cancel' }, { text: c.logout, style: 'destructive', onPress: () => logout.mutate() }]);
 
   return (

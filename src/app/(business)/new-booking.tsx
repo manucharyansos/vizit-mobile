@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalendarDatePicker } from '@/components/calendar-date-picker';
+import { TimeSlot } from '@/components/time-slot';
 import { PageHeader, PremiumButton, PremiumInput, SectionHeader, StateCard, Surface } from '@/components/premium-ui';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
@@ -215,17 +216,15 @@ function Choice({ selected, title, onPress }: { selected: boolean; title: string
   const { theme } = useApp();
   return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={({ pressed }) => [styles.chip, { borderColor: selected ? theme.primary : theme.border, backgroundColor: selected ? theme.primary : theme.surface, opacity: pressed ? 0.76 : 1 }]}><Text style={{ color: selected ? theme.onPrimary : theme.text, fontWeight: '800' }}>{title}</Text></Pressable>;
 }
-function FreeSlot({ slot, selected, label, locale, showStaff, onPress }: { slot: AvailabilitySlot; selected: boolean; label: string; locale: 'hy' | 'ru' | 'en'; showStaff: boolean; onPress: () => void }) {
-  const { theme } = useApp();
+function FreeSlot({ slot, selected, locale, showStaff, onPress }: { slot: AvailabilitySlot; selected: boolean; label: string; locale: 'hy' | 'ru' | 'en'; showStaff: boolean; onPress: () => void }) {
   const start = formatApiTime(slot.starts_at, locale);
   const end = formatApiTime(slot.ends_at, locale);
   const recommended = !!slot.is_recommended;
-  return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={({ pressed }) => [styles.slot, { borderColor: selected ? theme.primary : recommended ? theme.success : theme.border, backgroundColor: selected ? theme.primary : recommended ? theme.successSoft : theme.surface, opacity: pressed ? 0.78 : 1 }]}><Text style={{ color: selected ? theme.onPrimary : recommended ? theme.success : theme.text, fontWeight: '900', fontSize: 14 }}>{start}–{end}</Text>{showStaff && slot.staff_name ? <Text numberOfLines={1} style={{ color: selected ? theme.onPrimary : theme.muted, fontSize: 10, fontWeight: '700', marginTop: 3 }}>{slot.staff_name}</Text> : recommended ? <Text numberOfLines={1} style={{ color: selected ? theme.onPrimary : theme.success, fontSize: 9, fontWeight: '900', marginTop: 3 }}>★ {label}</Text> : null}</Pressable>;
+  return <TimeSlot start={start} end={end} selected={selected} tone={recommended ? 'recommended' : 'neutral'} detail={showStaff ? slot.staff_name : undefined} onPress={onPress} />;
 }
 function BusySlot({ booking, locale, showStaff, onPress }: { booking: CalendarBooking; locale: 'hy' | 'ru' | 'en'; showStaff: boolean; onPress: () => void }) {
-  const { theme } = useApp();
   const subtitle = showStaff ? booking.staff?.name ?? booking.client_name ?? booking.customer_name ?? booking.client?.name ?? '—' : booking.client_name ?? booking.customer_name ?? booking.client?.name ?? '—';
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.slot, { borderColor: theme.danger, backgroundColor: theme.dangerSoft, opacity: pressed ? 0.78 : 1 }]}><Text style={{ color: theme.danger, fontWeight: '900', fontSize: 14 }}>{formatApiTime(booking.starts_at, locale)}–{formatApiTime(booking.ends_at, locale)}</Text><Text numberOfLines={1} style={{ color: theme.danger, fontSize: 10, fontWeight: '700', marginTop: 3 }}>{subtitle}</Text></Pressable>;
+  return <TimeSlot start={formatApiTime(booking.starts_at, locale)} end={formatApiTime(booking.ends_at, locale)} tone="busy" detail={subtitle} onPress={onPress} />;
 }
 
 const styles = StyleSheet.create({
@@ -241,7 +240,6 @@ const styles = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 4, marginLeft: 4 },
   helper: { ...ui.type.body },
   slotGrid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: ui.spacing.xs },
-  slot: { width: '31%', flexGrow: 1, minWidth: 98, minHeight: 62, borderWidth: 1, borderRadius: ui.radius.small, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7, paddingVertical: 8 },
   clientChip: { minHeight: 50, borderWidth: 1, borderRadius: ui.radius.small, paddingHorizontal: 9, paddingRight: 12, flexDirection: 'row', alignItems: 'center', gap: 7 },
   clientAvatar: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   clientInitial: { fontWeight: '900' },

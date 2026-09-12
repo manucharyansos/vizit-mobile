@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Href, router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -13,6 +13,7 @@ import { guestBookingStore } from '@/services/guest-booking-store';
 import { useApp } from '@/providers/app-provider';
 import { formatApiDateTime } from '@/services/date-time';
 import { useClientSession } from '@/hooks/use-client-session';
+import { useSignOut } from '@/hooks/use-sign-out';
 import { bookingStatusLabel } from '@/services/booking-status';
 
 const copy = {
@@ -30,9 +31,9 @@ const copy = {
 export default function ProfileScreen() {
   const { locale, theme, t } = useApp();
   const c = copy[locale];
-  const queryClient = useQueryClient();
   const [openingBookingId, setOpeningBookingId] = useState<number | null>(null);
   const session = useClientSession();
+  const signOut = useSignOut('client');
   const me = useQuery({ queryKey: ['client-me'], queryFn: clientAccountApi.me, enabled: session.data === true, retry: false });
   const bookings = useQuery({ queryKey: ['client-bookings'], queryFn: clientAccountApi.bookings, enabled: session.data === true && me.isSuccess, retry: false });
   const resend = useMutation({ mutationFn: clientAccountApi.resendVerification, onSuccess: () => Alert.alert(c.resend), onError: () => Alert.alert(t('loadError')) });
@@ -85,11 +86,7 @@ export default function ProfileScreen() {
   const logout = () => Alert.alert(c.title, '', [
     {
       text: c.logout,
-      onPress: async () => {
-        await clientAccountApi.logout();
-        queryClient.removeQueries({ queryKey: ['client-me'] });
-        queryClient.removeQueries({ queryKey: ['client-bookings'] });
-      },
+      onPress: () => signOut.mutate(),
     },
     { text: c.delete, style: 'destructive', onPress: requestDeletion },
     { text: t('back'), style: 'cancel' },
@@ -138,7 +135,7 @@ export default function ProfileScreen() {
             <PageHeader
               eyebrow={c.account}
               title={c.title}
-              action={<IconButton accessibilityLabel={c.logout} ios="rectangle.portrait.and.arrow.right" android="logout" onPress={logout} tone="accent" />}
+              action={<IconButton accessibilityLabel={c.logout} ios="rectangle.portrait.and.arrow.right" android="logout" onPress={logout} loading={signOut.isPending} tone="accent" />}
             />
             <Surface style={styles.userCard} elevated>
               <View style={[styles.avatar, { backgroundColor: theme.primary }]}><VizitIcon ios="person.fill" android="person" color={theme.onPrimary} size={26} /></View>

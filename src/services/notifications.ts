@@ -50,7 +50,7 @@ export async function revokePushDevice(audience: TokenAudience) {
   const expoPushToken = await SecureStore.getItemAsync(pushTokenKeys[audience]);
   if (!expoPushToken) return;
   try {
-    await audienceClient(audience).delete('/mobile/devices/current', { data: { expo_push_token: expoPushToken } });
+    await audienceClient(audience).delete('/mobile/devices/current', { data: { expo_push_token: expoPushToken }, timeout: 2_000 });
   } catch {
     // Device removal is best-effort. An expired token must never block sign-out.
   } finally {

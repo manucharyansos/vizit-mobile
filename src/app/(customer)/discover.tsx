@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrandLockup, IconButton, PremiumButton, SectionHeader, StateCard } from '@/components/premium-ui';
 import { BusinessListSkeleton } from '@/components/loading-skeleton';
+import { BusinessAvatar } from '@/components/business-avatar';
 import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
@@ -20,7 +20,7 @@ const copy = {
   hy: {
     greeting: 'Բարի երեկո',
     title: 'Ի՞նչ կամրագրենք այսօր',
-    search: 'Բիզնես, կլինիկա, ծառայություն…',
+    search: 'Բիզնեսի անուն կամ հասցե',
     next: 'Հաջորդ այցը',
     categories: 'Հայտնի ուղղություններ',
     businesses: 'Առաջարկվող վայրեր',
@@ -37,7 +37,7 @@ const copy = {
   ru: {
     greeting: 'Добрый вечер',
     title: 'Что запишем сегодня',
-    search: 'Бизнес, клиника, услуга…',
+    search: 'Название или адрес',
     next: 'Следующая запись',
     categories: 'Популярные направления',
     businesses: 'Рекомендуемые места',
@@ -54,7 +54,7 @@ const copy = {
   en: {
     greeting: 'Good evening',
     title: 'What shall we book today',
-    search: 'Business, clinic, service…',
+    search: 'Business name or address',
     next: 'Next booking',
     categories: 'Popular categories',
     businesses: 'Recommended places',
@@ -237,22 +237,13 @@ function BusinessRow({ item, label }: { item: PublicBusiness; label: string }) {
       onPress={() => router.push({ pathname: '/business/[slug]', params: { slug: item.slug } })}
       style={({ pressed }) => [styles.business, { backgroundColor: theme.surfaceRaised, borderColor: theme.border, shadowColor: theme.shadow, opacity: pressed ? 0.78 : 1 }]}
     >
-      <View style={[styles.businessImage, { backgroundColor: theme.accentSubtle }]}>
-        {item.logo_url || item.cover_url ? (
-          <Image source={item.logo_url ?? item.cover_url} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} />
-        ) : (
-          <Text style={[styles.fallback, { color: theme.accentText }]}>{item.name.slice(0, 1).toLocaleUpperCase()}</Text>
-        )}
-      </View>
+      <BusinessAvatar name={item.name} uri={item.logo_url ?? item.cover_url} />
       <View style={styles.businessInfo}>
-        <Text numberOfLines={1} style={[styles.businessName, { color: theme.text }]}>{item.name}</Text>
-        <Text numberOfLines={1} style={[styles.businessMeta, { color: theme.muted }]}>{businessCategory(item, locale) ?? item.address ?? 'Vizit'}</Text>
-        {item.address && businessCategory(item, locale) ? <Text numberOfLines={1} style={[styles.businessAddress, { color: theme.faint }]}>{item.address}</Text> : null}
+        <Text style={[styles.businessName, { color: theme.text }]}>{item.name}</Text>
+        <Text style={[styles.businessMeta, { color: theme.muted }]}>{businessCategory(item, locale) ?? item.address ?? 'Vizit'}</Text>
+        {item.address && businessCategory(item, locale) ? <Text style={[styles.businessAddress, { color: theme.faint }]}>{item.address}</Text> : null}
       </View>
-      <View style={[styles.open, { backgroundColor: theme.accentSoft }]}>
-        <Text style={[styles.openText, { color: theme.accentText }]}>{label}</Text>
-        <VizitIcon ios="chevron.right" android="chevron_right" color={theme.accentText} size={15} />
-      </View>
+      <VizitIcon ios="chevron.right" android="chevron_right" color={theme.accentText} size={20} />
     </Pressable>
   );
 }
@@ -264,9 +255,9 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   language: { width: 46, height: 44, borderRadius: ui.radius.medium, alignItems: 'center', justifyContent: 'center' },
   languageText: { fontSize: 11, lineHeight: 14, fontWeight: '800', letterSpacing: 0.7 },
-  heroBlock: { paddingTop: 31, paddingBottom: 22 },
+  heroBlock: { paddingTop: 24, paddingBottom: 20 },
   greeting: { ...ui.type.body, fontWeight: '700', marginBottom: 5 },
-  hero: ui.type.display,
+  hero: { ...ui.type.display, fontSize: 28, lineHeight: 36 },
   search: { minHeight: 56, borderRadius: ui.radius.large, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, ...ui.shadow.card },
   searchInput: { flex: 1, minHeight: 50, fontSize: 15, lineHeight: 20, paddingVertical: 0 },
   days: { gap: 8, paddingTop: 18, paddingBottom: 24 },
@@ -282,7 +273,7 @@ const styles = StyleSheet.create({
   nextTime: { minWidth: 78, borderWidth: 1, borderRadius: ui.radius.medium, paddingVertical: 12, paddingHorizontal: 10, alignItems: 'center' },
   nextDay: { ...ui.type.caption, textTransform: 'capitalize' },
   nextHour: { fontSize: 21, lineHeight: 25, fontWeight: '800', marginTop: 3 },
-  emptyNext: { minHeight: 108, borderRadius: ui.radius.large, borderWidth: 1, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 11 },
+  emptyNext: { minHeight: 86, borderRadius: ui.radius.medium, borderWidth: 1, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 11 },
   emptyNextText: { flex: 1 },
   emptyTitle: { ...ui.type.cardTitle },
   emptyHint: { ...ui.type.caption, marginTop: 5 },
@@ -293,15 +284,11 @@ const styles = StyleSheet.create({
   categoryIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   categoryText: { fontSize: 14, lineHeight: 19, fontWeight: '700' },
   businessHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 26, marginBottom: 12 },
-  business: { minHeight: 92, borderRadius: ui.radius.large, borderWidth: 1, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 11, ...ui.shadow.card },
-  businessImage: { width: 68, height: 68, borderRadius: ui.radius.medium, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  fallback: { fontSize: 25, lineHeight: 30, fontWeight: '800' },
+  business: { minHeight: 90, borderRadius: ui.radius.medium, borderWidth: 1, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
   businessInfo: { flex: 1, minWidth: 0 },
-  businessName: { fontSize: 15, lineHeight: 20, fontWeight: '800' },
+  businessName: { fontSize: 16, lineHeight: 22, fontWeight: '600' },
   businessMeta: { ...ui.type.caption, marginTop: 3 },
   businessAddress: { fontSize: 11, lineHeight: 15, fontWeight: '500', marginTop: 2 },
-  open: { minHeight: 34, borderRadius: 11, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
-  openText: { fontSize: 11, lineHeight: 14, fontWeight: '800' },
   separator: { height: 10 },
   emptyList: { minHeight: 120, alignItems: 'center', justifyContent: 'center', gap: 8 },
   emptyListText: ui.type.body,

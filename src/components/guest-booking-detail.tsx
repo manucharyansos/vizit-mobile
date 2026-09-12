@@ -2,9 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import * as ExpoLinking from 'expo-linking';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalendarDatePicker } from './calendar-date-picker';
+import { TimeSlot } from './time-slot';
 import { PageHeader, PremiumButton, PremiumInput, StateCard, StatusPill, Surface } from './premium-ui';
 import { VizitIcon } from './vizit-icon';
 import { ui } from '@/constants/vizit-theme';
@@ -120,7 +121,7 @@ function ReschedulePanel({ visit, code, token, onUpdated }: { visit: GuestAppoin
     <CalendarDatePicker value={date} onChange={(value) => { setDate(value); setSelected(undefined); }} />
     {options.isLoading ? <ActivityIndicator color={theme.accent} /> : options.isError ? <PremiumButton title={c.retry} onPress={() => void options.refetch()} tone="secondary" /> : !options.data?.length ? <Text style={[styles.body, { color: theme.muted }]}>{c.noSlots}</Text> : <View style={styles.slots}>{options.data.map((slot) => {
       const active = slot.starts_at === selected?.starts_at && slot.staff_id === selected?.staff_id;
-      return <Pressable key={`${slot.starts_at}-${slot.staff_id}`} accessibilityRole="button" accessibilityState={{ selected: active, disabled: update.isPending }} disabled={update.isPending} onPress={() => setSelected(slot)} style={[styles.slot, { backgroundColor: active ? theme.primary : theme.surface, borderColor: active ? theme.primary : theme.border }]}><Text style={[styles.title, { color: active ? theme.onPrimary : theme.text }]}>{formatApiTime(slot.starts_at, locale)}</Text><Text style={[styles.caption, { color: active ? theme.onPrimary : theme.muted }]}>{slot.staff_name}</Text></Pressable>;
+      return <TimeSlot key={`${slot.starts_at}-${slot.staff_id}`} start={formatApiTime(slot.starts_at, locale)} end={formatApiTime(slot.ends_at, locale)} detail={slot.staff_name} selected={active} disabled={update.isPending} onPress={() => setSelected(slot)} />;
     })}</View>}
     <PremiumButton title={c.reschedule} loading={update.isPending} disabled={!available || options.isFetching} onPress={() => update.mutate()} />
   </View>;

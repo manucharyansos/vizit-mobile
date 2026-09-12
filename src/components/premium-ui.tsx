@@ -55,6 +55,7 @@ export function IconButton({
   tone = 'neutral',
   size = ui.touchTarget,
   disabled = false,
+  loading = false,
   style,
 }: Pick<IconProps, 'ios' | 'android'> & {
   accessibilityLabel: string;
@@ -62,6 +63,7 @@ export function IconButton({
   tone?: 'neutral' | 'accent' | 'primary' | 'danger';
   size?: number;
   disabled?: boolean;
+  loading?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const { theme } = useApp();
@@ -71,8 +73,8 @@ export function IconButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      disabled={disabled || loading}
       hitSlop={4}
       onPress={onPress}
       style={({ pressed }) => [
@@ -81,7 +83,7 @@ export function IconButton({
         style,
       ]}
     >
-      <VizitIcon ios={ios} android={android} color={foreground} size={20} />
+      {loading ? <ActivityIndicator color={foreground} size="small" /> : <VizitIcon ios={ios} android={android} color={foreground} size={20} />}
     </Pressable>
   );
 }
@@ -106,13 +108,15 @@ export function PageHeader({
   const { theme } = useApp();
   return (
     <View style={[styles.pageHeader, style]}>
-      {onBack ? <IconButton ios="chevron.left" android="chevron_left" accessibilityLabel={backLabel ?? title} onPress={onBack} /> : null}
+      {onBack || eyebrow || action ? <View style={styles.headerBar}>
+        {onBack ? <IconButton ios="chevron.left" android="chevron_left" accessibilityLabel={backLabel ?? title} onPress={onBack} /> : null}
+        <View style={styles.headerEyebrow}>{eyebrow ? <Text style={[styles.eyebrow, { color: theme.accentText }]}>{eyebrow.toLocaleUpperCase()}</Text> : null}</View>
+        {action ? <View style={styles.headerAction}>{action}</View> : null}
+      </View> : null}
       <View style={styles.pageHeaderText}>
-        {eyebrow ? <Text style={[styles.eyebrow, { color: theme.accentText }]}>{eyebrow.toLocaleUpperCase()}</Text> : null}
         <Text style={[styles.pageTitle, { color: theme.text }]}>{title}</Text>
         {subtitle ? <Text style={[styles.pageSubtitle, { color: theme.muted }]}>{subtitle}</Text> : null}
       </View>
-      {action ? <View style={styles.headerAction}>{action}</View> : null}
     </View>
   );
 }
@@ -219,7 +223,7 @@ export function StatusPill({ label, tone = 'neutral' }: { label: string; tone?: 
   return (
     <View style={[styles.pill, { backgroundColor: background }]}>
       <View style={[styles.pillDot, { backgroundColor: foreground }]} />
-      <Text numberOfLines={1} style={[styles.pillText, { color: foreground }]}>{label}</Text>
+      <Text style={[styles.pillText, { color: foreground }]}>{label}</Text>
     </View>
   );
 }
@@ -298,8 +302,10 @@ const styles = StyleSheet.create({
   brandTextCompact: { fontSize: 22, lineHeight: 26 },
   surface: { borderWidth: 1, borderRadius: ui.radius.large, padding: ui.spacing.md },
   iconButton: { borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  pageHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: ui.spacing.sm },
-  pageHeaderText: { flex: 1, minHeight: ui.touchTarget, justifyContent: 'center' },
+  pageHeader: { gap: ui.spacing.sm },
+  headerBar: { flexDirection: 'row', alignItems: 'center', gap: ui.spacing.sm },
+  headerEyebrow: { flex: 1, minWidth: 0 },
+  pageHeaderText: { minWidth: 0 },
   eyebrow: ui.type.eyebrow,
   pageTitle: ui.type.pageTitle,
   pageSubtitle: { ...ui.type.body, marginTop: ui.spacing.xxs },
@@ -319,9 +325,9 @@ const styles = StyleSheet.create({
   fieldMultiline: { minHeight: 76, paddingTop: 0, textAlignVertical: 'top' },
   fieldIconMultiline: { marginTop: 2 },
   fieldError: { ...ui.type.caption, marginLeft: 2 },
-  pill: { maxWidth: '100%', minHeight: 28, borderRadius: ui.radius.pill, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pill: { maxWidth: '100%', flexShrink: 1, minHeight: 28, borderRadius: ui.radius.pill, paddingHorizontal: 10, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 6 },
   pillDot: { width: 6, height: 6, borderRadius: 3 },
-  pillText: { fontSize: 11, lineHeight: 14, fontWeight: '800' },
+  pillText: { flexShrink: 1, fontSize: 11, lineHeight: 15, fontWeight: '600' },
   stateCard: { minHeight: 156, alignItems: 'center', justifyContent: 'center', padding: ui.spacing.lg },
   stateIcon: { width: 50, height: 50, borderRadius: ui.radius.medium, alignItems: 'center', justifyContent: 'center', marginBottom: ui.spacing.sm },
   stateTitle: { ...ui.type.cardTitle, textAlign: 'center' },

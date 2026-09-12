@@ -30,7 +30,7 @@ export const ui = {
   },
   type: {
     display: { fontSize: 32, lineHeight: 38, fontWeight: '700', letterSpacing: -0.8 },
-    pageTitle: { fontSize: 28, lineHeight: 34, fontWeight: '700', letterSpacing: -0.55 },
+    pageTitle: { fontSize: 26, lineHeight: 34, fontWeight: '700', letterSpacing: -0.35 },
     sectionTitle: { fontSize: 18, lineHeight: 24, fontWeight: '700', letterSpacing: -0.18 },
     cardTitle: { fontSize: 16, lineHeight: 22, fontWeight: '700' },
     body: { fontSize: 14, lineHeight: 20, fontWeight: '500' },

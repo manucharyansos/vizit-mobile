@@ -14,6 +14,7 @@ import { guestBookingStore } from '@/services/guest-booking-store';
 import { formatApiTime, localDateKey, localDateTimeInputFromApi } from '@/services/date-time';
 import { safeBack } from '@/services/navigation';
 import { CalendarDatePicker } from '@/components/calendar-date-picker';
+import { TimeSlot } from '@/components/time-slot';
 
 const copy = {
   hy: { location: 'Մասնաճյուղ', noServices: 'Այս մասնաճյուղում ծառայություններ չկան', noStaff: 'Այս մասնաճյուղում հասանելի աշխատակիցներ չկան', noSlots: 'Այս օրվա համար ազատ ժամ չկա', retry: 'Կրկին փորձել', slotTaken: 'Այս ժամը հենց նոր զբաղեցվեց։ Ընտրեք մեկ այլ ազատ ժամ։' },
@@ -176,13 +177,13 @@ export default function BookingScreen() {
             ) : !visibleSlots.length ? <Text style={[styles.emptyText, { color: theme.muted }]}>{c.noSlots}</Text> : (
               <View style={styles.slotGrid}>
                 {visibleSlots.map((item) => (
-                  <Choice
+                  <TimeSlot
                     key={`${item.starts_at}-${item.staff_id}`}
-                    compact
-                    recommended={Boolean(item.is_recommended)}
+                    tone={item.is_recommended ? 'recommended' : 'neutral'}
                     selected={slot?.starts_at === item.starts_at && slot.staff_id === item.staff_id}
-                    label={`${formatApiTime(item.starts_at, locale)}–${formatApiTime(item.ends_at, locale)}`}
-                    detail={!staff ? item.staff_name : item.is_recommended ? t('recommended') : undefined}
+                    start={formatApiTime(item.starts_at, locale)}
+                    end={formatApiTime(item.ends_at, locale)}
+                    detail={!staff ? item.staff_name : undefined}
                     onPress={() => setSlot(item)}
                   />
                 ))}
@@ -249,23 +250,21 @@ function ChoiceSection({ step, title, loading, error, retry, retryLabel, empty, 
   );
 }
 
-function Choice({ selected, label, detail, onPress, compact, icon, recommended = false }: { selected: boolean; label: string; detail?: string; onPress: () => void; compact?: boolean; icon?: 'person.fill' | 'person.2.fill'; recommended?: boolean }) {
+function Choice({ selected, label, detail, onPress, icon }: { selected: boolean; label: string; detail?: string; onPress: () => void; icon?: 'person.fill' | 'person.2.fill' }) {
   const { theme } = useApp();
-  const accent = recommended ? theme.success : theme.accent;
-  const selectedBackground = recommended ? theme.successSoft : theme.accentSoft;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={({ pressed }) => [styles.choice, compact && styles.compact, { backgroundColor: selected || recommended ? selectedBackground : theme.surfaceRaised, borderColor: selected || recommended ? accent : theme.border, opacity: pressed ? 0.76 : 1 }]}
+      style={({ pressed }) => [styles.choice, { backgroundColor: selected ? theme.accentSoft : theme.surfaceRaised, borderColor: selected ? theme.accent : theme.border, opacity: pressed ? 0.76 : 1 }]}
     >
       {icon ? <View style={[styles.choiceIcon, { backgroundColor: selected ? theme.surfaceRaised : theme.accentSubtle }]}><VizitIcon ios={icon} android={icon === 'person.fill' ? 'person' : 'group'} color={selected ? theme.accentText : theme.faint} size={20} /></View> : null}
-      <View style={compact ? styles.compactText : styles.choiceText}>
-        <Text numberOfLines={compact ? 1 : 2} style={[styles.choiceTitle, { color: recommended ? theme.success : theme.text }]}>{label}</Text>
+      <View style={styles.choiceText}>
+        <Text style={[styles.choiceTitle, { color: theme.text }]}>{label}</Text>
         {detail ? <Text numberOfLines={1} style={[styles.choiceDetail, { color: theme.muted }]}>{detail}</Text> : null}
       </View>
-      {selected && !compact ? <VizitIcon ios="checkmark.circle.fill" android="check_circle" color={theme.accentText} size={22} /> : null}
+      {selected ? <VizitIcon ios="checkmark.circle.fill" android="check_circle" color={theme.accentText} size={22} /> : null}
     </Pressable>
   );
 }
@@ -309,11 +308,9 @@ const styles = StyleSheet.create({
   stepNumber: { fontSize: 13, lineHeight: 17, fontWeight: '800' },
   sectionTitle: ui.type.sectionTitle,
   choice: { minHeight: 66, padding: 12, borderRadius: ui.radius.medium, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  compact: { minWidth: 104, minHeight: 54, justifyContent: 'center', flexGrow: 1, flexBasis: '30%', paddingHorizontal: 9 },
   choiceIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   choiceText: { flex: 1, minWidth: 0 },
-  compactText: { alignItems: 'center', minWidth: 0 },
-  choiceTitle: { fontSize: 14, lineHeight: 19, fontWeight: '800' },
+  choiceTitle: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
   choiceDetail: { ...ui.type.caption, marginTop: 3 },
   dateChoice: { width: 60, height: 70, borderRadius: ui.radius.medium, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   weekday: { fontSize: 10, lineHeight: 14, fontWeight: '700', textTransform: 'uppercase' },

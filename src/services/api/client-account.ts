@@ -68,8 +68,8 @@ export const clientAccountApi = {
   },
   async logout(): Promise<void> {
     try {
-      await revokePushDevice('client');
-      try { await clientAuthClient.post('/client/auth/logout'); } catch { /* Expired or already-revoked sessions are already logged out. */ }
+      await revokePushDevice('client').catch(() => undefined);
+      try { await clientAuthClient.post('/client/auth/logout', undefined, { timeout: 2_000 }); } catch { /* Local sign-out still completes when offline or expired. */ }
     } finally {
       await guestBookingStore.clearClientBookingReferences();
       await tokenStore.remove('client');
