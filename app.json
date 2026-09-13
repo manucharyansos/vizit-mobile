@@ -23,10 +23,10 @@
       }
     },
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#0C0F11",
+    "backgroundColor": "#FAF9F5",
     "androidStatusBar": {
-      "backgroundColor": "#0C0F11",
-      "barStyle": "light-content"
+      "backgroundColor": "#FAF9F5",
+      "barStyle": "dark-content"
     },
     "ios": {
       "icon": "./assets/images/icon.png",
