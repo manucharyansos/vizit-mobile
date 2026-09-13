@@ -1,10 +1,15 @@
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VizitIcon } from '@/components/vizit-icon';
+import { BusinessSessionBoundary } from '@/components/business-session-boundary';
 import { useApp } from '@/providers/app-provider';
 import { ui } from '@/constants/vizit-theme';
 
 export default function BusinessLayout() {
+  return <BusinessSessionBoundary><BusinessTabs /></BusinessSessionBoundary>;
+}
+
+function BusinessTabs() {
   const { locale, theme } = useApp();
   const insets = useSafeAreaInsets();
 

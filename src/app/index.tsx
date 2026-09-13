@@ -6,7 +6,7 @@ import { useApp } from '@/providers/app-provider';
 
 export default function Index() {
   const { theme } = useApp();
-  const session = useQuery({ queryKey: ['launch-session'], queryFn: () => tokenStore.lastAudience(), staleTime: 0, retry: false });
+  const session = useQuery({ queryKey: ['launch-session'], queryFn: () => tokenStore.lastAudience(), networkMode: 'always', staleTime: 0, retry: false });
   if (session.isLoading) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background }}><ActivityIndicator color={theme.accent} /></View>;
   return <Redirect href={session.data === 'business' ? '/(business)/today' : '/(customer)/discover'} />;
 }

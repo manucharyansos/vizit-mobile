@@ -4,7 +4,7 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 const { test } = require('node:test');
 const ts = require('typescript');
-const { QueryClient, MutationObserver, onlineManager } = require('@tanstack/react-query');
+const { QueryClient, QueryObserver, MutationObserver, onlineManager } = require('@tanstack/react-query');
 const root = path.resolve(__dirname, '..');
 
 // Run the actual TypeScript services with an in-memory native keychain.
@@ -289,4 +289,194 @@ test('CRM visit summaries agree with calendar times instead of displaying raw UT
   assert.equal(formatApiTime(detail.recent_notes[0].created_at, 'hy'), '14:00');
   assert.equal(databaseUtcTimestamp('2026-09-14T09:15:00+04:00'), '2026-09-14T09:15:00+04:00');
   assert.equal(databaseUtcTimestamp(null), null);
+});
+
+test('mounted session observers follow logout and re-login without losing their query subscription', async () => {
+  for (const audience of ['client', 'business']) {
+    const app = harness();
+    const { tokenStore } = app.load('src/services/api/client.ts');
+    const { sessionQueryOptions } = app.load('src/services/session-query.ts');
+    await tokenStore.set(audience, 'first-account');
+    const observer = new QueryObserver(app.cache, sessionQueryOptions(audience));
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await observer.refetch();
+      const sessionQuery = observer.getCurrentQuery();
+      assert.equal(observer.getCurrentResult().data, true);
+      app.cache.setQueryData([`${audience}-me`], { id: 1 });
+      await tokenStore.remove(audience);
+      assert.equal(observer.getCurrentResult().data, false);
+      assert.equal(observer.getCurrentQuery(), sessionQuery);
+      assert.equal(app.cache.getQueryData([`${audience}-me`]), undefined);
+      await tokenStore.set(audience, 'second-account');
+      assert.equal(observer.getCurrentResult().data, true);
+      assert.equal(observer.getCurrentQuery(), sessionQuery);
+    } finally { unsubscribe(); app.cache.clear(); }
+  }
+});
+
+test('session checks read the keychain offline and recover from a storage read failure', { timeout: 5000 }, async () => {
+  try {
+    onlineManager.setOnline(false);
+    for (const audience of ['client', 'business']) {
+      const app = harness();
+      app.values.set(`vizit.auth.${audience}.v1`, 'saved-session');
+      const { sessionQueryOptions } = app.load('src/services/session-query.ts');
+      const observer = new QueryObserver(app.cache, sessionQueryOptions(audience));
+      const unsubscribe = observer.subscribe(() => {});
+      try {
+        assert.equal((await observer.refetch()).data, true);
+        assert.equal(observer.getCurrentResult().isPaused, false);
+        const read = app.secure.getItemAsync;
+        app.secure.getItemAsync = async () => { throw new Error('Keychain temporarily unavailable'); };
+        assert.equal((await observer.refetch()).isError, true);
+        app.secure.getItemAsync = read;
+        assert.equal((await observer.refetch()).isSuccess, true);
+        assert.equal(observer.getCurrentResult().data, true);
+      } finally { unsubscribe(); app.cache.clear(); }
+    }
+  } finally { onlineManager.setOnline(true); }
+});
+
+test('a protected 401 ends the visible business session without cancelling its query or the client account', async () => {
+  const app = harness();
+  const { tokenStore, businessAuthClient } = app.load('src/services/api/client.ts');
+  const { sessionQueryOptions } = app.load('src/services/session-query.ts');
+  await tokenStore.set('business', 'expired-business');
+  await tokenStore.set('client', 'valid-client');
+  app.cache.setQueryData(['client-me'], { id: 10 });
+  const session = new QueryObserver(app.cache, sessionQueryOptions('business'));
+  const unsubscribe = session.subscribe(() => {});
+  const rejectRequest = async (config) => { throw { config, response: { status: 401, data: { message: 'Unauthenticated.' } } }; };
+  try {
+    await session.refetch();
+    await assert.rejects(app.cache.fetchQuery({ queryKey: ['business-clients'], queryFn: () => businessAuthClient.get('/clients', { adapter: rejectRequest }) }));
+    assert.equal(session.getCurrentResult().data, false);
+    assert.equal(app.cache.getQueryState(['business-clients']).status, 'error');
+    assert.equal(app.cache.getQueryState(['business-clients']).fetchStatus, 'idle');
+    assert.equal(await tokenStore.get('business'), null);
+    assert.equal(await tokenStore.get('client'), 'valid-client');
+    assert.deepEqual(app.cache.getQueryData(['client-me']), { id: 10 });
+    await tokenStore.set('business', 'new-business');
+    assert.equal(session.getCurrentResult().data, true);
+    assert.equal(app.cache.getQueryState(['business-clients']), undefined);
+  } finally { unsubscribe(); app.cache.clear(); }
+});
+
+test('an in-flight keychain read cannot resurrect a rejected session', async () => {
+  const app = harness();
+  const { tokenStore, businessAuthClient } = app.load('src/services/api/client.ts');
+  const { sessionQueryOptions } = app.load('src/services/session-query.ts');
+  await tokenStore.set('business', 'old-business');
+  const read = app.secure.getItemAsync;
+  let release; let delayNextRead = true;
+  app.secure.getItemAsync = (key) => {
+    if (key === 'vizit.auth.business.v1' && delayNextRead) {
+      delayNextRead = false;
+      const captured = app.values.get(key);
+      return new Promise((resolve) => { release = () => resolve(captured); });
+    }
+    return read(key);
+  };
+  const observer = new QueryObserver(app.cache, sessionQueryOptions('business'));
+  const unsubscribe = observer.subscribe(() => {});
+  try {
+    assert.equal(typeof release, 'function');
+    await assert.rejects(businessAuthClient.get('/auth/me', { adapter: async (config) => { throw { config, response: { status: 401 } }; } }));
+    assert.equal(observer.getCurrentResult().data, false);
+    release();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(observer.getCurrentResult().data, false);
+    assert.equal(observer.getCurrentResult().fetchStatus, 'idle');
+    assert.equal(await tokenStore.get('business'), null);
+  } finally { release?.(); unsubscribe(); app.cache.clear(); }
+});
+
+test('network failures and role denials preserve an otherwise valid business session', async () => {
+  const app = harness(); const { tokenStore, businessAuthClient } = app.load('src/services/api/client.ts');
+  await tokenStore.set('business', 'valid');
+  for (const response of [undefined, { status: 403 }, { status: 500 }]) {
+    await assert.rejects(businessAuthClient.get('/clients', { adapter: async (config) => { throw { config, response }; } }));
+    assert.equal(await tokenStore.get('business'), 'valid');
+    assert.equal(app.cache.getQueryData(['business-existing-session']), true);
+  }
+});
+
+function elementTree(element) {
+  if (Array.isArray(element)) return element.flatMap(elementTree);
+  if (!element || typeof element !== 'object' || !element.props) return [];
+  return [element, ...elementTree(element.props.children), ...elementTree(element.props.action)];
+}
+
+test('business recovery hides protected tabs, keeps auth routes open, and navigates only on an explicit action', () => {
+  let segments = ['(business)', 'clients']; let retries = 0;
+  let session = { isPending: false, isError: false, data: true, refetch: () => { retries += 1; } };
+  const destinations = [];
+  const app = harness({
+    'expo-router': { useSegments: () => segments },
+    'react-native': { StyleSheet: { create: (styles) => styles }, ActivityIndicator: 'ActivityIndicator', ScrollView: 'ScrollView', Text: 'Text', View: 'View' },
+    'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
+    '@/components/premium-ui': { BrandLockup: 'BrandLockup', PremiumButton: 'PremiumButton', StateCard: 'StateCard' },
+    '@/providers/app-provider': { useApp: () => ({ locale: 'ru', theme: {} }) },
+    '@/hooks/use-existing-business-session': { useExistingBusinessSession: () => session },
+    '@/hooks/use-auth-navigation': { useAuthNavigation: () => (destination) => destinations.push(destination) },
+  });
+  const { BusinessSessionBoundary } = app.load('src/components/business-session-boundary.tsx');
+  const protectedTabs = { type: 'Tabs', props: {} };
+  const render = () => BusinessSessionBoundary({ children: protectedTabs });
+  assert.equal(render(), protectedTabs);
+  session = { ...session, data: false };
+  const recovery = elementTree(render());
+  assert.ok(!recovery.includes(protectedTabs));
+  assert.deepEqual(destinations, []);
+  recovery.find((node) => node.type === 'PremiumButton' && node.props.title === 'Войти').props.onPress();
+  recovery.find((node) => node.type === 'PremiumButton' && node.props.tone === 'ghost').props.onPress();
+  assert.deepEqual(destinations, ['login', 'discover']);
+  const { authNavigationState } = app.load('src/services/auth-navigation.ts');
+  assert.deepEqual(authNavigationState('discover'), { index: 0, routes: [{ name: '(customer)', state: { index: 0, routes: [{ name: 'discover' }] } }] });
+  for (const route of ['login', 'register']) { segments = ['(business)', route]; assert.equal(render(), protectedTabs); }
+  segments = ['(business)', 'today'];
+  session = { ...session, data: undefined, isPending: true };
+  assert.ok(elementTree(render()).some((node) => node.type === 'ActivityIndicator'));
+  assert.ok(!elementTree(render()).includes(protectedTabs));
+  session = { ...session, data: true, isPending: false, isError: true };
+  const storageError = elementTree(render());
+  assert.ok(!storageError.includes(protectedTabs));
+  storageError.find((node) => node.type === 'PremiumButton' && node.props.title === 'Повторить').props.onPress();
+  assert.equal(retries, 1);
+  assert.deepEqual(destinations, ['login', 'discover']);
+});
+
+test('More shows profile recovery instead of a partial staff menu, and retains owner/manager/staff access', () => {
+  let permissions; let retries = 0;
+  const app = harness({
+    'expo-router': { router: { push: () => {} } },
+    'react-native': { StyleSheet: { create: (styles) => styles }, ActivityIndicator: 'ActivityIndicator', ScrollView: 'ScrollView', Text: 'Text', View: 'View' },
+    'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
+    '@/components/premium-ui': Object.fromEntries(['Divider', 'PageHeader', 'PreferenceBar', 'PremiumButton', 'StateCard', 'Surface'].map((name) => [name, name])),
+    '@/components/vizit-icon': { VizitIcon: 'VizitIcon' },
+    '@/providers/app-provider': { useApp: () => ({ locale: 'ru', theme: {} }) },
+    '@/hooks/use-business-permissions': { useBusinessPermissions: () => permissions },
+    '@/hooks/use-sign-out': { useSignOut: () => ({ isPending: false }) },
+  });
+  const { businessPermissions } = app.load('src/services/business-permissions.ts');
+  const render = app.load('src/app/(business)/more.tsx').default;
+  for (const role of ['owner', 'manager', 'staff']) {
+    permissions = { ...businessPermissions(role), user: { role }, isLoading: false, isError: false };
+    const items = elementTree(render()).flatMap((node) => node.props.items ?? []).map((item) => item.target);
+    assert.equal(items.includes('billing'), role === 'owner');
+    assert.equal(items.includes('/(business)/staff'), role !== 'staff');
+    assert.ok(items.includes('tasks')); assert.ok(items.includes('telegram'));
+  }
+  permissions = { ...businessPermissions(), isLoading: false, isError: true, refetch: () => { retries += 1; } };
+  const failed = elementTree(render());
+  assert.ok(failed.some((node) => node.type === 'StateCard'));
+  assert.equal(failed.flatMap((node) => node.props.items ?? []).length, 0);
+  failed.find((node) => node.type === 'PremiumButton' && node.props.title === 'Повторить').props.onPress();
+  assert.equal(retries, 1);
+  assert.ok(failed.some((node) => node.type === 'PremiumButton' && node.props.title === 'Выйти'));
+  permissions = { ...permissions, isError: false, isLoading: true };
+  const pending = elementTree(render());
+  assert.ok(pending.some((node) => node.type === 'ActivityIndicator'));
+  assert.equal(pending.flatMap((node) => node.props.items ?? []).length, 0);
 });

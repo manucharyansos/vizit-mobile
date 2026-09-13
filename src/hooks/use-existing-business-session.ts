@@ -1,12 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { tokenStore } from '@/services/api/client';
+import { sessionQueryOptions } from '@/services/session-query';
 
 export function useExistingBusinessSession() {
-  return useQuery({
-    queryKey: ['business-existing-session'],
-    queryFn: async () => Boolean(await tokenStore.get('business')),
-    retry: false,
-    staleTime: 0,
-    refetchOnMount: 'always',
-  });
+  return useQuery(sessionQueryOptions('business'));
 }

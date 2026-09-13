@@ -1,7 +1,7 @@
 import { Href, router } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Divider, PageHeader, PreferenceBar, PremiumButton, Surface } from '@/components/premium-ui';
+import { Divider, PageHeader, PreferenceBar, PremiumButton, StateCard, Surface } from '@/components/premium-ui';
 import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
@@ -14,6 +14,12 @@ const labels = {
   en: { title: 'All sections', subtitle: 'Your complete management toolkit', booking: 'New booking', services: 'Services', staff: 'Team and schedules', hours: 'Working hours', blocks: 'Blocked time and leave', locations: 'Locations and branches', media: 'Logo and images', tasks: 'Tasks', analytics: 'Analytics', gifts: 'Gift cards', loyalty: 'Loyalty', growth: 'Growth and marketing', settings: 'Business settings', billing: 'Plan and billing', telegram: 'Telegram notifications', logout: 'Sign out', logoutConfirm: 'Sign out of the business account?', cancel: 'Cancel', operations: 'Operations', insights: 'Growth and insights', workspace: 'Workspace', language: 'Language', theme: 'Appearance' },
 };
 
+const profileLabels = {
+  hy: { loading: 'Բեռնում ենք ձեր բաժինները…', error: 'Չհաջողվեց բեռնել հաշիվը', message: 'Կրկին փորձեք՝ հասանելի բաժինները բացելու համար։', retry: 'Կրկին փորձել', staff: 'Ձեր աշխատանքային գործիքները' },
+  ru: { loading: 'Загружаем ваши разделы…', error: 'Не удалось загрузить аккаунт', message: 'Попробуйте ещё раз, чтобы открыть доступные вам разделы.', retry: 'Повторить', staff: 'Инструменты для вашей работы' },
+  en: { loading: 'Loading your workspace…', error: 'Could not load your account', message: 'Try again to open the sections available to you.', retry: 'Try again', staff: 'Tools for your workday' },
+};
+
 type MenuItem = {
   title: string;
   target: string;
@@ -24,6 +30,7 @@ type MenuItem = {
 export default function BusinessMore() {
   const { locale, theme } = useApp();
   const c = labels[locale];
+  const profile = profileLabels[locale];
   const permissions = useBusinessPermissions();
   const groups: { title: string; items: MenuItem[] }[] = [
     { title: c.operations, items: [
@@ -54,10 +61,21 @@ export default function BusinessMore() {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <PageHeader eyebrow="Vizit Business" title={c.title} subtitle={c.subtitle} />
+        <PageHeader eyebrow="Vizit Business" title={c.title} subtitle={permissions.isStaff ? profile.staff : permissions.canManage ? c.subtitle : undefined} />
         <PreferenceBar languageLabel={c.language} themeLabel={c.theme} />
-        {permissions.canManage ? <PremiumButton title={c.booking} onPress={() => open('new-booking')} icon={{ ios: 'calendar.badge.plus', android: 'add_circle' }} style={styles.booking} /> : null}
-        {groups.map((group) => ({ ...group, items: group.items.filter((item) => item.target === 'billing' ? permissions.canBill : ['tasks', 'telegram'].includes(item.target) || permissions.canManage) })).filter((group) => group.items.length).map((group) => <MenuGroup key={group.title} title={group.title} items={group.items} onOpen={open} />)}
+        {permissions.isLoading ? (
+          <Surface style={styles.loading}>
+            <ActivityIndicator color={theme.accentText} accessibilityLabel={profile.loading} />
+            <Text accessibilityLiveRegion="polite" style={[styles.loadingText, { color: theme.muted }]}>{profile.loading}</Text>
+          </Surface>
+        ) : permissions.isError || (!permissions.canManage && !permissions.isStaff) ? (
+          <StateCard title={profile.error} message={profile.message} action={<PremiumButton title={profile.retry} loading={permissions.isFetching} onPress={() => { void permissions.refetch(); }} tone="secondary" />} />
+        ) : (
+          <>
+            {permissions.canManage ? <PremiumButton title={c.booking} onPress={() => open('new-booking')} icon={{ ios: 'calendar.badge.plus', android: 'add_circle' }} style={styles.booking} /> : null}
+            {groups.map((group) => ({ ...group, items: group.items.filter((item) => item.target === 'billing' ? permissions.canBill : ['tasks', 'telegram'].includes(item.target) || permissions.canManage) })).filter((group) => group.items.length).map((group) => <MenuGroup key={group.title} title={group.title} items={group.items} onOpen={open} />)}
+          </>
+        )}
         <PremiumButton title={c.logout} loading={logout.isPending} onPress={confirmLogout} tone="danger" icon={{ ios: 'rectangle.portrait.and.arrow.right', android: 'logout' }} />
       </ScrollView>
     </SafeAreaView>
@@ -89,6 +107,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: ui.screenGutter, paddingBottom: 38, gap: 18 },
   booking: { marginTop: 1 },
+  loading: { padding: 24, gap: 12, alignItems: 'center' },
+  loadingText: ui.type.body,
   group: { gap: 8 },
   groupTitle: ui.type.eyebrow,
   groupCard: { padding: 5, overflow: 'hidden' },

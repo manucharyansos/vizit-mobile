@@ -1,7 +1,7 @@
 import { create } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { appQueryClient } from '@/services/query-client';
-import { belongsToSession } from '@/services/session-cache';
+import { isSessionDataQuery, sessionQueryKey } from '@/services/session-cache';
 
 export const API_BASE_URL = 'https://api.vizit.am/api';
 export const PUBLIC_WEB_URL = 'https://vizit.am';
@@ -13,6 +13,14 @@ function sessionWrite<T>(audience: TokenAudience, action: () => Promise<T>): Pro
   const next = writes[audience].then(action, action);
   writes[audience] = next.catch(() => undefined);
   return next;
+}
+
+async function publishSessionState(audience: TokenAudience, present: boolean) {
+  const queryKey = sessionQueryKey(audience);
+  // An older keychain read must not restore a session after logout or a 401.
+  // This cancels only the local storage query, never the rejecting HTTP query.
+  await appQueryClient.cancelQueries({ queryKey, exact: true });
+  appQueryClient.setQueryData(queryKey, present);
 }
 
 export const tokenStore = {
@@ -27,23 +35,23 @@ export const tokenStore = {
   },
   async set(audience: TokenAudience, token: string) {
     return sessionWrite(audience, async () => {
-    const predicate = (query: { queryKey: readonly unknown[] }) => belongsToSession(query.queryKey, audience);
-    await appQueryClient.cancelQueries({ predicate });
-    await SecureStore.setItemAsync(keys[audience], token);
-    await SecureStore.setItemAsync(lastAudienceKey, audience);
-    appQueryClient.removeQueries({ predicate });
-    appQueryClient.setQueryData([`${audience}-existing-session`], true);
+      const predicate = (query: { queryKey: readonly unknown[] }) => isSessionDataQuery(query.queryKey, audience);
+      await appQueryClient.cancelQueries({ predicate });
+      await SecureStore.setItemAsync(keys[audience], token);
+      await SecureStore.setItemAsync(lastAudienceKey, audience);
+      appQueryClient.removeQueries({ predicate });
+      await publishSessionState(audience, true);
     });
   },
   async remove(audience: TokenAudience, clearCache = true) {
     return sessionWrite(audience, async () => {
-    await SecureStore.deleteItemAsync(keys[audience]);
-    if (clearCache) {
-      const predicate = (query: { queryKey: readonly unknown[] }) => belongsToSession(query.queryKey, audience);
-      await appQueryClient.cancelQueries({ predicate });
-      appQueryClient.removeQueries({ predicate });
-    }
-    appQueryClient.setQueryData([`${audience}-existing-session`], false);
+      await SecureStore.deleteItemAsync(keys[audience]);
+      await publishSessionState(audience, false);
+      if (clearCache) {
+        const predicate = (query: { queryKey: readonly unknown[] }) => isSessionDataQuery(query.queryKey, audience);
+        await appQueryClient.cancelQueries({ predicate });
+        appQueryClient.removeQueries({ predicate });
+      }
     });
   },
   async removeRejectedToken(audience: TokenAudience, authorization: unknown) {
@@ -51,7 +59,7 @@ export const tokenStore = {
       const current = await SecureStore.getItemAsync(keys[audience]);
       if (!current || authorization !== `Bearer ${current}`) return;
       await SecureStore.deleteItemAsync(keys[audience]);
-      appQueryClient.setQueryData([`${audience}-existing-session`], false);
+      await publishSessionState(audience, false);
     });
   },
 };
@@ -69,7 +77,7 @@ export function createApiClient(audience?: TokenAudience) {
   client.interceptors.response.use(
     (response) => response,
     async (error) => {
-      // Do not clear React Query from inside the response interceptor. Clearing the
+      // Do not clear HTTP queries from inside the response interceptor. Clearing the
       // query that is currently rejecting can recreate it immediately and cause an
       // endless loading loop on auth screens. Explicit login/logout still clears cache.
       // A late 401 from an old request must never sign out a newly logged-in user.
