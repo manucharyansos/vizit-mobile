@@ -41,6 +41,102 @@ function harness(overrides = {}) {
   return { values, secure, cache, load };
 }
 
+// Exercise RESET against Expo's installed routers. SDK 57's container owns
+// __root; login and both workspaces belong to the app layout nested inside it.
+function authNavigatorHarness() {
+  const { StackRouter } = require('expo-router/build/react-navigation/routers/StackRouter');
+  const { INTERNAL_SLOT_NAME } = require('expo-router/build/constants');
+  const containerRouter = StackRouter({});
+  const layoutRouter = StackRouter({ initialRouteName: 'login' });
+  const containerOptions = { routeNames: [INTERNAL_SLOT_NAME, '+not-found', '_sitemap'], routeParamList: {} };
+  const layoutOptions = { routeNames: ['index', 'login', '(customer)', '(business)'], routeParamList: {} };
+  let containerState = containerRouter.getInitialState(containerOptions);
+  let layoutState = layoutRouter.getInitialState(layoutOptions);
+  const unhandled = [];
+  return {
+    hooks: {
+      useNavigationContainerRef: () => ({ resetRoot(payload) {
+        const next = containerRouter.getStateForAction(containerState, { type: 'RESET', payload }, containerOptions);
+        if (next) containerState = containerRouter.getRehydratedState(next, containerOptions);
+        else unhandled.push(payload);
+      } }),
+      useNavigation: (parent) => {
+        assert.equal(parent, '/', 'Auth must target the app layout from nested screens too');
+        return { reset(payload) {
+          const next = layoutRouter.getStateForAction(layoutState, { type: 'RESET', payload }, layoutOptions);
+          if (next) layoutState = layoutRouter.getRehydratedState(next, layoutOptions);
+          else unhandled.push(payload);
+        } };
+      },
+    },
+    assertDestination(destination) {
+      assert.deepEqual(unhandled, [], 'Expo must handle the navigation action');
+      assert.equal(containerState.routes[containerState.index].name, INTERNAL_SLOT_NAME);
+      assert.equal(layoutState.routes.length, 1, 'Auth transitions must remove the previous stack history');
+      const route = layoutState.routes[layoutState.index];
+      assert.equal(route.name, ['profile', 'discover'].includes(destination) ? '(customer)' : ['today', 'admin'].includes(destination) ? '(business)' : 'login');
+      if (destination !== 'login') assert.equal(route.state.routes[route.state.index].name, destination);
+    },
+  };
+}
+
+test('auth transitions are handled by the installed Expo layout router, including re-entry and logout', () => {
+  const navigation = authNavigatorHarness();
+  const app = harness({
+    react: { useCallback: (callback) => callback },
+    'expo-router': navigation.hooks,
+  });
+  const navigate = app.load('src/hooks/use-auth-navigation.ts').useAuthNavigation();
+  for (const destination of ['today', 'login', 'profile', 'login', 'admin', 'discover', 'login', 'today']) {
+    navigate(destination);
+    navigation.assertDestination(destination);
+  }
+});
+
+test('submitting unified login saves the selected session and opens its workspace through Expo', async () => {
+  for (const destination of ['today', 'admin', 'profile']) {
+    const audience = destination === 'profile' ? 'client' : 'business';
+    const otherAudience = audience === 'client' ? 'business' : 'client';
+    const navigation = authNavigatorHarness();
+    const user = { id: 42, audience, role: audience === 'business' ? 'owner' : 'client', needs_onboarding: destination === 'admin' };
+    let mutation; let submitted; let passwordCleared = false; let inputIndex = 0;
+    const app = harness({
+      react: { useCallback: (callback) => callback, useState: () => inputIndex++ === 0 ? ['user@example.invalid', () => {}] : ['test-password', (value) => { passwordCleared = value === ''; }] },
+      '@tanstack/react-query': {
+        useQueryClient: () => app.cache,
+        useMutation: (options) => {
+          mutation = new MutationObserver(app.cache, options);
+          return { isPending: false, mutate: (value) => { submitted = mutation.mutate(value); } };
+        },
+      },
+      'expo-router': navigation.hooks,
+      'react-native': { Alert: { alert: () => assert.fail('Valid login must not show an error') }, Platform: { OS: 'android' }, StyleSheet: { create: (styles) => styles } },
+      'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
+      '@/components/premium-ui': Object.fromEntries(['BrandLockup', 'IconButton', 'PremiumButton', 'PremiumInput', 'Surface'].map((name) => [name, name])),
+      '@/components/vizit-icon': { VizitIcon: 'VizitIcon' },
+      '@/providers/app-provider': { useApp: () => ({ locale: 'ru', theme: {} }) },
+      '../notifications': { synchronizePushDevice: async () => false },
+    });
+    try {
+      const { tokenStore, publicClient } = app.load('src/services/api/client.ts');
+      await tokenStore.set(otherAudience, 'other-session');
+      publicClient.defaults.adapter = async (config) => {
+        assert.equal(config.url, '/mobile/auth/login');
+        assert.deepEqual(JSON.parse(config.data), { identity: 'user@example.invalid', password: 'test-password' });
+        return { config, status: 200, statusText: 'OK', headers: {}, data: { requires_selection: false, audience, token: 'new-session', user } };
+      };
+      const screen = app.load('src/app/login.tsx').default();
+      elementTree(screen).find((node) => node.type === 'PremiumButton' && node.props.title === 'Войти').props.onPress();
+      await submitted;
+      assert.equal(mutation.getCurrentResult().status, 'success');
+      assert.equal(await tokenStore.get(audience), 'new-session');
+      assert.equal(await tokenStore.get(otherAudience), 'other-session');
+      assert.equal(passwordCleared, true);
+      navigation.assertDestination(destination);
+    } finally { app.cache.clear(); }
+  }
+});
+
 test('guest history retains all bookings across relaunch, including a legacy last booking', async () => {
   const app = harness();
   app.values.set('vizit.guest-booking.last-code.v1', 'LEGACY-REFERENCE');
