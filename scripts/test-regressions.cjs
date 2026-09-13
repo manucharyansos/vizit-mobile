@@ -576,3 +576,77 @@ test('More shows profile recovery instead of a partial staff menu, and retains o
   assert.ok(pending.some((node) => node.type === 'ActivityIndicator'));
   assert.equal(pending.flatMap((node) => node.props.items ?? []).length, 0);
 });
+
+test('registration categories use the public catalog, preserve localized names and surface network failures', async () => {
+  const requests = []; let fail = null;
+  const category = { id: 4, slug: 'auto-service', vertical: 'services', name_hy: 'Ավտոսերվիս', name_ru: 'Автосервис', name_en: 'Auto service' };
+  const app = harness({ './client': { publicClient: { get: async (url, config) => {
+    requests.push({ url, params: config.params });
+    if (fail && (fail !== 404 || url.startsWith('/v1'))) throw { response: { status: fail } };
+    return { data: { data: [category, { id: 5, slug: '', vertical: 'services' }, null] } };
+  } } } });
+  const { fetchBusinessCategories, categoryName } = app.load('src/services/api/categories.ts');
+  assert.deepEqual(await fetchBusinessCategories('ru'), [category]);
+  assert.deepEqual(requests[0], { url: '/v1/public/categories', params: { locale: 'ru' } });
+  assert.deepEqual(['hy', 'ru', 'en'].map((locale) => categoryName(category, locale)), ['Ավտոսերվիս', 'Автосервис', 'Auto service']);
+  fail = 404;
+  assert.deepEqual(await fetchBusinessCategories('hy'), [category]);
+  assert.equal(requests.at(-1).url, '/public/categories');
+  fail = 500; const before = requests.length;
+  await assert.rejects(fetchBusinessCategories('en'));
+  assert.equal(requests.length, before + 1);
+});
+
+test('business registration submits category, resets it on vertical changes and requires a specific Other service', async () => {
+  const states = []; let cursor = 0; let mutation; const sent = [];
+  let query = { isPending: false, isFetching: false, isError: false, data: [
+    { id: 4, slug: 'auto-service', vertical: 'services' },
+    { id: 9, slug: 'dental-clinic', vertical: 'healthcare' },
+    { id: 10, slug: 'other-healthcare', vertical: 'healthcare' },
+  ] };
+  const app = harness({
+    react: { ...require('react'), useEffect: () => {}, useRef: () => ({ current: false }), useState: (initial) => {
+      const index = cursor++; if (!(index in states)) states[index] = initial;
+      return [states[index], (next) => { states[index] = typeof next === 'function' ? next(states[index]) : next; }];
+    } },
+    '@tanstack/react-query': { useQuery: () => query, useMutation: (options) => { mutation = options; return { isPending: false, mutate: () => options.mutationFn() }; } },
+    'expo-router': { router: { replace: () => {} } },
+    'react-native': { StyleSheet: { create: (styles) => styles }, Platform: { OS: 'android' }, ...Object.fromEntries(['ActivityIndicator', 'KeyboardAvoidingView', 'Pressable', 'ScrollView', 'Text', 'View'].map((name) => [name, name])) },
+    'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
+    '@/components/premium-ui': Object.fromEntries(['BrandLockup', 'IconButton', 'PremiumButton', 'PremiumInput', 'Surface'].map((name) => [name, name])),
+    '@/components/vizit-icon': { VizitIcon: 'VizitIcon' },
+    '@/components/business-category-picker': { BusinessCategoryPicker: 'CategoryPicker', categoryCopy: { ru: { required: 'Choose category', custom: 'Specific service', customPlaceholder: 'Service' } } },
+    '@/services/api/categories': { fetchBusinessCategories: () => {} },
+    '@/providers/app-provider': { useApp: () => ({ locale: 'ru', theme: {} }) },
+    '@/hooks/use-existing-business-session': { useExistingBusinessSession: () => ({ isLoading: false, data: false }) },
+    '@/hooks/use-auth-navigation': { useAuthNavigation: () => () => {} },
+    '@/services/api/business': { businessApi: { register: async (payload) => { sent.push(payload); } } },
+  });
+  const Register = app.load('src/app/(business)/register.tsx').default;
+  const render = () => { cursor = 0; return elementTree(Register()); };
+  const submit = (nodes) => nodes.find((n) => n.type === 'PremiumButton' && n.props.title === 'Создать бизнес-аккаунт');
+  const picker = (nodes) => nodes.find((n) => n.type === 'CategoryPicker');
+  let nodes = render();
+  for (const [label, value] of Object.entries({ 'Название бизнеса': 'Test business', 'Ваше имя': 'Test owner', 'Телефон бизнеса': '+37499000000', 'Адрес': 'Test address', 'Эл. почта': 'test@example.invalid', 'Пароль — минимум 8 символов': 'test-password', 'Повторите пароль': 'test-password' })) {
+    nodes.find((n) => n.type === 'PremiumInput' && n.props.label === label).props.onChangeText(value);
+  }
+  nodes = render(); assert.equal(submit(nodes).props.disabled, true);
+  assert.deepEqual(picker(nodes).props.categories.map((c) => c.slug), ['auto-service']);
+  picker(nodes).props.onChange('auto-service'); nodes = render();
+  assert.equal(submit(nodes).props.disabled, false); await submit(nodes).props.onPress();
+  assert.equal(sent[0].business_category_id, 4); assert.equal(sent[0].business_category_slug, 'auto-service');
+  assert.equal('custom_category_name' in sent[0], false);
+  nodes.find((n) => n.type === 'Pressable' && elementTree(n).some((child) => child.type === 'Text' && child.props.children === 'Медицина')).props.onPress();
+  nodes = render(); assert.equal(picker(nodes).props.value, ''); assert.equal(submit(nodes).props.disabled, true);
+  picker(nodes).props.onChange('other-healthcare'); nodes = render();
+  assert.equal(submit(nodes).props.disabled, true);
+  nodes.find((n) => n.type === 'PremiumInput' && n.props.label === 'Specific service').props.onChangeText('  Home care  ');
+  nodes = render(); assert.equal(submit(nodes).props.disabled, false); await submit(nodes).props.onPress();
+  assert.equal(sent[1].vertical, 'healthcare'); assert.equal(sent[1].business_category_id, 10); assert.equal(sent[1].custom_category_name, 'Home care');
+  picker(nodes).props.onChange('dental-clinic'); nodes = render(); await submit(nodes).props.onPress();
+  assert.equal('custom_category_name' in sent[2], false);
+  query = { ...query, isError: true }; nodes = render();
+  assert.equal(submit(nodes).props.disabled, true); assert.throws(() => mutation.mutationFn());
+  query = { ...query, isError: false, data: [] }; nodes = render();
+  assert.equal(submit(nodes).props.disabled, true); assert.throws(() => mutation.mutationFn());
+});

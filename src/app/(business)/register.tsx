@@ -1,9 +1,12 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Href, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrandLockup, IconButton, PremiumButton, PremiumInput, Surface } from '@/components/premium-ui';
+import { BusinessCategoryPicker, categoryCopy } from '@/components/business-category-picker';
+import { fetchBusinessCategories } from '@/services/api/categories';
+import { registrationCategoryFields } from '@/services/registration-category';
 import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
 import { useExistingBusinessSession } from '@/hooks/use-existing-business-session';
@@ -24,6 +27,12 @@ export default function BusinessRegister() {
   const existingSession = useExistingBusinessSession();
   const redirected = useRef(false);
   const [vertical, setVertical] = useState<'services' | 'healthcare'>('services');
+  const [categorySlug, setCategorySlug] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
+  const categories = useQuery({ queryKey: ['registration-business-categories', locale], queryFn: () => fetchBusinessCategories(locale), staleTime: 5 * 60_000, retry: 1, enabled: !existingSession.isLoading && !existingSession.data });
+  const availableCategories = (categories.data ?? []).filter((item) => item.vertical === vertical);
+  const categoryFields = registrationCategoryFields(availableCategories, vertical, categorySlug, customCategory);
+  const isOtherCategory = availableCategories.some((item) => item.slug === categorySlug && item.slug.startsWith('other-'));
   const [form, setForm] = useState({ business: '', owner: '', phone: '', address: '', email: '', password: '', confirmation: '' });
 
   useEffect(() => {
@@ -32,10 +41,13 @@ export default function BusinessRegister() {
     finishLogin('today');
   }, [existingSession.data, finishLogin]);
 
-  const valid = form.business.trim().length > 1 && form.owner.trim().length > 1 && form.phone.trim().length > 4 && form.address.trim().length > 2 && /\S+@\S+\.\S+/.test(form.email) && form.password.length >= 8 && form.password === form.confirmation;
+  const valid = !!categoryFields && !categories.isError && form.business.trim().length > 1 && form.owner.trim().length > 1 && form.phone.trim().length > 4 && form.address.trim().length > 2 && /\S+@\S+\.\S+/.test(form.email) && form.password.length >= 8 && form.password === form.confirmation;
   const registration = useMutation({
     onMutate: () => { redirected.current = true; },
-    mutationFn: () => businessApi.register({ business_name: form.business.trim(), business_phone: form.phone.trim(), business_address: form.address.trim(), latitude: 40.1772, longitude: 44.50349, vertical, name: form.owner.trim(), email: form.email.trim().toLowerCase(), password: form.password, password_confirmation: form.confirmation, plan_code: 'start' }),
+    mutationFn: () => {
+      if (!categoryFields || categories.isError) throw new Error(categoryCopy[locale].required);
+      return businessApi.register({ ...categoryFields, business_name: form.business.trim(), business_phone: form.phone.trim(), business_address: form.address.trim(), latitude: 40.1772, longitude: 44.50349, vertical, name: form.owner.trim(), email: form.email.trim().toLowerCase(), password: form.password, password_confirmation: form.confirmation, plan_code: 'start' });
+    },
     onSuccess: () => finishLogin('admin'),
     onError: () => { redirected.current = false; Alert.alert(c.failed); },
   });
@@ -63,9 +75,10 @@ export default function BusinessRegister() {
               return (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityState={{ selected }}
+                  accessibilityState={{ selected, disabled: registration.isPending }}
+                  disabled={registration.isPending}
                   key={item}
-                  onPress={() => setVertical(item)}
+                  onPress={() => { if (vertical !== item) { setVertical(item); setCategorySlug(''); setCustomCategory(''); } }}
                   style={({ pressed }) => [styles.segmentItem, { backgroundColor: selected ? theme.primary : 'transparent', opacity: pressed ? 0.76 : 1 }]}
                 >
                   <VizitIcon ios={item === 'services' ? 'sparkles' : 'cross.case.fill'} android={item === 'services' ? 'spa' : 'medical_services'} color={selected ? theme.onPrimary : theme.muted} size={18} />
@@ -75,7 +88,18 @@ export default function BusinessRegister() {
             })}
           </View>
 
+          <BusinessCategoryPicker
+            key={vertical}
+            categories={availableCategories}
+            value={categorySlug}
+            onChange={(slug) => { setCategorySlug(slug); setCustomCategory(''); }}
+            loading={categories.isPending || categories.isFetching}
+            error={categories.isError}
+            disabled={registration.isPending}
+            onRetry={() => { void categories.refetch(); }}
+          />
           <Surface style={styles.fields} elevated>
+            {isOtherCategory ? <PremiumInput label={categoryCopy[locale].custom} placeholder={categoryCopy[locale].customPlaceholder} value={customCategory} onChangeText={setCustomCategory} maxLength={120} editable={!registration.isPending} /> : null}
             <PremiumInput label={c.business} placeholder={c.business} value={form.business} onChangeText={(business) => setForm((value) => ({ ...value, business }))} icon={{ ios: 'building.2.fill', android: 'business' }} />
             <PremiumInput label={c.owner} placeholder={c.owner} value={form.owner} onChangeText={(owner) => setForm((value) => ({ ...value, owner }))} icon={{ ios: 'person.fill', android: 'person' }} />
             <PremiumInput label={c.phone} placeholder={c.phone} value={form.phone} keyboardType="phone-pad" onChangeText={(phone) => setForm((value) => ({ ...value, phone }))} icon={{ ios: 'phone.fill', android: 'call' }} />
