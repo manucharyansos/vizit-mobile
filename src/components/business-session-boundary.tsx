@@ -34,7 +34,8 @@ export function BusinessSessionBoundary({ children }: PropsWithChildren) {
   const { locale, theme } = useApp();
   const session = useExistingBusinessSession();
   const navigate = useAuthNavigation();
-  const segments = useSegments();
+  // A fresh checkout has no generated Expo route tuples yet.
+  const segments: readonly string[] = useSegments();
   const publicRoute = segments[1] === 'login' || segments[1] === 'register';
   const c = labels[locale];
 
