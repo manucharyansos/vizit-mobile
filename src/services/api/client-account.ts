@@ -59,6 +59,20 @@ export const clientAccountApi = {
     debugEmptyList('client.cabinet.bookings', response, list);
     return list;
   },
+  // Opens a cabinet booking: the API issues a manage token only for a booking this
+  // signed-in client owns. Code and token go straight to SecureStore, never to the query cache.
+  async openBookingAccess(bookingId: number): Promise<string> {
+    const session = await tokenStore.get('client');
+    const { data } = await clientAuthClient.post(`/client/cabinet/bookings/${bookingId}/access`);
+    if (!session || session !== await tokenStore.get('client')) throw new Error('Client session changed');
+    const access = normalizeResource<{ booking_code?: unknown; manage_token?: unknown }>(data);
+    const code = typeof access.booking_code === 'string' ? access.booking_code.trim() : '';
+    const token = typeof access.manage_token === 'string' ? access.manage_token : '';
+    if (!code || !token) throw new Error('Booking access is unavailable');
+    await guestBookingStore.rememberClientBookingReference(bookingId, code);
+    await guestBookingStore.save(code, token);
+    return code;
+  },
   async resendVerification() { return (await clientAuthClient.post('/client/auth/email/verification-notification')).data; },
   async requestAccountDeletion(reason?: string) {
     const { data } = await clientAuthClient.post('/mobile/account-deletion-request', { reason });

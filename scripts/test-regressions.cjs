@@ -650,3 +650,42 @@ test('business registration submits category, resets it on vertical changes and 
   query = { ...query, isError: false, data: [] }; nodes = render();
   assert.equal(submit(nodes).props.disabled, true); assert.throws(() => mutation.mutationFn());
 });
+
+test('cabinet bookings open through the owner access endpoint, never the public resend shortcut', async () => {
+  const app = harness({ '../notifications': { revokePushDevice: async () => undefined, synchronizePushDevice: async () => false } });
+  const { tokenStore, clientAuthClient } = app.load('src/services/api/client.ts');
+  const { clientAccountApi } = app.load('src/services/api/client-account.ts');
+  const store = app.load('src/services/guest-booking-store.ts').guestBookingStore;
+  await tokenStore.set('client', 'client-session');
+  const requests = [];
+  clientAuthClient.defaults.adapter = async (config) => {
+    requests.push(`${config.method} ${config.url}`);
+    return { status: 200, statusText: 'OK', headers: {}, config, data: { data: { booking_code: 'OWNED42', manage_token: 'owner-token' } } };
+  };
+
+  const reference = await clientAccountApi.openBookingAccess(42);
+
+  assert.equal(reference, 'OWNED42');
+  assert.deepEqual(requests, ['post /client/cabinet/bookings/42/access']);
+  assert.equal(await store.restoreClientBookingReference(42), 'OWNED42');
+  assert.equal((await store.restore('OWNED42')).token, 'owner-token');
+  assert.equal(app.cache.getQueryData(['client-bookings']), undefined, 'the reference stays out of the query cache');
+
+  const profile = readFileSync(path.join(root, 'src/app/(customer)/profile.tsx'), 'utf8');
+  assert.ok(!profile.includes('resendBookingOtp'), 'the profile must not recover access through the public resend endpoint');
+});
+
+test('cabinet access is rejected when the client session changes during the request', async () => {
+  const app = harness({ '../notifications': { revokePushDevice: async () => undefined, synchronizePushDevice: async () => false } });
+  const { tokenStore, clientAuthClient } = app.load('src/services/api/client.ts');
+  const { clientAccountApi } = app.load('src/services/api/client-account.ts');
+  const store = app.load('src/services/guest-booking-store.ts').guestBookingStore;
+  await tokenStore.set('client', 'first-session');
+  clientAuthClient.defaults.adapter = async (config) => {
+    await tokenStore.set('client', 'second-session');
+    return { status: 200, statusText: 'OK', headers: {}, config, data: { data: { booking_code: 'OTHER1', manage_token: 'stale-token' } } };
+  };
+
+  await assert.rejects(clientAccountApi.openBookingAccess(7));
+  assert.equal(await store.restore('OTHER1'), null);
+});

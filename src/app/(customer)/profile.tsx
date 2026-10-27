@@ -8,7 +8,6 @@ import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
 import { clientAccountApi } from '@/services/api/client-account';
 import { apiErrorMessage } from '@/services/api/client';
-import { publicApi } from '@/services/api/public';
 import { guestBookingStore } from '@/services/guest-booking-store';
 import { useApp } from '@/providers/app-provider';
 import { formatApiDateTime } from '@/services/date-time';
@@ -43,22 +42,11 @@ export default function ProfileScreen() {
     setOpeningBookingId(bookingId);
     try {
       let reference = await guestBookingStore.restoreClientBookingReference(bookingId);
-      if (!reference) {
-        await bookings.refetch();
-        reference = await guestBookingStore.restoreClientBookingReference(bookingId);
-      }
+      const saved = reference ? await guestBookingStore.restore(reference) : null;
+      // No valid token on this device: ask the API as the signed-in owner.
+      // The public resend endpoint no longer hands out tokens for a booking code.
+      if (!saved) reference = await clientAccountApi.openBookingAccess(bookingId);
       if (!reference) throw new Error('Booking reference is unavailable on this device');
-
-      const saved = await guestBookingStore.restore(reference);
-      if (saved) {
-        await guestBookingStore.requestOpen(reference);
-        router.push('/(customer)/bookings');
-        return;
-      }
-
-      const recovery = await publicApi.resendBookingOtp(reference);
-      const manageToken = recovery.manage_token ?? recovery.guest_token;
-      if (typeof manageToken === 'string' && manageToken) await guestBookingStore.save(reference, manageToken);
       await guestBookingStore.requestOpen(reference);
       router.push('/(customer)/bookings');
     } catch (error) {
