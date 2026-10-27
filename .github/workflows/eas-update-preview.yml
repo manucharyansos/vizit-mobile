@@ -7,6 +7,11 @@ on:
         description: Update message
         required: false
         default: Manual preview update
+      skip_expo_install_check:
+        description: Skip "expo install --check" (use when newer Expo patches exist but the installed build still has the old native code)
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -48,6 +53,7 @@ jobs:
         run: npm ci
 
       - name: Expo dependency check
+        if: ${{ !inputs.skip_expo_install_check }}
         run: npx expo install --check
 
       - name: TypeScript
