@@ -20,11 +20,12 @@ type IconProps = React.ComponentProps<typeof VizitIcon>;
 export function BrandLockup({ compact = false, inverse = false }: { compact?: boolean; inverse?: boolean }) {
   const { theme } = useApp();
   const foreground = inverse ? theme.onPrimary : theme.text;
-  const markBackground = inverse ? 'rgba(255,255,255,0.13)' : theme.primary;
+  const markBackground = inverse ? 'rgba(255,255,255,0.13)' : theme.logo;
+  const markInk = inverse ? theme.onPrimary : theme.logoInk;
   return (
     <View style={styles.brandRow}>
       <View style={[styles.brandMark, compact && styles.brandMarkCompact, { backgroundColor: markBackground }]}>
-        <VizitIcon ios="calendar.badge.checkmark" android="event_available" color={theme.onPrimary} size={compact ? 20 : 24} />
+        <VizitIcon ios="calendar.badge.checkmark" android="event_available" color={markInk} size={compact ? 20 : 24} />
       </View>
       <Text style={[styles.brandText, compact && styles.brandTextCompact, { color: foreground }]}>Vizit</Text>
     </View>
@@ -216,10 +217,10 @@ export function PremiumInput({
   );
 }
 
-export function StatusPill({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'accent' | 'success' | 'warning' | 'danger' }) {
+export function StatusPill({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'accent' | 'highlight' | 'success' | 'warning' | 'danger' }) {
   const { theme } = useApp();
-  const background = tone === 'success' ? theme.successSoft : tone === 'warning' ? theme.warningSoft : tone === 'danger' ? theme.dangerSoft : tone === 'accent' ? theme.accentSoft : theme.surface;
-  const foreground = tone === 'success' ? theme.success : tone === 'warning' ? theme.warning : tone === 'danger' ? theme.danger : tone === 'accent' ? theme.accentText : theme.muted;
+  const background = tone === 'success' ? theme.successSoft : tone === 'warning' ? theme.warningSoft : tone === 'danger' ? theme.dangerSoft : tone === 'accent' ? theme.accentSoft : tone === 'highlight' ? theme.highlightSoft : theme.surface;
+  const foreground = tone === 'success' ? theme.success : tone === 'warning' ? theme.warning : tone === 'danger' ? theme.danger : tone === 'accent' ? theme.accentText : tone === 'highlight' ? theme.highlightText : theme.muted;
   return (
     <View style={[styles.pill, { backgroundColor: background }]}>
       <View style={[styles.pillDot, { backgroundColor: foreground }]} />

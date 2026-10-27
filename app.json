@@ -23,9 +23,9 @@
       }
     },
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#FAF9F5",
+    "backgroundColor": "#F7F8F6",
     "androidStatusBar": {
-      "backgroundColor": "#FAF9F5",
+      "backgroundColor": "#F7F8F6",
       "barStyle": "dark-content"
     },
     "ios": {
@@ -37,8 +37,8 @@
     "android": {
       "package": "am.vizit.mobile",
       "adaptiveIcon": {
-        "backgroundColor": "#0C0F11",
-        "foregroundImage": "./assets/images/android-icon-monochrome.png",
+        "backgroundColor": "#0F766E",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
@@ -81,8 +81,8 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0C0F11",
-          "image": "./assets/images/android-icon-monochrome.png",
+          "backgroundColor": "#0F766E",
+          "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
       ]

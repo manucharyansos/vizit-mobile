@@ -70,7 +70,7 @@ export default function ClientDetail() {
           subtitle={data.phone || data.email || c.title}
           backLabel={c.back}
           onBack={() => safeBack('/(business)/clients')}
-          action={data.is_vip ? <StatusPill label="VIP" tone="accent" /> : undefined}
+          action={data.is_vip ? <StatusPill label="VIP" tone="highlight" /> : undefined}
         />
 
         <View style={styles.stats}>
