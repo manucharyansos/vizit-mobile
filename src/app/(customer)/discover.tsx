@@ -97,9 +97,9 @@ export default function DiscoverScreen() {
 
 
   const displayName = token.data ? me.data?.name?.split(' ')[0] ?? c.guest : c.guest;
-  const featureBackground = mode === 'dark' ? theme.surfaceElevated : theme.primary;
-  const featureText = mode === 'dark' ? theme.text : theme.onPrimary;
-  const featureMuted = mode === 'dark' ? theme.muted : 'rgba(255,255,255,0.70)';
+  const featureBackground = mode === 'dark' ? theme.surfaceElevated : theme.cover;
+  const featureText = mode === 'dark' ? theme.text : theme.coverText;
+  const featureMuted = mode === 'dark' ? theme.muted : theme.coverMuted;
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top']}>

@@ -80,6 +80,10 @@ export const themes = {
     primary: '#0F766E',
     primaryPressed: '#115E59',
     onPrimary: '#FFFFFF',
+    // Large brand surfaces (hero cards): deep teal in both themes.
+    cover: '#0F766E',
+    coverText: '#FFFFFF',
+    coverMuted: '#DFF3EF',
     // Brand mark keeps the same colors in both themes.
     logo: '#0F766E',
     logoInk: '#FFFFFF',
@@ -131,6 +135,9 @@ export const themes = {
     primary: '#2DD4BF',
     primaryPressed: '#14B8A6',
     onPrimary: '#04201B',
+    cover: '#134E4A',
+    coverText: '#ECF3F1',
+    coverMuted: '#BFE6DF',
     logo: '#0F766E',
     logoInk: '#FFFFFF',
     accent: '#2DD4BF',

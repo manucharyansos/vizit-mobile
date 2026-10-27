@@ -3,7 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import { appQueryClient } from '@/services/query-client';
 import { isSessionDataQuery, sessionQueryKey } from '@/services/session-cache';
 
-export const API_BASE_URL = 'https://api.vizit.am/api';
+// EXPO_PUBLIC_API_URL lets developers point the app at a local API; builds use production.
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.vizit.am/api';
 export const PUBLIC_WEB_URL = 'https://vizit.am';
 export type TokenAudience = 'client' | 'business';
 const keys: Record<TokenAudience, string> = { client: 'vizit.auth.client.v1', business: 'vizit.auth.business.v1' };

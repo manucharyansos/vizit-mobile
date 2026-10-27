@@ -86,10 +86,10 @@ export default function BusinessAdmin() {
         {anyError ? <StateCard title={c.loadError} tone="danger" action={<PremiumButton title={c.retry} onPress={retry} tone="secondary" />} /> : null}
 
         {incomplete ? (
-          <Surface style={[styles.setupCard, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
-            <View style={styles.setupTop}><View><Text style={[styles.setupEyebrow, { color: theme.onPrimary }]}>{c.step.toLocaleUpperCase()} {stepNumber}/3</Text><Text style={[styles.setupTitle, { color: theme.onPrimary }]}>{c.setup}</Text></View><View style={[styles.stepBadge, { backgroundColor: 'rgba(255,255,255,0.13)' }]}><Text style={[styles.stepValue, { color: theme.onPrimary }]}>{stepNumber}</Text></View></View>
-            <View style={styles.stepTrack}>{[1, 2, 3].map((value) => <View key={value} style={[styles.stepSegment, { backgroundColor: value <= stepNumber ? theme.onPrimary : 'rgba(255,255,255,0.18)' }]} />)}</View>
-            <Text style={[styles.hint, { color: theme.onPrimary }]}>{step === 'services' ? c.servicesHint : step === 'schedule' ? c.scheduleHint : c.settingsHint}</Text>
+          <Surface style={[styles.setupCard, { backgroundColor: theme.cover, borderColor: theme.cover }]}>
+            <View style={styles.setupTop}><View><Text style={[styles.setupEyebrow, { color: theme.coverText }]}>{c.step.toLocaleUpperCase()} {stepNumber}/3</Text><Text style={[styles.setupTitle, { color: theme.coverText }]}>{c.setup}</Text></View><View style={[styles.stepBadge, { backgroundColor: 'rgba(255,255,255,0.13)' }]}><Text style={[styles.stepValue, { color: theme.coverText }]}>{stepNumber}</Text></View></View>
+            <View style={styles.stepTrack}>{[1, 2, 3].map((value) => <View key={value} style={[styles.stepSegment, { backgroundColor: value <= stepNumber ? theme.coverText : 'rgba(255,255,255,0.18)' }]} />)}</View>
+            <Text style={[styles.hint, { color: theme.coverText }]}>{step === 'services' ? c.servicesHint : step === 'schedule' ? c.scheduleHint : c.settingsHint}</Text>
             {step === 'services' ? (
               <View style={styles.setupForm}>
                 <PremiumInput label={c.service} value={service.name} onChangeText={(name) => setService((value) => ({ ...value, name }))} placeholder={c.service} icon={{ ios: 'sparkles', android: 'spa' }} />

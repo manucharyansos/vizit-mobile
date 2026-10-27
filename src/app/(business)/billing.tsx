@@ -16,6 +16,15 @@ const copy = {
 };
 
 const show = (value: unknown) => value == null || value === '' ? '—' : String(value);
+const statusNames: Record<string, Record<string, string>> = {
+  hy: { active: 'Ակտիվ', trialing: 'Փորձաշրջան', trial: 'Փորձաշրջան', past_due: 'Վճարումն ուշացած է', suspended: 'Կասեցված', cancelled: 'Չեղարկված', canceled: 'Չեղարկված', inactive: 'Ակտիվ չէ', pending: 'Սպասվում է', paid: 'Վճարված', failed: 'Չհաջողվեց', expired: 'Ժամկետանց' },
+  ru: { active: 'Активна', trialing: 'Пробный период', trial: 'Пробный период', past_due: 'Просрочена оплата', suspended: 'Приостановлена', cancelled: 'Отменена', canceled: 'Отменена', inactive: 'Не активна', pending: 'Ожидает', paid: 'Оплачено', failed: 'Не удалось', expired: 'Истёк срок' },
+  en: { active: 'Active', trialing: 'Trial', trial: 'Trial', past_due: 'Past due', suspended: 'Suspended', cancelled: 'Cancelled', canceled: 'Cancelled', inactive: 'Inactive', pending: 'Pending', paid: 'Paid', failed: 'Failed', expired: 'Expired' },
+};
+const statusText = (value: unknown, locale: string) => {
+  const raw = show(value);
+  return statusNames[locale]?.[raw] ?? statusNames.en[raw] ?? raw;
+};
 const ratio = (current: unknown, limit: unknown) => `${show(current)} / ${limit == null ? '∞' : show(limit)}`;
 const idbankLogo = 'https://idbank.am/upload/resize_cache/webp/images/logo.webp';
 type Method = { key: string; name: string; detail?: string; active: boolean; officialLogo?: string };
@@ -50,10 +59,10 @@ export default function BillingScreen() {
           <StateCard title={c.loadError} message={apiErrorMessage(query.error)} tone="danger" action={<PremiumButton title={c.retry} onPress={() => query.refetch()} tone="secondary" />} />
         ) : (
           <>
-            <Surface style={[styles.planCard, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
-              <View style={styles.planTop}><Text style={[styles.planEyebrow, { color: theme.onPrimary }]}>{c.currentPlan.toLocaleUpperCase()}</Text><StatusPill label={show(subscription?.status)} tone="success" /></View>
-              <Text style={[styles.planName, { color: theme.onPrimary }]}>{show(plan?.name ?? plan?.code)}</Text>
-              <View style={[styles.planMeta, { borderTopColor: 'rgba(255,255,255,0.16)' }]}><View><Text style={[styles.planMetaLabel, { color: theme.onPrimary }]}>{c.billingStatus}</Text><Text style={[styles.planMetaValue, { color: theme.onPrimary }]}>{show(business?.billing_status)}</Text></View><View style={styles.planMetaRight}><Text style={[styles.planMetaLabel, { color: theme.onPrimary }]}>{c.provider}</Text><Text style={[styles.planMetaValue, { color: theme.onPrimary }]}>{show(provider?.default)} · {show(provider?.mode)}</Text></View></View>
+            <Surface style={[styles.planCard, { backgroundColor: theme.cover, borderColor: theme.cover }]}>
+              <View style={styles.planTop}><Text style={[styles.planEyebrow, { color: theme.coverText }]}>{c.currentPlan.toLocaleUpperCase()}</Text><StatusPill label={statusText(subscription?.status, locale)} tone="success" /></View>
+              <Text style={[styles.planName, { color: theme.coverText }]}>{show(plan?.name ?? plan?.code)}</Text>
+              <View style={[styles.planMeta, { borderTopColor: 'rgba(255,255,255,0.16)' }]}><View><Text style={[styles.planMetaLabel, { color: theme.coverText }]}>{c.billingStatus}</Text><Text style={[styles.planMetaValue, { color: theme.coverText }]}>{statusText(business?.billing_status, locale)}</Text></View><View style={styles.planMetaRight}><Text style={[styles.planMetaLabel, { color: theme.coverText }]}>{c.provider}</Text><Text style={[styles.planMetaValue, { color: theme.coverText }]}>{show(provider?.default)} · {show(provider?.mode)}</Text></View></View>
             </Surface>
 
             <Surface style={styles.usageCard} elevated>

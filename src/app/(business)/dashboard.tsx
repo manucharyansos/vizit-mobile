@@ -55,10 +55,10 @@ export default function BusinessDashboard() {
           action={canManage ? <IconButton accessibilityLabel={c[9]} ios="plus" android="add" onPress={() => router.push('/(business)/new-booking' as never)} tone="primary" /> : undefined}
         />
 
-        <Pressable accessibilityRole="button" accessibilityLabel={c[2]} onPress={() => router.navigate('/(business)/today')}><Surface style={[styles.todayStrip, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
-          <View style={[styles.todayIcon, { backgroundColor: 'rgba(255,255,255,0.12)' }]}><VizitIcon ios="calendar" android="calendar_month" color={theme.onPrimary} size={23} /></View>
-          <View style={styles.todayCopy}><Text style={[styles.todayLabel, { color: theme.onPrimary }]}>{c[2]}</Text><Text style={[styles.todayDate, { color: theme.onPrimary }]}>{dateLabel}</Text></View>
-          <VizitIcon ios="arrow.up.right" android="north_east" color={theme.onPrimary} size={20} />
+        <Pressable accessibilityRole="button" accessibilityLabel={c[2]} onPress={() => router.navigate('/(business)/today')}><Surface style={[styles.todayStrip, { backgroundColor: theme.cover, borderColor: theme.cover }]}>
+          <View style={[styles.todayIcon, { backgroundColor: 'rgba(255,255,255,0.12)' }]}><VizitIcon ios="calendar" android="calendar_month" color={theme.coverText} size={23} /></View>
+          <View style={styles.todayCopy}><Text style={[styles.todayLabel, { color: theme.coverText }]}>{c[2]}</Text><Text style={[styles.todayDate, { color: theme.coverText }]}>{dateLabel}</Text></View>
+          <VizitIcon ios="arrow.up.right" android="north_east" color={theme.coverText} size={20} />
         </Surface></Pressable>
 
         {query.isLoading ? <View style={styles.loader}><ActivityIndicator color={theme.accent} size="large" /></View> : query.isError ? (
