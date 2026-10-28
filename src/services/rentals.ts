@@ -28,15 +28,24 @@ export function rentalDateKey(timezone = 'Asia/Yerevan', date = new Date()): str
   return `${read('year')}-${read('month')}-${read('day')}`;
 }
 
+function rentalStamp(date: Date, locale: Locale, timezone: string): string {
+  // Some devices lack Armenian ICU data and silently fall back to US dates.
+  // Read numeric parts in a stable locale, then use an unambiguous local order.
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date);
+  const read = (type: string) => parts.find((part) => part.type === type)?.value;
+  const separator = locale === 'en' ? '/' : '.';
+  return `${read('day')}${separator}${read('month')}${separator}${read('year')}, ${read('hour')}:${read('minute')}`;
+}
+
 /** Availability uses business-local wall times. Preserve them for POST; never shift them through the phone's zone. */
 export function rentalLocalStamp(value: string, locale: Locale): string {
   const local = value.replace('T', ' ').slice(0, 16);
   if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(local)) return value;
-  return new Intl.DateTimeFormat(locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : 'en-GB', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(local.replace(' ', 'T') + ':00Z'));
+  return rentalStamp(new Date(local.replace(' ', 'T') + ':00Z'), locale, 'UTC');
 }
 
 export function rentalZonedStamp(value: string, locale: Locale, timezone = 'Asia/Yerevan'): string {
-  return new Intl.DateTimeFormat(locale === 'hy' ? 'hy-AM' : locale === 'ru' ? 'ru-RU' : 'en-GB', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value));
+  return rentalStamp(new Date(value), locale, timezone);
 }
 
 export function validRentalScheduleDay(day: { is_closed: boolean; start: string | null; end: string | null; break_start?: string | null; break_end?: string | null }): boolean {
