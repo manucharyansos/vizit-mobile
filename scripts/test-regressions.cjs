@@ -683,8 +683,8 @@ test('rental selection preserves server wall times and does not infer elapsed ti
   assert.equal(selectedRentalSlot([slot], slot.starts_at), slot);
   assert.equal(selectedRentalSlot([], slot.starts_at), undefined);
   assert.equal(selectedRentalSlot([{ ...slot, price: NaN }], slot.starts_at), undefined);
-  assert.match(rentalLocalStamp('2026-10-29 22:00', 'hy'), /22:00/);
-  assert.match(rentalZonedStamp('2026-10-29T18:00:00Z', 'hy', 'Asia/Yerevan'), /22:00/);
+  assert.equal(rentalLocalStamp('2026-10-29 22:00', 'hy'), '29.10.2026, 22:00');
+  assert.equal(rentalZonedStamp('2026-10-29T18:00:00Z', 'hy', 'Asia/Yerevan'), '29.10.2026, 22:00');
   assert.deepEqual(rentalTransitions({ status: 'pending', is_expired: true }), []);
   assert.deepEqual(rentalTransitions({ status: 'completed' }), []);
   assert.deepEqual(rentalTransitions({ status: 'confirmed' }), ['in_progress', 'completed', 'cancelled', 'no_show']);
