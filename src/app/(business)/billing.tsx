@@ -3,21 +3,21 @@ import { useEffect, useState } from 'react';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Image } from 'expo-image';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Divider, PageHeader, PremiumButton, SectionHeader, StateCard, StatusPill, Surface, type StatusTone } from '@/components/premium-ui';
 import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
-import { businessApi, type BillingInvoice } from '@/services/api/business';
+import { businessApi, type BillingInvoice, type BillingPlan } from '@/services/api/business';
 import { checkoutUrlFrom } from '@/services/payments';
 import { apiErrorMessage } from '@/services/api/client';
 import { isRentalBusiness } from '@/services/rentals';
 
 const copy = {
-  hy: { title: 'Պլան և վճարումներ', subtitle: 'Բաժանորդագրություն և վճարման ենթակառուցվածք', billingStatus: 'Վճարման կարգավիճակ', currentPlan: 'Ընթացիկ պլան', subscription: 'Բաժանորդագրություն', provider: 'Վճարման մատակարար', usage: 'Օգտագործում', staff: 'Աշխատակիցներ', services: 'Ծառայություններ', locations: 'Մասնաճյուղեր', methods: 'Վճարման եղանակներ Հայաստանում', live: 'Ակտիվ', setup: 'Սպասում է merchant կարգավորմանը', planned: 'Միացման փուլում', plannedHint: 'Վճարումը հասանելի է ծառայության միացումը հաստատվելուց հետո։ Քարտի տվյալները մուտքագրվում են վճարային ծառայության պաշտպանված էջում։', idbank: 'IDBank / vPOS', idram: 'Idram Checkout', telcell: 'Telcell Wallet', easypay: 'EasyPay / easywallet', cards: 'Բանկային քարտեր', cardsHint: 'ArCa · Visa · Mastercard', loadError: 'Չհաջողվեց բեռնել վճարումների տվյալները', retry: 'Կրկին փորձել', invoice: 'Վճարման հաշիվ', payIdram: 'Վճարել Idram-ով', payCard: 'Վճարել քարտով', noInvoice: 'Վճարման ենթակա հաշիվ չկա։ Պլանը կարող ես ընտրել vizit.am-ի «Պլան և վճարումներ» բաժնում։', checkoutError: 'Չհաջողվեց բացել վճարման էջը։ Փորձիր կրկին։', checking: 'Ստուգում ենք վճարումը․ պլանը կակտիվանա սերվերի հաստատումից հետո։', paid: 'Վճարումը հաստատված է, պլանն ակտիվ է։', review: 'Վճարումը ստացվել է և պահանջում է ստուգում։ Մի՛ վճարիր կրկին, կապվիր աջակցության հետ։', notConfirmed: 'Հաստատում դեռ չկա։ Եթե վճարել ես, մի քանի րոպեից ստուգիր կրկին։', checkAgain: 'Ստուգել կրկին' },
-  ru: { title: 'Тариф и платежи', subtitle: 'Подписка и платёжная инфраструктура', billingStatus: 'Статус оплаты', currentPlan: 'Текущий тариф', subscription: 'Подписка', provider: 'Платёжный провайдер', usage: 'Использование', staff: 'Сотрудники', services: 'Услуги', locations: 'Филиалы', methods: 'Способы оплаты в Армении', live: 'Активно', setup: 'Ожидает настройки merchant', planned: 'Подключение запланировано', plannedHint: 'Оплата доступна после подтверждения подключения. Платёжные данные вводятся на защищённой странице платёжного сервиса.', idbank: 'IDBank / vPOS', idram: 'Idram Checkout', telcell: 'Telcell Wallet', easypay: 'EasyPay / easywallet', cards: 'Банковские карты', cardsHint: 'ArCa · Visa · Mastercard', loadError: 'Не удалось загрузить данные оплаты', retry: 'Повторить', invoice: 'Счёт', payIdram: 'Оплатить через Idram', payCard: 'Оплатить картой', noInvoice: 'Нет счёта к оплате. Тариф можно выбрать на vizit.am в разделе «Тариф и платежи».', checkoutError: 'Не удалось открыть страницу оплаты. Попробуйте ещё раз.', checking: 'Проверяем платёж: тариф активируется после подтверждения сервером.', paid: 'Оплата подтверждена, тариф активен.', review: 'Платёж получен и требует проверки. Не оплачивайте повторно, свяжитесь с поддержкой.', notConfirmed: 'Подтверждения пока нет. Если вы оплатили, проверьте снова через несколько минут.', checkAgain: 'Проверить снова' },
-  en: { title: 'Plan and billing', subtitle: 'Subscription and payment infrastructure', billingStatus: 'Billing status', currentPlan: 'Current plan', subscription: 'Subscription', provider: 'Payment provider', usage: 'Usage', staff: 'Staff', services: 'Services', locations: 'Locations', methods: 'Payment methods in Armenia', live: 'Active', setup: 'Waiting for merchant setup', planned: 'Integration planned', plannedHint: 'Payment is available after the connection is confirmed. Payment details are entered on the payment service’s secure page.', idbank: 'IDBank / vPOS', idram: 'Idram Checkout', telcell: 'Telcell Wallet', easypay: 'EasyPay / easywallet', cards: 'Bank cards', cardsHint: 'ArCa · Visa · Mastercard', loadError: 'Could not load billing data', retry: 'Try again', invoice: 'Invoice', payIdram: 'Pay with Idram', payCard: 'Pay by card', noInvoice: 'There is no invoice to pay. Choose a plan in Plan & payments on vizit.am.', checkoutError: 'Could not open the payment page. Please try again.', checking: 'Checking your payment: the plan activates after server confirmation.', paid: 'Payment confirmed. Your plan is active.', review: 'Payment received and needs review. Do not pay again; contact support.', notConfirmed: 'No confirmation yet. If you paid, check again in a few minutes.', checkAgain: 'Check again' },
+  hy: { title: 'Պլան և վճարումներ', subtitle: 'Բաժանորդագրություն և վճարման ենթակառուցվածք', billingStatus: 'Վճարման կարգավիճակ', currentPlan: 'Ընթացիկ պլան', subscription: 'Բաժանորդագրություն', provider: 'Վճարման մատակարար', usage: 'Օգտագործում', staff: 'Աշխատակիցներ', services: 'Ծառայություններ', locations: 'Մասնաճյուղեր', methods: 'Վճարման եղանակներ Հայաստանում', live: 'Ակտիվ', setup: 'Սպասում է merchant կարգավորմանը', planned: 'Միացման փուլում', plannedHint: 'Վճարումը հասանելի է ծառայության միացումը հաստատվելուց հետո։ Քարտի տվյալները մուտքագրվում են վճարային ծառայության պաշտպանված էջում։', idbank: 'IDBank / vPOS', idram: 'Idram Checkout', telcell: 'Telcell Wallet', easypay: 'EasyPay / easywallet', cards: 'Բանկային քարտեր', cardsHint: 'ArCa · Visa · Mastercard', loadError: 'Չհաջողվեց բեռնել վճարումների տվյալները', retry: 'Կրկին փորձել', invoice: 'Վճարման հաշիվ', payIdram: 'Վճարել Idram-ով', payCard: 'Վճարել քարտով', noInvoice: 'Վճարման ենթակա հաշիվ չկա։ Պլանը կարող ես ընտրել vizit.am-ի «Պլան և վճարումներ» բաժնում։', checkoutError: 'Չհաջողվեց բացել վճարման էջը։ Փորձիր կրկին։', checking: 'Ստուգում ենք վճարումը․ պլանը կակտիվանա սերվերի հաստատումից հետո։', paid: 'Վճարումը հաստատված է, պլանն ակտիվ է։', review: 'Վճարումը ստացվել է և պահանջում է ստուգում։ Մի՛ վճարիր կրկին, կապվիր աջակցության հետ։', notConfirmed: 'Հաստատում դեռ չկա։ Եթե վճարել ես, մի քանի րոպեից ստուգիր կրկին։', checkAgain: 'Ստուգել կրկին', choosePlan: 'Ընտրիր պլանը', monthly: 'Ամսական', yearly: 'Տարեկան', perMonth: '/ամիս', perYear: '/տարի', createInvoice: 'Ստեղծել հաշիվ', individual: 'Անհատական առաջարկ', current: 'Ընթացիկ', cancelInvoice: 'Չեղարկել հաշիվը', cancelConfirm: 'Չեղարկե՞լ այս վճարման հաշիվը։', yes: 'Չեղարկել', no: 'Ոչ', plansError: 'Չհաջողվեց բեռնել պլանները', noPlans: 'Հասանելի պլաններ չկան։ Կապվիր աջակցության հետ։' },
+  ru: { title: 'Тариф и платежи', subtitle: 'Подписка и платёжная инфраструктура', billingStatus: 'Статус оплаты', currentPlan: 'Текущий тариф', subscription: 'Подписка', provider: 'Платёжный провайдер', usage: 'Использование', staff: 'Сотрудники', services: 'Услуги', locations: 'Филиалы', methods: 'Способы оплаты в Армении', live: 'Активно', setup: 'Ожидает настройки merchant', planned: 'Подключение запланировано', plannedHint: 'Оплата доступна после подтверждения подключения. Платёжные данные вводятся на защищённой странице платёжного сервиса.', idbank: 'IDBank / vPOS', idram: 'Idram Checkout', telcell: 'Telcell Wallet', easypay: 'EasyPay / easywallet', cards: 'Банковские карты', cardsHint: 'ArCa · Visa · Mastercard', loadError: 'Не удалось загрузить данные оплаты', retry: 'Повторить', invoice: 'Счёт', payIdram: 'Оплатить через Idram', payCard: 'Оплатить картой', noInvoice: 'Нет счёта к оплате. Тариф можно выбрать на vizit.am в разделе «Тариф и платежи».', checkoutError: 'Не удалось открыть страницу оплаты. Попробуйте ещё раз.', checking: 'Проверяем платёж: тариф активируется после подтверждения сервером.', paid: 'Оплата подтверждена, тариф активен.', review: 'Платёж получен и требует проверки. Не оплачивайте повторно, свяжитесь с поддержкой.', notConfirmed: 'Подтверждения пока нет. Если вы оплатили, проверьте снова через несколько минут.', checkAgain: 'Проверить снова', choosePlan: 'Выберите тариф', monthly: 'Ежемесячно', yearly: 'Ежегодно', perMonth: '/мес', perYear: '/год', createInvoice: 'Создать счёт', individual: 'Индивидуальное предложение', current: 'Текущий', cancelInvoice: 'Отменить счёт', cancelConfirm: 'Отменить этот счёт?', yes: 'Отменить', no: 'Нет', plansError: 'Не удалось загрузить тарифы', noPlans: 'Нет доступных тарифов. Обратитесь в поддержку.' },
+  en: { title: 'Plan and billing', subtitle: 'Subscription and payment infrastructure', billingStatus: 'Billing status', currentPlan: 'Current plan', subscription: 'Subscription', provider: 'Payment provider', usage: 'Usage', staff: 'Staff', services: 'Services', locations: 'Locations', methods: 'Payment methods in Armenia', live: 'Active', setup: 'Waiting for merchant setup', planned: 'Integration planned', plannedHint: 'Payment is available after the connection is confirmed. Payment details are entered on the payment service’s secure page.', idbank: 'IDBank / vPOS', idram: 'Idram Checkout', telcell: 'Telcell Wallet', easypay: 'EasyPay / easywallet', cards: 'Bank cards', cardsHint: 'ArCa · Visa · Mastercard', loadError: 'Could not load billing data', retry: 'Try again', invoice: 'Invoice', payIdram: 'Pay with Idram', payCard: 'Pay by card', noInvoice: 'There is no invoice to pay. Choose a plan in Plan & payments on vizit.am.', checkoutError: 'Could not open the payment page. Please try again.', checking: 'Checking your payment: the plan activates after server confirmation.', paid: 'Payment confirmed. Your plan is active.', review: 'Payment received and needs review. Do not pay again; contact support.', notConfirmed: 'No confirmation yet. If you paid, check again in a few minutes.', checkAgain: 'Check again', choosePlan: 'Choose a plan', monthly: 'Monthly', yearly: 'Yearly', perMonth: '/month', perYear: '/year', createInvoice: 'Create invoice', individual: 'Individual offer', current: 'Current', cancelInvoice: 'Cancel invoice', cancelConfirm: 'Cancel this invoice?', yes: 'Cancel invoice', no: 'No', plansError: 'Could not load plans', noPlans: 'No plans are available. Contact support.' },
 };
 
 const show = (value: unknown) => value == null || value === '' ? '—' : String(value);
@@ -96,6 +96,53 @@ export default function BillingScreen() {
     void queryClient.invalidateQueries({ queryKey: ['business-billing-invoices'] });
   }, [transaction?.status, queryClient]);
 
+  const [cycle, setCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [busyPlan, setBusyPlan] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const businessType = typeof business?.business_type === 'string' ? business.business_type : undefined;
+  const plansQuery = useQuery({ queryKey: ['business-billing-plans', businessType], queryFn: () => businessApi.plans(businessType), enabled: Boolean(data) && ready && !pendingInvoice, retry: false, staleTime: 60_000 });
+  const currentCode = typeof plan?.code === 'string' ? plan.code : null;
+  const activeSubscription = data?.is_billable === true && (subscription?.status === 'active' || subscription?.status === 'trialing');
+  const offers = (Array.isArray(data?.individual_offers) ? data.individual_offers : []) as { id: number; title: string; base_plan: { code: string; currency?: string }; effective_monthly_price: number; effective_yearly_price: number }[];
+  const offerCodes = new Set(offers.map((offer) => offer.base_plan.code));
+  const planOptions = [
+    ...(plansQuery.data ?? []).filter((item: BillingPlan) => !(item.is_custom ?? (item.self_serve === false || item.code === 'custom' || item.features?.custom_pricing === true)) && !offerCodes.has(item.code)).map((item) => {
+      const monthly = Number(item.monthly_price ?? item.price ?? 0);
+      return { key: `plan-${item.id}`, code: item.code, name: item.name, currency: item.currency ?? 'AMD', monthly, yearly: Number(item.yearly_offer?.price ?? monthly * 10), offer: false };
+    }),
+    ...offers.map((offer) => ({ key: `offer-${offer.id}`, code: offer.base_plan.code, name: offer.title, currency: offer.base_plan.currency ?? 'AMD', monthly: offer.effective_monthly_price, yearly: offer.effective_yearly_price, offer: true })),
+  ];
+
+  const refreshBilling = () => {
+    void queryClient.invalidateQueries({ queryKey: ['business-billing'] });
+    void queryClient.invalidateQueries({ queryKey: ['business-billing-invoices'] });
+  };
+  const createInvoice = async (code: string, key: string) => {
+    setCheckoutError(null);
+    setBusyPlan(key);
+    try {
+      await businessApi.requestPlanInvoice(code, cycle);
+      setWatchedInvoiceId(null);
+      await invoicesQuery.refetch();
+      refreshBilling();
+    } catch (error) {
+      setCheckoutError(apiErrorMessage(error));
+    } finally {
+      setBusyPlan(null);
+    }
+  };
+  const cancelInvoice = (invoice: BillingInvoice) => Alert.alert(c.cancelInvoice, c.cancelConfirm, [
+    { text: c.no, style: 'cancel' },
+    { text: c.yes, style: 'destructive', onPress: () => {
+      setCheckoutError(null);
+      setCancelling(true);
+      businessApi.cancelInvoice(invoice.id)
+        .then(() => { setWatchedInvoiceId(null); refreshBilling(); return invoicesQuery.refetch(); })
+        .catch((error) => setCheckoutError(apiErrorMessage(error)))
+        .finally(() => setCancelling(false));
+    } },
+  ]);
+
   const pay = async (invoice: BillingInvoice) => {
     setCheckoutError(null);
     setOpening(true);
@@ -160,9 +207,35 @@ export default function BillingScreen() {
                       <View style={styles.methodBody}><Text style={[styles.planMetaLabel, { color: theme.muted }]}>{c.invoice} #{pendingInvoice.id}</Text><Text style={[styles.payAmount, { color: theme.text }]}>{Number(pendingInvoice.amount).toLocaleString('en-US')} {pendingInvoice.currency ?? 'AMD'}</Text></View>
                       <StatusPill label={statusText(pendingInvoice.status, locale)} tone={statusTone(pendingInvoice.status)} />
                     </View>
-                    <PremiumButton title={idram ? c.payIdram : c.payCard} loading={opening} onPress={() => void pay(pendingInvoice)} />
+                    <PremiumButton title={idram ? c.payIdram : c.payCard} loading={opening} disabled={cancelling} onPress={() => void pay(pendingInvoice)} />
+                    <PremiumButton title={c.cancelInvoice} tone="secondary" loading={cancelling} disabled={opening} onPress={() => cancelInvoice(pendingInvoice)} />
                   </>
-                ) : invoicesQuery.isLoading ? <ActivityIndicator color={theme.accent} /> : <Text style={[styles.noteText, { color: theme.muted }]}>{c.noInvoice}</Text>}
+                ) : invoicesQuery.isLoading || plansQuery.isLoading ? <ActivityIndicator color={theme.accent} /> : plansQuery.isError ? <Text style={[styles.noteText, { color: theme.danger }]}>{c.plansError}</Text> : (
+                  <>
+                    <Text style={[styles.methodName, { color: theme.text }]}>{c.choosePlan}</Text>
+                    <View style={[styles.cycleRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                      {(['monthly', 'yearly'] as const).map((value) => (
+                        <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: cycle === value }} onPress={() => setCycle(value)} style={[styles.cycleButton, cycle === value && { backgroundColor: theme.primary }]}>
+                          <Text style={[styles.cycleText, { color: cycle === value ? theme.onPrimary : theme.muted }]}>{c[value]}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    {planOptions.length ? planOptions.map((option) => {
+                      const isCurrent = activeSubscription && !option.offer && option.code === currentCode;
+                      const price = cycle === 'yearly' ? option.yearly : option.monthly;
+                      return (
+                        <View key={option.key} style={[styles.planOption, { borderColor: option.offer ? theme.success : theme.border }]}>
+                          <View style={styles.methodBody}>
+                            <Text style={[styles.methodName, { color: theme.text }]}>{option.name}</Text>
+                            <Text style={[styles.planMetaLabel, { color: option.offer ? theme.success : theme.muted }]}>{option.offer ? c.individual : `${Number(price).toLocaleString('en-US')} ${option.currency}${cycle === 'yearly' ? c.perYear : c.perMonth}`}</Text>
+                            {option.offer ? <Text style={[styles.planMetaLabel, { color: theme.muted }]}>{`${Number(price).toLocaleString('en-US')} ${option.currency}${cycle === 'yearly' ? c.perYear : c.perMonth}`}</Text> : null}
+                          </View>
+                          <PremiumButton compact title={isCurrent ? c.current : c.createInvoice} tone={isCurrent ? 'secondary' : 'primary'} disabled={isCurrent || busyPlan != null} loading={busyPlan === option.key} onPress={() => void createInvoice(option.code, option.key)} />
+                        </View>
+                      );
+                    }) : <Text style={[styles.noteText, { color: theme.muted }]}>{c.noPlans}</Text>}
+                  </>
+                )}
                 {checkoutError ? <Text style={[styles.noteText, { color: theme.danger }]}>{checkoutError}</Text> : null}
                 {paymentState ? <Text style={[styles.noteText, { color: paymentState === 'paid' ? theme.success : paymentState === 'review' ? theme.danger : theme.muted }]}>{c[paymentState]}</Text> : null}
                 {paymentState === 'notConfirmed' ? <PremiumButton title={c.checkAgain} tone="secondary" loading={statusQuery.isFetching} onPress={() => { restartWatch(); void statusQuery.refetch(); }} /> : null}
@@ -209,6 +282,10 @@ const styles = StyleSheet.create({
   methodStatus: { alignSelf: 'flex-start', marginTop: 6, maxWidth: '100%' },
   lock: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   payCard: { padding: 14, gap: 12 },
+  cycleRow: { flexDirection: 'row', borderWidth: 1, borderRadius: 12, padding: 3, alignSelf: 'flex-start' },
+  cycleButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  cycleText: { fontSize: 13, fontWeight: '700' },
+  planOption: { borderWidth: 1, borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
   payRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   payAmount: { fontSize: 22, lineHeight: 28, fontWeight: '800', marginTop: 3 },
   note: { padding: 13, borderRadius: ui.radius.medium, flexDirection: 'row', alignItems: 'flex-start', gap: 9 },

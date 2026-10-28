@@ -15,6 +15,7 @@ export type BusinessTask = { id: number; title: string; description?: string | n
 export type GiftCard = { id: number; code: string; initial_amount: number; balance: number; currency: string; status: string; issued_to_name?: string | null };
 export type WaitlistEntry = { id: number; customer_name: string; customer_phone: string; desired_date: string; status: 'waiting' | 'offered' | 'booked' | 'cancelled' | 'expired'; service?: { name: string } | null };
 export type BillingInvoice = { id: number; status: string; amount: number; currency: string; billing_cycle?: string | null; plan?: { name?: string | null; code?: string | null } | null };
+export type BillingPlan = { id: number; code: string; name: string; price?: number | null; monthly_price?: number | null; currency?: string | null; staff_limit?: number | null; is_custom?: boolean; self_serve?: boolean; features?: Record<string, unknown> | null; yearly_offer?: { enabled?: boolean; price?: number | null } | null };
 export type BillingTransaction = { id: number; invoice_id: number; provider: string; provider_transaction_id: string; status: 'pending' | 'paid' | 'failed'; requires_manual_review?: boolean; amount: number; currency: string };
 export type BusinessLocation = { id: number; name?: string | null; address?: string | null; city?: string | null; district?: string | null; phone?: string | null; latitude?: number | null; longitude?: number | null; is_primary: boolean; is_active: boolean };
 export type BusinessSettings = {
@@ -123,6 +124,9 @@ export const businessApi = {
   async waitlist(): Promise<WaitlistEntry[]> { const response = await businessAuthClient.get('/waitlist'); const list = normalizeList<WaitlistEntry>(response.data, ['waitlist']); debugEmptyList('business.waitlist', response, list); return list; },
   async updateWaitlist(id: number, status: 'waiting' | 'cancelled'): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.patch(`/waitlist/${id}`, { status }); return normalizeResource<Record<string, unknown>>(data); },
   async billing(): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.get('/billing/me'); return normalizeResource<Record<string, unknown>>(data); },
+  async plans(businessType?: string): Promise<BillingPlan[]> { const response = await businessAuthClient.get('/plans', { params: { business_type: businessType || undefined } }); return normalizeList<BillingPlan>(response.data, ['plans']); },
+  async requestPlanInvoice(planCode: string, billingCycle: 'monthly' | 'yearly'): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.post('/billing/upgrade-request', { plan_code: planCode, billing_cycle: billingCycle }); return data as Record<string, unknown>; },
+  async cancelInvoice(invoiceId: number): Promise<void> { await businessAuthClient.post(`/billing/invoices/${invoiceId}/cancel`); },
   async invoices(): Promise<BillingInvoice[]> { const response = await businessAuthClient.get('/billing/invoices'); return normalizeList<BillingInvoice>(response.data, ['invoices']); },
   // return_to=app makes the bank's success/fail return reopen the app instead of the website.
   async createCheckout(invoiceId: number, paymentMethod: 'card' | 'wallet'): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.post('/billing/checkout-session', { invoice_id: invoiceId, payment_method: paymentMethod, return_to: 'app' }); return data as Record<string, unknown>; },
