@@ -11,7 +11,7 @@ import { useClientSession } from '@/hooks/use-client-session';
 import { useApp } from '@/providers/app-provider';
 import { clientAccountApi } from '@/services/api/client-account';
 import { guestBookingStore, type GuestBookingSummary } from '@/services/guest-booking-store';
-import { apiDateToLocal, formatApiDateTime } from '@/services/date-time';
+import { apiDateToLocal, formatApiDateTime, localDateKeyFromApi } from '@/services/date-time';
 import { bookingStatusLabel, isBookingTerminal } from '@/services/booking-status';
 
 const copy = {
@@ -60,10 +60,10 @@ export default function BookingsScreen() {
   const visits = useMemo(() => {
     const local: Visit[] = (guests.data ?? []).map((item) => ({ key: `guest-${item.code}`, code: item.code, summary: item.summary }));
     const guestIds = new Set(local.flatMap((item) => item.summary.bookingIds ?? []));
-    const cabinet: Visit[] = (session.data ? account.data ?? [] : []).filter((item) => !guestIds.has(item.id)).map((item) => ({ key: `account-${item.id}`, accountId: item.id, summary: { businessName: item.business?.name, serviceName: item.service?.name, staffName: item.staff?.name, startsAt: item.starts_at, status: item.status } }));
+    const cabinet: Visit[] = (session.data ? account.data ?? [] : []).filter((item) => !guestIds.has(item.id)).map((item) => ({ key: `account-${item.id}`, accountId: item.id, summary: { businessName: item.business?.name, serviceName: item.service?.name, staffName: item.staff?.name, startsAt: item.starts_at, endsAt: item.ends_at, status: item.status } }));
     return [...local, ...cabinet];
   }, [guests.data, account.data, session.data]);
-  const isPast = (item: Visit) => isBookingTerminal(item.summary.status) || (apiDateToLocal(item.summary.startsAt)?.getTime() ?? Infinity) < now;
+  const isPast = (item: Visit) => isBookingTerminal(item.summary.status) || (apiDateToLocal(item.summary.endsAt ?? item.summary.startsAt)?.getTime() ?? Infinity) < now;
   const futureCount = visits.filter((item) => !isPast(item)).length;
   const visible = visits.filter((item) => isPast(item) === history).sort((a, b) => {
     const left = apiDateToLocal(a.summary.startsAt)?.getTime() ?? 0;
@@ -102,6 +102,7 @@ export default function BookingsScreen() {
           <View style={[styles.visitAccent, { backgroundColor: isPast(item) ? theme.borderStrong : theme.accent }]} />
           <View style={styles.visitTop}><Text style={[styles.business, { color: theme.text }]}>{item.summary.businessName ?? c.booking}</Text><VizitIcon ios="chevron.right" android="chevron_right" color={theme.faint} size={20} /></View>
           <View style={styles.dateRow}><VizitIcon ios="calendar" android="event" color={theme.accentText} size={18} /><Text style={[styles.date, { color: theme.text }]}>{item.summary.startsAt ? formatApiDateTime(item.summary.startsAt, locale) : c.open}</Text></View>
+          {item.summary.endsAt && localDateKeyFromApi(item.summary.endsAt) !== localDateKeyFromApi(item.summary.startsAt) ? <Text style={[styles.service, { color: theme.textSecondary }]}>→ {formatApiDateTime(item.summary.endsAt, locale)}</Text> : null}
           {item.summary.serviceName ? <Text numberOfLines={2} style={[styles.service, { color: theme.muted }]}>{item.summary.serviceName}{item.summary.staffName ? ` · ${item.summary.staffName}` : ''}</Text> : null}
           <View style={styles.visitBottom}><StatusPill label={bookingStatusLabel(item.summary.status, locale)} tone={isBookingTerminal(item.summary.status) ? 'neutral' : item.summary.status === 'confirmed' ? 'success' : 'warning'} />{opening === item.key ? <ActivityIndicator color={theme.accent} /> : null}</View>
         </Pressable>}

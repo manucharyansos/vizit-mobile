@@ -1,3 +1,6 @@
+import { BusinessTypeScreen } from '@/components/business-type-screen';
+import { rentalApi } from '@/services/api/rentals';
+import { validRentalScheduleDay } from '@/services/rentals';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
@@ -46,16 +49,21 @@ function completeWeek(input: ScheduleDay[] | undefined): ScheduleDay[] {
 }
 
 export default function WorkingHoursScreen() {
+  return <BusinessTypeScreen allowIncomplete rental={<WorkingHoursContent rental />}><WorkingHoursContent /></BusinessTypeScreen>;
+}
+
+function WorkingHoursContent({ rental = false }: { rental?: boolean }) {
   const { locale, theme } = useApp();
   const c = copy[locale];
   const cache = useQueryClient();
-  const query = useQuery({ queryKey: ['business-schedule'], queryFn: businessApi.schedule, retry: false });
+  const query = useQuery({ queryKey: ['business-schedule'], queryFn: rental ? rentalApi.schedule : businessApi.schedule, retry: false });
   const [edits, setEdits] = useState<Record<number, Partial<ScheduleDay>>>({});
 
   const baseDays = useMemo(() => query.isSuccess ? completeWeek(query.data) : completeWeek(undefined), [query.data, query.isSuccess]);
   const days = useMemo(() => baseDays.map((day) => ({ ...day, ...(edits[day.weekday] ?? {}) })), [baseDays, edits]);
 
   const valid = useMemo(() => days.every((day) => {
+    if (rental) return validRentalScheduleDay(day);
     if (day.is_closed) return true;
     if (!day.start || !day.end || !timePattern.test(day.start) || !timePattern.test(day.end) || day.end <= day.start) return false;
     const breaks = [day.break_start, day.break_end].filter(Boolean) as string[];
@@ -65,16 +73,18 @@ export default function WorkingHoursScreen() {
       && String(day.break_start) < String(day.break_end)
       && String(day.break_start) >= String(day.start)
       && String(day.break_end) <= String(day.end);
-  }), [days]);
+  }), [days, rental]);
 
   const updateDay = (weekday: number, patch: Partial<ScheduleDay>) => setEdits((current) => ({ ...current, [weekday]: { ...(current[weekday] ?? {}), ...patch } }));
   const save = useMutation({
-    mutationFn: () => businessApi.updateSchedule(days.map((day) => ({ ...day, start: day.is_closed ? null : day.start, end: day.is_closed ? null : day.end, break_start: day.is_closed ? null : day.break_start, break_end: day.is_closed ? null : day.break_end }))),
+    mutationFn: () => (rental ? rentalApi.saveSchedule : businessApi.updateSchedule)(days.map((day) => ({ ...day, start: day.is_closed ? null : day.start, end: day.is_closed ? null : day.end, break_start: day.is_closed ? null : day.break_start, break_end: day.is_closed ? null : day.break_end }))),
     onSuccess: async () => {
       await Promise.all([
         cache.invalidateQueries({ queryKey: ['business-schedule'] }),
         cache.invalidateQueries({ queryKey: ['business-onboarding'] }),
         cache.invalidateQueries({ queryKey: ['business-availability'] }),
+        cache.invalidateQueries({ queryKey: ['business-rental-availability'] }),
+        cache.invalidateQueries({ queryKey: ['rental-public-availability'] }),
       ]);
       await Promise.all([
         cache.refetchQueries({ queryKey: ['business-schedule'], type: 'active' }),

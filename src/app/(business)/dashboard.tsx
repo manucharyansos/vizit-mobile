@@ -1,3 +1,5 @@
+import { BusinessTypeScreen } from '@/components/business-type-screen';
+import { RentalWorkspaceScreen } from '@/components/rental-workspace-screen';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -24,6 +26,10 @@ function readNumber(root: Record<string, unknown>, path: string): number | null 
 }
 
 export default function BusinessDashboard() {
+  return <BusinessTypeScreen rental={<RentalWorkspaceScreen />}><BusinessDashboardService /></BusinessTypeScreen>;
+}
+
+function BusinessDashboardService() {
   const { locale, theme } = useApp();
   const c = copy[locale];
   const { canManage } = useBusinessPermissions();

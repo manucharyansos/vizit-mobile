@@ -3,11 +3,15 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconButton, PremiumButton, PremiumInput, Surface } from '@/components/premium-ui';
+import { IconButton, PremiumButton, PremiumInput, Surface, StateCard } from '@/components/premium-ui';
+import { RentalBookingScreen } from '@/components/rental-booking-screen';
 import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
-import { publicApi, Service, Slot, Staff } from '@/services/api/public';
+import { publicApi, type PublicBusiness, Service, Slot, Staff } from '@/services/api/public';
+import { isRentalBusiness } from '@/services/rentals';
+import { LegalConsent } from '@/components/legal-consent';
+import { LEGAL_DOCUMENT_VERSION } from '@/constants/legal';
 import { checkoutUrlFrom, openIdBankCheckout } from '@/services/payments';
 import { apiErrorMessage } from '@/services/api/client';
 import { guestBookingStore } from '@/services/guest-booking-store';
@@ -23,6 +27,15 @@ const copy = {
 };
 
 export default function BookingScreen() {
+  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { theme, t } = useApp();
+  const business = useQuery({ queryKey: ['business', slug], queryFn: () => publicApi.business(slug), enabled: Boolean(slug), retry: false, refetchOnMount: 'always' });
+  if (business.isLoading) return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background, justifyContent: 'center' }]}><ActivityIndicator color={theme.accent} size="large" /></SafeAreaView>;
+  if (!business.data || business.isError) return <SafeAreaView style={[styles.screen, styles.content, { backgroundColor: theme.background }]}><IconButton accessibilityLabel={t('back')} ios="chevron.left" android="chevron_left" onPress={() => safeBack('/(customer)/discover')} /><StateCard title={t('loadError')} action={<PremiumButton title={t('continue')} onPress={() => void business.refetch()} tone="secondary" />} /></SafeAreaView>;
+  return isRentalBusiness(business.data) ? <RentalBookingScreen key={slug} business={business.data} /> : <ServiceBookingScreen business={business.data} />;
+}
+
+function ServiceBookingScreen({ business }: { business: PublicBusiness }) {
   const { slug, locationId: locationParam } = useLocalSearchParams<{ slug: string; locationId?: string }>();
   const requestedLocationId = Number(locationParam) || undefined;
   const { locale, t, theme } = useApp();
@@ -35,9 +48,9 @@ export default function BookingScreen() {
   const [date, setDate] = useState(localDateKey(0));
   const [slot, setSlot] = useState<Slot>();
   const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' });
+  const [legal, setLegal] = useState(false);
 
-  const business = useQuery({ queryKey: ['business', slug], queryFn: () => publicApi.business(slug), enabled: Boolean(slug), retry: false, refetchOnMount: 'always' });
-  const locations = useMemo(() => business.data?.locations ?? [], [business.data?.locations]);
+  const locations = business.locations;
   const chosenLocation = chosenLocationId ? locations.find((location) => location.id === chosenLocationId) : undefined;
   const requestedLocation = requestedLocationId ? locations.find((location) => location.id === requestedLocationId) : undefined;
   const locationId = chosenLocation?.id ?? requestedLocation?.id ?? locations[0]?.id;
@@ -67,13 +80,16 @@ export default function BookingScreen() {
       notes: form.notes.trim() || null,
       source: 'mobile',
       location_id: locationId,
+      legal_accepted: legal,
+      terms_version: LEGAL_DOCUMENT_VERSION,
+      privacy_version: LEGAL_DOCUMENT_VERSION,
     }),
     onSuccess: async (result) => {
       const response = result.data ?? result;
       const bookingReference = response.booking_code;
       if (typeof bookingReference === 'string' && bookingReference.trim()) {
         try {
-          await guestBookingStore.rememberGuestBooking(bookingReference, { businessName: business.data?.name, businessSlug: slug, serviceName: service?.name, staffName: slot?.staff_name, startsAt: slot?.starts_at, status: response.status ?? 'pending', bookingIds: response.booking?.id ? [Number(response.booking.id)] : undefined });
+          await guestBookingStore.rememberGuestBooking(bookingReference, { businessName: business.name, businessSlug: slug, serviceName: service?.name, staffName: slot?.staff_name, startsAt: slot?.starts_at, status: response.status ?? 'pending', bookingIds: response.booking?.id ? [Number(response.booking.id)] : undefined });
         } catch {
           // A successful server booking must never be submitted again after a local storage failure.
           Alert.alert(t('bookingSuccess'), t('bookingOtpHint'));
@@ -121,9 +137,7 @@ export default function BookingScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {business.isLoading ? <ActivityIndicator color={theme.accent} size="large" /> : business.isError ? (
-          <InlineError title={t('loadError')} retryLabel={c.retry} onRetry={() => business.refetch()} />
-        ) : locations.length > 1 ? (
+        {locations.length > 1 ? (
           <View style={styles.locationBlock}>
             <Text style={[styles.locationTitle, { color: theme.text }]}>{c.location}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}>
@@ -203,12 +217,14 @@ export default function BookingScreen() {
           </Section>
         ) : null}
 
+        {slot ? <LegalConsent checked={legal} onChange={setLegal} /> : null}
+
         {slot ? (
           <PremiumButton
             title={t('confirmBooking')}
             loading={booking.isPending}
-            disabled={!valid || booking.isSuccess}
-            onPress={() => { if (valid && !booking.isPending && !booking.isSuccess) booking.mutate(); }}
+            disabled={!valid || !legal || booking.isSuccess}
+            onPress={() => { if (valid && legal && !booking.isPending && !booking.isSuccess) booking.mutate(); }}
             icon={{ ios: 'arrow.right', android: 'arrow_forward' }}
             style={styles.submit}
           />

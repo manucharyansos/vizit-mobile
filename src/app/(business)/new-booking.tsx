@@ -1,3 +1,5 @@
+import { BusinessTypeScreen } from '@/components/business-type-screen';
+import { RentalManualBooking } from '@/components/rental-workspace-screen';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -35,6 +37,10 @@ type ScheduleItem =
   | { type: 'busy'; key: string; start: number; booking: CalendarBooking };
 
 export default function NewBooking() {
+  return <BusinessTypeScreen rental={<RentalManualBooking />}><NewBookingService /></BusinessTypeScreen>;
+}
+
+function NewBookingService() {
   const { locale, theme } = useApp();
   const c = copy[locale];
   const qc = useQueryClient();

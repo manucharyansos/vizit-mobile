@@ -4,7 +4,7 @@ import { revokePushDevice, synchronizePushDevice } from '../notifications';
 import { collectPages } from './pagination';
 import { databaseUtcTimestamp } from '../date-time';
 
-export type BusinessUser = { id: number; name: string; email?: string; role?: string; audience?: 'business'; business_id?: number; business_name?: string; business_slug?: string; needs_onboarding?: boolean };
+export type BusinessUser = { id: number; name: string; email?: string; role?: string; audience?: 'business'; business_id?: number; business_name?: string; business_slug?: string; business_type?: string; vertical?: string; needs_onboarding?: boolean };
 export type CalendarBooking = { id: number; starts_at: string; ends_at: string; status: string; client_name?: string; client_phone?: string; customer_name?: string; notes?: string | null; final_price?: number | null; service?: { id: number; name: string }; staff?: { id: number; name: string }; client?: { id: number; name: string; phone?: string | null } | null };
 export type BusinessClient = { id: number; name: string; phone?: string; email?: string; bookings_count?: number; last_booking_at?: string; next_booking_at?: string | null; total_spent?: number; group_name?: string | null; is_vip?: boolean; is_blacklisted?: boolean };
 export type BusinessClientDetail = BusinessClient & { notes?: string | null; birth_date?: string | null; is_vip?: boolean; is_blacklisted?: boolean; total_spent?: number; next_booking_at?: string | null; recent_bookings?: CalendarBooking[]; timeline?: { id: string; type: string; title?: string | null; subtitle?: string | null; status?: string | null; body?: string | null; occurred_at?: string | null }[]; recent_notes?: { id: number; body: string; note_type?: string; is_pinned?: boolean; author_name?: string | null; created_at?: string | null }[]; crm?: { completed_count?: number; cancelled_count?: number; no_show_count?: number; avg_ticket?: number; favorite_service_name?: string | null; favorite_staff_name?: string | null } };
@@ -40,7 +40,7 @@ export type BusinessSettings = {
 };
 export type BusinessOnboardingStatus = { business_id?: number; business_name?: string; business_type?: string; is_onboarding_completed?: boolean; onboarding_step?: 'services' | 'schedule' | 'settings' | 'completed' };
 export type LocalImageFile = { uri: string; name: string; mimeType: string };
-export type BusinessRegistration = { business_name: string; business_phone: string; business_address: string; business_city?: string; business_district?: string; latitude: number; longitude: number; vertical: 'services' | 'healthcare'; business_category_id?: number; business_category_slug?: string; custom_category_name?: string; name: string; email: string; password: string; password_confirmation: string; plan_code?: string };
+export type BusinessRegistration = { business_name: string; business_phone: string; business_address: string; business_city?: string; business_district?: string; latitude: number; longitude: number; vertical: 'services' | 'healthcare' | 'rentals'; business_category_id?: number; business_category_slug?: string; custom_category_name?: string; name: string; email: string; password: string; password_confirmation: string; plan_code?: string; legal_accepted: boolean; terms_version: string; privacy_version: string };
 
 const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, '');
 export const absoluteMediaUrl = (value?: string | null): string | null => {

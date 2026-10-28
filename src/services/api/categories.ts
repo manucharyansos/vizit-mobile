@@ -2,7 +2,7 @@ import { publicClient } from './client';
 import { normalizeList } from './normalize';
 import type { AppLocale } from '../date-time';
 
-export type BusinessVertical = 'services' | 'healthcare';
+export type BusinessVertical = 'services' | 'healthcare' | 'rentals';
 export type BusinessCategory = {
   id: number;
   slug: string;
@@ -25,7 +25,7 @@ export async function fetchBusinessCategories(locale: AppLocale): Promise<Busine
   }
   return normalizeList<BusinessCategory>(response.data, ['categories']).filter((category) =>
     category && Number.isInteger(category.id) && category.id > 0 && typeof category.slug === 'string' && category.slug.trim() &&
-    (category.vertical === 'services' || category.vertical === 'healthcare'),
+    (category.vertical === 'services' || category.vertical === 'healthcare' || category.vertical === 'rentals'),
   );
 }
 

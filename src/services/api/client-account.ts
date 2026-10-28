@@ -24,7 +24,7 @@ export const clientAccountApi = {
     void synchronizePushDevice('client');
     return data.user as ClientUser;
   },
-  async register(payload: { name: string; email?: string | null; phone?: string | null; password: string; password_confirmation: string }): Promise<ClientUser> {
+  async register(payload: { name: string; email?: string | null; phone?: string | null; password: string; password_confirmation: string; legal_accepted: boolean; terms_version: string; privacy_version: string }): Promise<ClientUser> {
     const { data } = await clientAuthClient.post('/client/auth/register', payload);
     assertClientAudience(data);
     await guestBookingStore.clearClientBookingReferences();

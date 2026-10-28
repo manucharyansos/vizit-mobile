@@ -14,6 +14,9 @@ import { validPoint } from '@/services/geo';
 import { openDirections } from '@/services/directions';
 import { businessCategory } from '@/services/business-category';
 import { BusinessAvatar } from '@/components/business-avatar';
+import { RentalProfileDetails } from '@/components/rental-profile-details';
+import { isRentalBusiness } from '@/services/rentals';
+import { rentalCopy } from '@/i18n/rentals';
 
 const copy = {
   hy: { location: 'Մասնաճյուղ', emptyServices: 'Այս մասնաճյուղում ծառայություններ չկան', emptyStaff: 'Այս մասնաճյուղում աշխատակիցներ չկան', retry: 'Կրկին փորձել' },
@@ -32,8 +35,11 @@ export default function BusinessScreen() {
   const locations = business.data?.locations ?? [];
   const selectedLocation = locations.find((location) => location.id === chosenLocationId) ?? locations[0];
   const locationId = selectedLocation?.id;
-  const services = useQuery({ queryKey: ['services', slug, locationId], queryFn: () => publicApi.services(slug, locationId), enabled: Boolean(slug && locationId), retry: false });
-  const staff = useQuery({ queryKey: ['staff', slug, locationId], queryFn: () => publicApi.staff(slug, locationId), enabled: Boolean(slug && locationId), retry: false });
+  const rental = isRentalBusiness(business.data);
+  const showServices = !rental && business.data?.show_services !== false;
+  const showStaff = !rental && business.data?.show_staff !== false;
+  const services = useQuery({ queryKey: ['services', slug, locationId], queryFn: () => publicApi.services(slug, locationId), enabled: Boolean(slug && locationId && showServices), retry: false });
+  const staff = useQuery({ queryKey: ['staff', slug, locationId], queryFn: () => publicApi.staff(slug, locationId), enabled: Boolean(slug && locationId && showStaff), retry: false });
 
   if (business.isLoading) {
     return <SafeAreaView style={[styles.center, { backgroundColor: theme.background }]}><ActivityIndicator color={theme.accent} size="large" /></SafeAreaView>;
@@ -61,14 +67,14 @@ export default function BusinessScreen() {
             {businessCategory(item, locale) ? <StatusPill label={businessCategory(item, locale)!} tone="accent" /> : null}
           </View>
           <View style={styles.summaryBody}>
-            <Text style={[styles.title, { color: theme.text }]}>{item.name}</Text>
+            <Text accessibilityRole="header" style={[styles.title, { color: theme.text }]}>{item.name}</Text>
             {address ? <MetaRow icon={{ ios: 'location.fill', android: 'location_on' }} value={address} /> : null}
             {item.phone ? <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(`tel:${item.phone!.replace(/[^+\d]/g, '')}`).catch(() => Alert.alert(t('loadError')))}><MetaRow icon={{ ios: 'phone.fill', android: 'call' }} value={item.phone} /></Pressable> : null}
             {validPoint(selectedLocation?.lat, selectedLocation?.lng) ? <PremiumButton title={locale === 'hy' ? 'Ինչպես հասնել' : locale === 'ru' ? 'Как добраться' : 'Directions'} tone="ghost" compact icon={{ ios: 'arrow.turn.up.right', android: 'directions' }} onPress={() => void openDirections(validPoint(selectedLocation?.lat, selectedLocation?.lng)!).catch(() => Alert.alert(t('loadError')))} /> : null}
           </View>
         </Surface>
 
-        {item.locations.length > 1 ? (
+        {!rental && item.locations.length > 1 ? (
           <View style={styles.locationSection}>
             <SectionHeader title={c.location} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.locations}>
@@ -92,7 +98,8 @@ export default function BusinessScreen() {
 
         {item.short_description || item.description ? <Text style={[styles.description, { color: theme.textSecondary }]}>{item.short_description ?? item.description}</Text> : null}
 
-        <Section title={t('services')} loading={services.isLoading} error={services.isError} retry={() => services.refetch()} empty={!services.data?.length ? c.emptyServices : undefined}>
+        {rental ? <RentalProfileDetails business={item} /> : null}
+        {showServices ? <Section title={t('services')} loading={services.isLoading} error={services.isError} retry={() => services.refetch()} empty={!services.data?.length ? c.emptyServices : undefined}>
           <View style={styles.verticalList}>
             {services.data?.map((service) => (
               <View key={service.id} style={[styles.service, { backgroundColor: theme.surfaceRaised, borderColor: theme.border, shadowColor: theme.shadow }]}>
@@ -105,9 +112,9 @@ export default function BusinessScreen() {
               </View>
             ))}
           </View>
-        </Section>
+        </Section> : null}
 
-        <Section title={t('staff')} loading={staff.isLoading} error={staff.isError} retry={() => staff.refetch()} empty={!staff.data?.length ? c.emptyStaff : undefined}>
+        {showStaff ? <Section title={t('staff')} loading={staff.isLoading} error={staff.isError} retry={() => staff.refetch()} empty={!staff.data?.length ? c.emptyStaff : undefined}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.people}>
             {staff.data?.map((person) => (
               <View key={person.id} style={[styles.person, { backgroundColor: theme.surfaceRaised, borderColor: theme.border, shadowColor: theme.shadow }]}>
@@ -117,13 +124,13 @@ export default function BusinessScreen() {
               </View>
             ))}
           </ScrollView>
-        </Section>
+        </Section> : null}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12), backgroundColor: theme.surfaceRaised, borderColor: theme.border, shadowColor: theme.shadow }]}>
         <PremiumButton
-          disabled={!locationId}
-          title={t('bookNow')}
+          disabled={rental ? item.rental?.hourly_price == null : !locationId}
+          title={rental ? rentalCopy[locale].book : t('bookNow')}
           onPress={() => router.push({ pathname: '/book/[slug]', params: { slug, locationId: String(locationId ?? '') } })}
           icon={{ ios: 'arrow.right', android: 'arrow_forward' }}
         />

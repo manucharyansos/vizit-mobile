@@ -7,6 +7,8 @@ import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { useBusinessPermissions } from '@/hooks/use-business-permissions';
 import { useSignOut } from '@/hooks/use-sign-out';
+import { isRentalBusiness } from '@/services/rentals';
+import { rentalCopy } from '@/i18n/rentals';
 
 const labels = {
   hy: { title: 'Բոլոր բաժինները', subtitle: 'Կառավարման ամբողջ գործիքակազմը', booking: 'Նոր ամրագրում', services: 'Ծառայություններ', staff: 'Աշխատակիցներ և գրաֆիկ', hours: 'Աշխատանքային ժամեր', blocks: 'Փակ ժամեր և բացակայություններ', locations: 'Հասցեներ և մասնաճյուղեր', media: 'Լոգո և նկարներ', tasks: 'Առաջադրանքներ', analytics: 'Վերլուծություն', gifts: 'Նվեր քարտեր', loyalty: 'Հավատարմություն', growth: 'Աճ և marketing', settings: 'Բիզնեսի կարգավորումներ', billing: 'Պլան և վճարումներ', telegram: 'Telegram ծանուցումներ', logout: 'Դուրս գալ', logoutConfirm: 'Դուրս գա՞լ բիզնես հաշվից։', cancel: 'Չեղարկել', operations: 'Գործառույթներ', insights: 'Աճ և վերլուծություն', workspace: 'Աշխատանքային տարածք', language: 'Լեզու', theme: 'Թեմա' },
@@ -32,6 +34,8 @@ export default function BusinessMore() {
   const c = labels[locale];
   const profile = profileLabels[locale];
   const permissions = useBusinessPermissions();
+  const rental = isRentalBusiness(permissions.user);
+  const hiddenForRentals = new Set(['/(business)/services', '/(business)/staff', 'tasks', 'gift-cards', 'loyalty', 'growth', 'locations']);
   const groups: { title: string; items: MenuItem[] }[] = [
     { title: c.operations, items: [
       { title: c.services, target: '/(business)/services', ios: 'square.grid.2x2.fill', android: 'grid_view' },
@@ -48,6 +52,7 @@ export default function BusinessMore() {
       { title: c.growth, target: 'growth', ios: 'chart.line.uptrend.xyaxis', android: 'trending_up' },
     ] },
     { title: c.workspace, items: [
+      ...(rental ? [{ title: rentalCopy[locale].gallery, target: 'rental-gallery', ios: 'photo.on.rectangle.angled' as const, android: 'photo_library' as const }] : []),
       { title: c.media, target: 'profile-media', ios: 'photo.on.rectangle.angled', android: 'photo_library' },
       { title: c.settings, target: '/(business)/admin', ios: 'gearshape.fill', android: 'settings' },
       { title: c.billing, target: 'billing', ios: 'creditcard.fill', android: 'payments' },
@@ -73,7 +78,7 @@ export default function BusinessMore() {
         ) : (
           <>
             {permissions.canManage ? <PremiumButton title={c.booking} onPress={() => open('new-booking')} icon={{ ios: 'calendar.badge.plus', android: 'add_circle' }} style={styles.booking} /> : null}
-            {groups.map((group) => ({ ...group, items: group.items.filter((item) => item.target === 'billing' ? permissions.canBill : ['tasks', 'telegram'].includes(item.target) || permissions.canManage) })).filter((group) => group.items.length).map((group) => <MenuGroup key={group.title} title={group.title} items={group.items} onOpen={open} />)}
+            {groups.map((group) => ({ ...group, items: group.items.filter((item) => !(rental && hiddenForRentals.has(item.target)) && (item.target === 'billing' ? permissions.canBill : ['tasks', 'telegram'].includes(item.target) || permissions.canManage)).map((item) => rental && item.target === '/(business)/admin' ? { ...item, title: rentalCopy[locale].settings } : item) })).filter((group) => group.items.length).map((group) => <MenuGroup key={group.title} title={group.title} items={group.items} onOpen={open} />)}
           </>
         )}
         <PremiumButton title={c.logout} loading={logout.isPending} onPress={confirmLogout} tone="danger" icon={{ ios: 'rectangle.portrait.and.arrow.right', android: 'logout' }} />

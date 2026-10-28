@@ -17,6 +17,7 @@ export type GuestBookingSummary = {
   serviceName?: string;
   staffName?: string;
   startsAt?: string;
+  endsAt?: string;
   status?: string;
 };
 export type SavedGuestBooking = { code: string; summary: GuestBookingSummary };

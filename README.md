@@ -6,8 +6,9 @@ Native appointment-booking application for iOS and Android, built with React Nat
 
 - Customer discovery, Yandex MapKit, business profiles, availability, booking, 4-digit verification, client cabinet, Telegram connection, and payment-return flow.
 - Business and employee authentication, today calendar, bookings, clients, services, staff schedules, tasks, locations, analytics, growth, loyalty, gift cards, billing, Telegram, and business profile media.
+- Space-rental registration, duration-based booking, owner calendar, rates, working hours, gallery and rental reports. See [rental integration notes](docs/rental-mobile-2026-10-28.md).
 - Armenian, Russian, and English localization.
-- Premium graphite, slate, and restrained silver-blue themes in light and dark modes.
+- Teal and apricot accents with coordinated light and dark themes.
 - Separate `client` and `business` bearer-token audiences stored with Expo SecureStore.
 
 The application calls `https://api.vizit.am/api`. Public links open on `https://vizit.am`.

@@ -1,3 +1,5 @@
+import { BusinessTypeScreen } from '@/components/business-type-screen';
+import { RentalWorkspaceScreen } from '@/components/rental-workspace-screen';
 import { useQuery } from '@tanstack/react-query';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +22,10 @@ function metric(data: unknown, path: string): number | null {
 }
 
 export default function AnalyticsScreen() {
+  return <BusinessTypeScreen rental={<RentalWorkspaceScreen mode="analytics" />}><AnalyticsScreenService /></BusinessTypeScreen>;
+}
+
+function AnalyticsScreenService() {
   const { locale, theme } = useApp();
   const c = copy[locale];
   const query = useQuery({ queryKey: ['business-analytics'], queryFn: businessApi.analytics, retry: false, refetchOnMount: 'always' });

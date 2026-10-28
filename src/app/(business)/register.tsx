@@ -13,6 +13,11 @@ import { useExistingBusinessSession } from '@/hooks/use-existing-business-sessio
 import { useApp } from '@/providers/app-provider';
 import { businessApi } from '@/services/api/business';
 import { useAuthNavigation } from '@/hooks/use-auth-navigation';
+import { rentalCopy } from '@/i18n/rentals';
+import { LocationPicker } from '@/components/location-picker';
+import { validPoint } from '@/services/geo';
+import { LegalConsent } from '@/components/legal-consent';
+import { LEGAL_DOCUMENT_VERSION } from '@/constants/legal';
 
 const copy = {
   hy: { title: 'Գրանցել բիզնես', subtitle: 'Ստեղծիր սեփականատիրոջ հաշիվը և կառավարման տարածքը', business: 'Բիզնեսի անվանում', owner: 'Ձեր անունը', phone: 'Բիզնեսի հեռախոս', address: 'Հասցե', email: 'Էլ․ փոստ', password: 'Գաղտնաբառ՝ առնվազն 8 նիշ', confirm: 'Կրկնել գաղտնաբառը', services: 'Ծառայություններ', healthcare: 'Բժշկություն', submit: 'Ստեղծել բիզնես հաշիվ', login: 'Արդեն ունե՞ք հաշիվ։ Մուտք գործել', mismatch: 'Գաղտնաբառերը չեն համընկնում', failed: 'Գրանցումը չհաջողվեց։ Ստուգեք դաշտերը։', emailExists: 'Այս էլ․ փոստով բիզնես հաշիվ արդեն գրանցված է։ Մուտք գործեք կամ օգտագործեք այլ էլ․ փոստ։', location: 'Սկզբնական կետը Երևանն է․ ճիշտ տեղը կարող եք ընտրել կառավարման բաժնում։', type: 'Բիզնեսի ուղղություն', back: 'Հետ' },
@@ -36,7 +41,7 @@ export default function BusinessRegister() {
   const finishLogin = useAuthNavigation();
   const existingSession = useExistingBusinessSession();
   const redirected = useRef(false);
-  const [vertical, setVertical] = useState<'services' | 'healthcare'>('services');
+  const [vertical, setVertical] = useState<'services' | 'healthcare' | 'rentals'>('services');
   const [categorySlug, setCategorySlug] = useState('');
   const [customCategory, setCustomCategory] = useState('');
   const categories = useQuery({ queryKey: ['registration-business-categories', locale], queryFn: () => fetchBusinessCategories(locale), staleTime: 5 * 60_000, retry: 1, enabled: !existingSession.isLoading && !existingSession.data });
@@ -44,6 +49,8 @@ export default function BusinessRegister() {
   const categoryFields = registrationCategoryFields(availableCategories, vertical, categorySlug, customCategory);
   const isOtherCategory = availableCategories.some((item) => item.slug === categorySlug && item.slug.startsWith('other-'));
   const [form, setForm] = useState({ business: '', owner: '', phone: '', address: '', email: '', password: '', confirmation: '' });
+  const [point, setPoint] = useState<{ latitude: number; longitude: number }>();
+  const [legal, setLegal] = useState(false);
 
   useEffect(() => {
     if (!existingSession.data || redirected.current) return;
@@ -51,12 +58,12 @@ export default function BusinessRegister() {
     finishLogin('today');
   }, [existingSession.data, finishLogin]);
 
-  const valid = !!categoryFields && !categories.isError && form.business.trim().length > 1 && form.owner.trim().length > 1 && form.phone.trim().length > 4 && form.address.trim().length > 2 && /\S+@\S+\.\S+/.test(form.email) && form.password.length >= 8 && form.password === form.confirmation;
+  const valid = !!categoryFields && !categories.isError && Boolean(point && validPoint(point.latitude, point.longitude)) && form.business.trim().length > 1 && form.owner.trim().length > 1 && form.phone.trim().length > 4 && form.address.trim().length > 2 && /\S+@\S+\.\S+/.test(form.email) && form.password.length >= 8 && form.password === form.confirmation;
   const registration = useMutation({
     onMutate: () => { redirected.current = true; },
     mutationFn: () => {
-      if (!categoryFields || categories.isError) throw new Error(categoryCopy[locale].required);
-      return businessApi.register({ ...categoryFields, business_name: form.business.trim(), business_phone: form.phone.trim(), business_address: form.address.trim(), latitude: 40.1772, longitude: 44.50349, vertical, name: form.owner.trim(), email: form.email.trim().toLowerCase(), password: form.password, password_confirmation: form.confirmation, plan_code: 'start' });
+      if (!categoryFields || categories.isError || !legal || !point || !validPoint(point.latitude, point.longitude)) throw new Error(categoryCopy[locale].required);
+      return businessApi.register({ ...categoryFields, business_name: form.business.trim(), business_phone: form.phone.trim(), business_address: form.address.trim(), latitude: point.latitude, longitude: point.longitude, vertical, name: form.owner.trim(), email: form.email.trim().toLowerCase(), password: form.password, password_confirmation: form.confirmation, plan_code: vertical === 'rentals' ? 'rental' : 'start', legal_accepted: legal, terms_version: LEGAL_DOCUMENT_VERSION, privacy_version: LEGAL_DOCUMENT_VERSION });
     },
     onSuccess: () => finishLogin('admin'),
     onError: (error) => {
@@ -83,7 +90,7 @@ export default function BusinessRegister() {
 
           <Text style={[styles.groupLabel, { color: theme.textSecondary }]}>{c.type}</Text>
           <View style={[styles.segment, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            {(['services', 'healthcare'] as const).map((item) => {
+            {(['services', 'healthcare', 'rentals'] as const).map((item) => {
               const selected = vertical === item;
               return (
                 <Pressable
@@ -94,8 +101,8 @@ export default function BusinessRegister() {
                   onPress={() => { if (vertical !== item) { setVertical(item); setCategorySlug(''); setCustomCategory(''); } }}
                   style={({ pressed }) => [styles.segmentItem, { backgroundColor: selected ? theme.primary : 'transparent', opacity: pressed ? 0.76 : 1 }]}
                 >
-                  <VizitIcon ios={item === 'services' ? 'sparkles' : 'cross.case.fill'} android={item === 'services' ? 'spa' : 'medical_services'} color={selected ? theme.onPrimary : theme.muted} size={18} />
-                  <Text style={[styles.segmentText, { color: selected ? theme.onPrimary : theme.muted }]}>{c[item]}</Text>
+                  <VizitIcon ios={item === 'rentals' ? 'building.2.fill' : item === 'services' ? 'sparkles' : 'cross.case.fill'} android={item === 'rentals' ? 'meeting_room' : item === 'services' ? 'spa' : 'medical_services'} color={selected ? theme.onPrimary : theme.muted} size={18} />
+                  <Text style={[styles.segmentText, { color: selected ? theme.onPrimary : theme.muted }]}>{item === 'rentals' ? rentalCopy[locale].title : c[item]}</Text>
                 </Pressable>
               );
             })}
@@ -117,6 +124,7 @@ export default function BusinessRegister() {
             <PremiumInput label={c.owner} placeholder={c.owner} value={form.owner} onChangeText={(owner) => setForm((value) => ({ ...value, owner }))} icon={{ ios: 'person.fill', android: 'person' }} />
             <PremiumInput label={c.phone} placeholder={c.phone} value={form.phone} keyboardType="phone-pad" onChangeText={(phone) => setForm((value) => ({ ...value, phone }))} icon={{ ios: 'phone.fill', android: 'call' }} />
             <PremiumInput label={c.address} placeholder={c.address} value={form.address} onChangeText={(address) => setForm((value) => ({ ...value, address }))} icon={{ ios: 'location.fill', android: 'location_on' }} />
+            <LocationPicker latitude={point?.latitude} longitude={point?.longitude} onChange={setPoint} height={220} />
             <PremiumInput label={c.email} placeholder={c.email} value={form.email} keyboardType="email-address" autoCapitalize="none" onChangeText={(email) => setForm((value) => ({ ...value, email }))} icon={{ ios: 'envelope.fill', android: 'mail' }} />
             <PremiumInput label={c.password} placeholder={c.password} value={form.password} secureTextEntry onChangeText={(password) => setForm((value) => ({ ...value, password }))} icon={{ ios: 'lock.fill', android: 'lock' }} />
             <PremiumInput label={c.confirm} placeholder={c.confirm} value={form.confirmation} secureTextEntry onChangeText={(confirmation) => setForm((value) => ({ ...value, confirmation }))} icon={{ ios: 'lock.rotation', android: 'password' }} />
@@ -124,9 +132,10 @@ export default function BusinessRegister() {
 
           <View style={[styles.note, { backgroundColor: theme.accentSubtle }]}>
             <VizitIcon ios="mappin.and.ellipse" android="location_on" color={theme.accentText} size={18} />
-            <Text style={[styles.noteText, { color: theme.muted }]}>{c.location}</Text>
+            <Text style={[styles.noteText, { color: theme.muted }]}>{locale === 'hy' ? 'Քարտեզի վրա նշեք բիզնեսի իրական հասցեն։' : locale === 'ru' ? 'Отметьте реальное расположение бизнеса на карте.' : 'Select the actual business location on the map.'}</Text>
           </View>
-          <PremiumButton title={c.submit} loading={registration.isPending} disabled={!valid} onPress={() => registration.mutate()} icon={{ ios: 'arrow.right', android: 'arrow_forward' }} />
+          <LegalConsent checked={legal} onChange={setLegal} />
+          <PremiumButton title={c.submit} loading={registration.isPending} disabled={!valid || !legal} onPress={() => registration.mutate()} icon={{ ios: 'arrow.right', android: 'arrow_forward' }} />
           <PremiumButton title={c.login} onPress={() => router.replace('/(business)/login')} tone="ghost" compact />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -144,8 +153,8 @@ const styles = StyleSheet.create({
   subtitle: { ...ui.type.body, marginTop: 7, marginBottom: 22 },
   groupLabel: { ...ui.type.caption, marginLeft: 2, marginBottom: 7 },
   segment: { flexDirection: 'row', borderRadius: ui.radius.medium, borderWidth: 1, padding: 4, marginBottom: 14 },
-  segmentItem: { flex: 1, minHeight: 46, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  segmentText: ui.type.button,
+  segmentItem: { flex: 1, minWidth: 0, minHeight: 64, padding: 8, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 7 },
+  segmentText: { ...ui.type.caption, textAlign: 'center' },
   fields: { gap: 13, padding: 16 },
   note: { minHeight: 58, borderRadius: ui.radius.medium, padding: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginTop: 12, marginBottom: 14 },
   noteText: { ...ui.type.caption, flex: 1 },
