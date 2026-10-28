@@ -232,12 +232,12 @@ export default function BillingScreen() {
                       const price = cycle === 'yearly' ? option.yearly : option.monthly;
                       return (
                         <View key={option.key} style={[styles.planOption, { borderColor: option.offer ? theme.success : theme.border }]}>
-                          <View style={styles.methodBody}>
+                          <View>
                             <Text style={[styles.methodName, { color: theme.text }]}>{option.name}</Text>
                             <Text style={[styles.planMetaLabel, { color: option.offer ? theme.success : theme.muted }]}>{option.offer ? c.individual : `${Number(price).toLocaleString('en-US')} ${option.currency}${cycle === 'yearly' ? c.perYear : c.perMonth}`}</Text>
                             {option.offer ? <Text style={[styles.planMetaLabel, { color: theme.muted }]}>{`${Number(price).toLocaleString('en-US')} ${option.currency}${cycle === 'yearly' ? c.perYear : c.perMonth}`}</Text> : null}
                           </View>
-                          <PremiumButton compact title={isCurrent ? c.current : trialing && option.code === currentCode ? c.payTrial : c.createInvoice} tone={isCurrent || pendingInvoice ? 'secondary' : 'primary'} disabled={isCurrent || busyPlan != null || opening || cancelling} loading={busyPlan === option.key} onPress={() => void createInvoice(option.code, option.key)} />
+                          <PremiumButton title={isCurrent ? c.current : trialing && option.code === currentCode ? c.payTrial : c.createInvoice} tone={isCurrent || pendingInvoice ? 'secondary' : 'primary'} disabled={isCurrent || busyPlan != null || opening || cancelling} loading={busyPlan === option.key} onPress={() => void createInvoice(option.code, option.key)} />
                         </View>
                       );
                     }) : <Text style={[styles.noteText, { color: theme.muted }]}>{c.noPlans}</Text>}
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   cycleRow: { flexDirection: 'row', borderWidth: 1, borderRadius: 12, padding: 3, alignSelf: 'flex-start' },
   cycleButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
   cycleText: { fontSize: 13, fontWeight: '700' },
-  planOption: { borderWidth: 1, borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  planOption: { borderWidth: 1, borderRadius: 14, padding: 12, gap: 10 },
   payRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   payAmount: { fontSize: 22, lineHeight: 28, fontWeight: '800', marginTop: 3 },
   note: { padding: 13, borderRadius: ui.radius.medium, flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
