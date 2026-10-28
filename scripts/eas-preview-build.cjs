@@ -20,8 +20,10 @@ function buildToReuse(builds) {
 
 function finishedArtifact(build, app) {
   if (build.status !== 'FINISHED') throw new Error(`EAS build is ${build.status}, not finished.`);
-  if (build.platform !== 'ANDROID' || build.distribution !== 'INTERNAL' || build.buildProfile !== 'preview' || build.channel !== 'preview') throw new Error('The build is not an Android preview APK on the preview channel.');
-  if (build.project?.id !== app.extra.eas.projectId || build.appVersion !== app.version || build.runtimeVersion !== app.version) throw new Error('The build belongs to another project or app runtime.');
+  // EAS CLI 26 returns its GraphQL BuildFragment, including nested app,
+  // updateChannel and runtime objects in both build:list and build:view.
+  if (build.platform !== 'ANDROID' || build.distribution !== 'INTERNAL' || build.buildProfile !== 'preview' || build.updateChannel?.name !== 'preview') throw new Error('The build is not an Android preview APK on the preview channel.');
+  if (build.app?.id !== app.extra.eas.projectId || build.appVersion !== app.version || build.runtime?.version !== app.version) throw new Error('The build belongs to another project or app runtime.');
   const url = new URL(build.artifacts?.buildUrl);
   if (url.protocol !== 'https:' || url.hostname !== 'expo.dev' || !url.pathname.toLowerCase().endsWith('.apk') || url.username || url.password) throw new Error('EAS did not provide an installable APK artifact.');
   return url.href;
@@ -76,9 +78,9 @@ async function main() {
     const entries = execFileSync('unzip', ['-Z1', filename], { encoding: 'utf8' }).split('\n');
     if (!entries.includes('AndroidManifest.xml')) throw new Error('Downloaded artifact is not an Android APK.');
   }
-  const metadata = { id, status: build.status, version: build.appVersion, runtime: build.runtimeVersion, commit: build.gitCommitHash, apk, dashboard };
+  const metadata = { id, status: build.status, version: build.appVersion, runtime: build.runtime.version, commit: build.gitCommitHash, apk, dashboard };
   fs.writeFileSync(path.join(directory, 'preview-build.json'), JSON.stringify(metadata, null, 2) + '\n');
-  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `APK ready: [Install Vizit ${build.appVersion}](${apk})\n\nRuntime: ${build.runtimeVersion}. Built commit: ${build.gitCommitHash || 'see EAS build page'}.\n\n${download ? 'The APK is also attached to this workflow as **vizit-preview-apk**. ' : ''}Install it over the existing app.\n`);
+  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `APK ready: [Install Vizit ${build.appVersion}](${apk})\n\nRuntime: ${build.runtime.version}. Built commit: ${build.gitCommitHash || 'see EAS build page'}.\n\n${download ? 'The APK is also attached to this workflow as **vizit-preview-apk**. ' : ''}Install it over the existing app.\n`);
   console.log(`APK ready: ${apk}`);
 }
 

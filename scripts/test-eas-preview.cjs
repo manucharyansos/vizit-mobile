@@ -2,7 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildFrom, buildToReuse, finishedArtifact, waitForBuild } = require('./eas-preview-build.cjs');
 const app = { version: '1.0.1', extra: { eas: { projectId: 'project-fixture' } } };
-const build = { id: '11111111-2222-3333-4444-555555555555', status: 'FINISHED', platform: 'ANDROID', distribution: 'INTERNAL', buildProfile: 'preview', channel: 'preview', project: { id: 'project-fixture' }, appVersion: '1.0.1', runtimeVersion: '1.0.1', artifacts: { buildUrl: 'https://expo.dev/artifacts/eas/fixture.apk' } };
+// Shape from eas-cli@26.0.0 build/graphql/types/Build.js (BuildFragment).
+const build = { id: '11111111-2222-3333-4444-555555555555', status: 'FINISHED', platform: 'ANDROID', distribution: 'INTERNAL', buildProfile: 'preview', updateChannel: { id: 'channel-fixture', name: 'preview' }, app: { id: 'project-fixture' }, appVersion: '1.0.1', runtime: { id: 'runtime-fixture', version: '1.0.1' }, artifacts: { buildUrl: 'https://expo.dev/artifacts/eas/fixture.apk' } };
 
 test('automatic updates reuse a compatible finished or running build before creating another one', () => {
   const queued = { ...build, status: 'IN_QUEUE' };
@@ -16,7 +17,7 @@ test('automatic updates reuse a compatible finished or running build before crea
 test('only a finished, matching preview runtime exposes an APK for installation', () => {
   assert.equal(buildFrom([build]), build);
   assert.equal(finishedArtifact(build, app), build.artifacts.buildUrl);
-  for (const patch of [{ status: 'IN_QUEUE' }, { platform: 'IOS' }, { runtimeVersion: '1.0.0' }, { appVersion: '1.0.0' }, { channel: 'production' }, { buildProfile: 'production' }, { project: { id: 'another-project' } }, { artifacts: { buildUrl: 'https://expo.dev/artifacts/eas/fixture.aab' } }]) assert.throws(() => finishedArtifact({ ...build, ...patch }, app));
+  for (const patch of [{ status: 'IN_QUEUE' }, { platform: 'IOS' }, { runtime: { version: '1.0.0' } }, { appVersion: '1.0.0' }, { updateChannel: { name: 'production' } }, { buildProfile: 'production' }, { app: { id: 'another-project' } }, { updateChannel: null }, { app: null }, { runtime: null }, { artifacts: { buildUrl: 'https://expo.dev/artifacts/eas/fixture.aab' } }]) assert.throws(() => finishedArtifact({ ...build, ...patch }, app));
 });
 
 test('queued and building states are followed until the actual build finishes', async () => {
