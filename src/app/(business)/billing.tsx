@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Divider, PageHeader, PremiumButton, SectionHeader, StateCard, StatusPill, Surface } from '@/components/premium-ui';
+import { Divider, PageHeader, PremiumButton, SectionHeader, StateCard, StatusPill, Surface, type StatusTone } from '@/components/premium-ui';
 import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
@@ -24,6 +24,14 @@ const statusNames: Record<string, Record<string, string>> = {
 const statusText = (value: unknown, locale: string) => {
   const raw = show(value);
   return statusNames[locale]?.[raw] ?? statusNames.en[raw] ?? raw;
+};
+const statusTone = (value: unknown): StatusTone => {
+  const raw = show(value);
+  if (raw === 'active' || raw === 'paid') return 'success';
+  if (raw === 'trialing' || raw === 'trial') return 'accent';
+  if (raw === 'past_due' || raw === 'pending') return 'warning';
+  if (['suspended', 'cancelled', 'canceled', 'failed', 'expired'].includes(raw)) return 'danger';
+  return 'neutral';
 };
 const ratio = (current: unknown, limit: unknown) => `${show(current)} / ${limit == null ? '∞' : show(limit)}`;
 const idbankLogo = 'https://idbank.am/upload/resize_cache/webp/images/logo.webp';
@@ -60,9 +68,9 @@ export default function BillingScreen() {
         ) : (
           <>
             <Surface style={[styles.planCard, { backgroundColor: theme.cover, borderColor: theme.cover }]}>
-              <View style={styles.planTop}><Text style={[styles.planEyebrow, { color: theme.coverText }]}>{c.currentPlan.toLocaleUpperCase()}</Text><StatusPill label={statusText(subscription?.status, locale)} tone="success" /></View>
+              <View style={styles.planTop}><Text style={[styles.planEyebrow, { color: theme.coverMuted }]}>{c.currentPlan.toLocaleUpperCase()}</Text><StatusPill label={statusText(subscription?.status, locale)} tone={statusTone(subscription?.status)} onCover /></View>
               <Text style={[styles.planName, { color: theme.coverText }]}>{show(plan?.name ?? plan?.code)}</Text>
-              <View style={[styles.planMeta, { borderTopColor: 'rgba(255,255,255,0.16)' }]}><View><Text style={[styles.planMetaLabel, { color: theme.coverText }]}>{c.billingStatus}</Text><Text style={[styles.planMetaValue, { color: theme.coverText }]}>{statusText(business?.billing_status, locale)}</Text></View><View style={styles.planMetaRight}><Text style={[styles.planMetaLabel, { color: theme.coverText }]}>{c.provider}</Text><Text style={[styles.planMetaValue, { color: theme.coverText }]}>{show(provider?.default)} · {show(provider?.mode)}</Text></View></View>
+              <View style={[styles.planMeta, { borderTopColor: 'rgba(255,255,255,0.16)' }]}><View><Text style={[styles.planMetaLabel, { color: theme.coverMuted }]}>{c.billingStatus}</Text><Text style={[styles.planMetaValue, { color: theme.coverText }]}>{statusText(business?.billing_status, locale)}</Text></View><View style={styles.planMetaRight}><Text style={[styles.planMetaLabel, { color: theme.coverMuted }]}>{c.provider}</Text><Text style={[styles.planMetaValue, { color: theme.coverText }]}>{show(provider?.default)} · {show(provider?.mode)}</Text></View></View>
             </Surface>
 
             <Surface style={styles.usageCard} elevated>
@@ -105,11 +113,11 @@ const styles = StyleSheet.create({
   loader: { minHeight: 260, alignItems: 'center', justifyContent: 'center' },
   planCard: { minHeight: 190, padding: 18, justifyContent: 'space-between' },
   planTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  planEyebrow: { ...ui.type.eyebrow, opacity: 0.68 },
+  planEyebrow: { ...ui.type.eyebrow },
   planName: { fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.7, marginVertical: 16 },
   planMeta: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 13, flexDirection: 'row', gap: 10 },
   planMetaRight: { flex: 1, alignItems: 'flex-end' },
-  planMetaLabel: { ...ui.type.caption, opacity: 0.6 },
+  planMetaLabel: { ...ui.type.caption },
   planMetaValue: { ...ui.type.caption, fontWeight: '800', marginTop: 3 },
   usageCard: { padding: 14, gap: 5 },
   usageRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10 },

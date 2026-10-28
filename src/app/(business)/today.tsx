@@ -94,7 +94,7 @@ export default function TodayScreen() {
         />
         <Pressable accessibilityRole="button" accessibilityLabel={calendarTitle} accessibilityState={{ expanded: showCalendar }} onPress={() => setShowCalendar((value) => !value)}><Surface style={styles.dateCard}>
           <View style={[styles.dateIcon, { backgroundColor: theme.accentSoft }]}><VizitIcon ios="calendar" android="calendar_month" color={theme.accentText} size={21} /></View>
-          <View style={styles.dateCopy}><Text style={[styles.dateText, { color: theme.text }]}>{dateLabel}</Text><Text style={[styles.dateMeta, { color: theme.muted }]}>{bookings.data?.length ?? 0} {c.appointments}</Text></View>
+          <View style={styles.dateCopy}><Text style={[styles.dateText, { color: theme.text }]}>{dateLabel.charAt(0).toLocaleUpperCase() + dateLabel.slice(1)}</Text><Text style={[styles.dateMeta, { color: theme.muted }]}>{bookings.data?.length ?? 0} {c.appointments}</Text></View>
           <View style={[styles.countBadge, { backgroundColor: theme.primary }]}><Text style={[styles.countText, { color: theme.onPrimary }]}>{bookings.data?.length ?? 0}</Text></View>
         </Surface></Pressable>
         {showCalendar ? <CalendarDatePicker value={date} minDate="" onChange={(value) => { setSelectedDate(value); setShowCalendar(false); }} /> : null}
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   dateCard: { padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11 },
   dateIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   dateCopy: { flex: 1 },
-  dateText: { fontSize: 14, lineHeight: 19, fontWeight: '800', textTransform: 'capitalize' },
+  dateText: { fontSize: 14, lineHeight: 19, fontWeight: '800' },
   dateMeta: { ...ui.type.caption, marginTop: 2 },
   countBadge: { minWidth: 34, height: 34, borderRadius: 12, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center' },
   countText: { ...ui.type.caption, fontWeight: '800' },
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   timeRail: { width: 68, minHeight: 106, borderRadius: ui.radius.medium, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
   time: { fontSize: 17, lineHeight: 21, fontWeight: '700', fontVariant: ['tabular-nums'] },
   timeDivider: { width: 14, height: 1, opacity: 0.35, marginVertical: 5 },
-  timeEnd: { fontSize: 11, lineHeight: 15, fontWeight: '700', opacity: 0.75 },
+  timeEnd: { fontSize: 11, lineHeight: 15, fontWeight: '700', opacity: 0.9 },
   cardBody: { flex: 1, minWidth: 0, justifyContent: 'center', gap: 7 },
   cardTop: { alignItems: 'flex-start', gap: 7 },
   client: { fontSize: 17, lineHeight: 22, fontWeight: '700' },

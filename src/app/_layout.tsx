@@ -9,6 +9,9 @@ import { AppProvider, useApp } from '@/providers/app-provider';
 import { NoticeProvider } from '@/providers/notice-provider';
 import { useNotificationNavigation } from '@/hooks/use-notification-navigation';
 import { appQueryClient } from '@/services/query-client';
+import { installArmenianDateFallback } from '@/services/intl-hy-fallback';
+
+installArmenianDateFallback();
 
 void SplashScreen.preventAutoHideAsync();
 

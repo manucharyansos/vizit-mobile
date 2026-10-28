@@ -57,7 +57,7 @@ export default function BusinessDashboard() {
 
         <Pressable accessibilityRole="button" accessibilityLabel={c[2]} onPress={() => router.navigate('/(business)/today')}><Surface style={[styles.todayStrip, { backgroundColor: theme.cover, borderColor: theme.cover }]}>
           <View style={[styles.todayIcon, { backgroundColor: 'rgba(255,255,255,0.12)' }]}><VizitIcon ios="calendar" android="calendar_month" color={theme.coverText} size={23} /></View>
-          <View style={styles.todayCopy}><Text style={[styles.todayLabel, { color: theme.coverText }]}>{c[2]}</Text><Text style={[styles.todayDate, { color: theme.coverText }]}>{dateLabel}</Text></View>
+          <View style={styles.todayCopy}><Text style={[styles.todayLabel, { color: theme.coverMuted }]}>{c[2]}</Text><Text style={[styles.todayDate, { color: theme.coverText }]}>{dateLabel.charAt(0).toLocaleUpperCase() + dateLabel.slice(1)}</Text></View>
           <VizitIcon ios="arrow.up.right" android="north_east" color={theme.coverText} size={20} />
         </Surface></Pressable>
 
@@ -96,8 +96,8 @@ const styles = StyleSheet.create({
   todayStrip: { minHeight: 94, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 12 },
   todayIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   todayCopy: { flex: 1 },
-  todayLabel: { ...ui.type.eyebrow, opacity: 0.72 },
-  todayDate: { fontSize: 17, lineHeight: 24, fontWeight: '600', marginTop: 5, textTransform: 'capitalize' },
+  todayLabel: { ...ui.type.eyebrow },
+  todayDate: { fontSize: 17, lineHeight: 24, fontWeight: '600', marginTop: 5 },
   loader: { minHeight: 220, alignItems: 'center', justifyContent: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', padding: 0, overflow: 'hidden' },
   card: { width: '50%', padding: 16, minHeight: 102, justifyContent: 'center' },

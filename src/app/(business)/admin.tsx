@@ -87,9 +87,9 @@ export default function BusinessAdmin() {
 
         {incomplete ? (
           <Surface style={[styles.setupCard, { backgroundColor: theme.cover, borderColor: theme.cover }]}>
-            <View style={styles.setupTop}><View><Text style={[styles.setupEyebrow, { color: theme.coverText }]}>{c.step.toLocaleUpperCase()} {stepNumber}/3</Text><Text style={[styles.setupTitle, { color: theme.coverText }]}>{c.setup}</Text></View><View style={[styles.stepBadge, { backgroundColor: 'rgba(255,255,255,0.13)' }]}><Text style={[styles.stepValue, { color: theme.coverText }]}>{stepNumber}</Text></View></View>
+            <View style={styles.setupTop}><View><Text style={[styles.setupEyebrow, { color: theme.coverMuted }]}>{c.step.toLocaleUpperCase()} {stepNumber}/3</Text><Text style={[styles.setupTitle, { color: theme.coverText }]}>{c.setup}</Text></View><View style={[styles.stepBadge, { backgroundColor: 'rgba(255,255,255,0.13)' }]}><Text style={[styles.stepValue, { color: theme.coverText }]}>{stepNumber}</Text></View></View>
             <View style={styles.stepTrack}>{[1, 2, 3].map((value) => <View key={value} style={[styles.stepSegment, { backgroundColor: value <= stepNumber ? theme.coverText : 'rgba(255,255,255,0.18)' }]} />)}</View>
-            <Text style={[styles.hint, { color: theme.coverText }]}>{step === 'services' ? c.servicesHint : step === 'schedule' ? c.scheduleHint : c.settingsHint}</Text>
+            <Text style={[styles.hint, { color: theme.coverMuted }]}>{step === 'services' ? c.servicesHint : step === 'schedule' ? c.scheduleHint : c.settingsHint}</Text>
             {step === 'services' ? (
               <View style={styles.setupForm}>
                 <PremiumInput label={c.service} value={service.name} onChangeText={(name) => setService((value) => ({ ...value, name }))} placeholder={c.service} icon={{ ios: 'sparkles', android: 'spa' }} />
@@ -144,13 +144,13 @@ const styles = StyleSheet.create({
   content: { padding: ui.screenGutter, paddingBottom: 44, gap: 14 },
   setupCard: { padding: 17, gap: 14 },
   setupTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
-  setupEyebrow: { ...ui.type.eyebrow, opacity: 0.68 },
+  setupEyebrow: { ...ui.type.eyebrow },
   setupTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', marginTop: 6 },
   stepBadge: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   stepValue: { fontSize: 18, lineHeight: 22, fontWeight: '800' },
   stepTrack: { flexDirection: 'row', gap: 5 },
   stepSegment: { flex: 1, height: 3, borderRadius: 2 },
-  hint: { ...ui.type.body, opacity: 0.78 },
+  hint: { ...ui.type.body },
   setupForm: { gap: 11 },
   row: { flexDirection: 'row', gap: 8 },
   flex: { flex: 1 },

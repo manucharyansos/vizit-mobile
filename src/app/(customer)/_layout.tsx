@@ -9,6 +9,8 @@ export default function CustomerLayout() {
   const { t, theme } = useApp();
   const insets = useSafeAreaInsets();
   const clientSession = useClientSession();
+  // Same sizing as the business tabs: leaves room for the icon and the label.
+  const bottomInset = Math.max(insets.bottom, 8);
 
   return <Tabs screenOptions={{
     headerShown: false,
@@ -17,12 +19,11 @@ export default function CustomerLayout() {
     tabBarActiveBackgroundColor: theme.accentSubtle,
     tabBarShowLabel: true,
     tabBarLabelStyle: { fontSize: 10, lineHeight: 13, fontWeight: '700', marginTop: 1 },
-    tabBarIconStyle: { marginTop: 3 },
-    tabBarItemStyle: { marginHorizontal: 4, marginVertical: 7, borderRadius: ui.radius.medium },
+    tabBarItemStyle: { marginHorizontal: 4, marginVertical: 6, borderRadius: ui.radius.medium },
     tabBarStyle: {
-      height: 68 + insets.bottom,
+      height: 66 + bottomInset,
       paddingHorizontal: 8,
-      paddingBottom: Math.max(insets.bottom, 7),
+      paddingBottom: bottomInset,
       backgroundColor: theme.surfaceRaised,
       borderTopColor: theme.border,
       borderTopWidth: 1,

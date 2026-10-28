@@ -217,16 +217,21 @@ export function PremiumInput({
   );
 }
 
-export function StatusPill({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'accent' | 'highlight' | 'success' | 'warning' | 'danger' }) {
+export type StatusTone = 'neutral' | 'accent' | 'highlight' | 'success' | 'warning' | 'danger';
+
+export function StatusPill({ label, tone = 'neutral', onCover = false }: { label: string; tone?: StatusTone; onCover?: boolean }) {
   const { theme } = useApp();
   const background = tone === 'success' ? theme.successSoft : tone === 'warning' ? theme.warningSoft : tone === 'danger' ? theme.dangerSoft : tone === 'accent' ? theme.accentSoft : tone === 'highlight' ? theme.highlightSoft : theme.surface;
   const foreground = tone === 'success' ? theme.success : tone === 'warning' ? theme.warning : tone === 'danger' ? theme.danger : tone === 'accent' ? theme.accentText : tone === 'highlight' ? theme.highlightText : theme.muted;
-  return (
+  const pill = (
     <View style={[styles.pill, { backgroundColor: background }]}>
       <View style={[styles.pillDot, { backgroundColor: foreground }]} />
       <Text style={[styles.pillText, { color: foreground }]}>{label}</Text>
     </View>
   );
+  // Dark-mode soft tones are see-through, so on a colored cover the pill
+  // gets a solid base to look the same as it does on a regular card.
+  return onCover ? <View style={[styles.pillBase, { backgroundColor: theme.surfaceRaised }]}>{pill}</View> : pill;
 }
 
 export function StateCard({
@@ -327,6 +332,7 @@ const styles = StyleSheet.create({
   fieldIconMultiline: { marginTop: 2 },
   fieldError: { ...ui.type.caption, marginLeft: 2 },
   pill: { maxWidth: '100%', flexShrink: 1, minHeight: 28, borderRadius: ui.radius.pill, paddingHorizontal: 10, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pillBase: { maxWidth: '100%', flexShrink: 1, borderRadius: ui.radius.pill },
   pillDot: { width: 6, height: 6, borderRadius: 3 },
   pillText: { flexShrink: 1, fontSize: 11, lineHeight: 15, fontWeight: '600' },
   stateCard: { minHeight: 156, alignItems: 'center', justifyContent: 'center', padding: ui.spacing.lg },

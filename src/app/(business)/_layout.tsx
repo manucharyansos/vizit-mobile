@@ -19,10 +19,13 @@ function BusinessTabs() {
     en: ['Home', 'Calendar', 'Clients', 'More'],
   }[locale];
 
+  // Each tab needs 52px (5px padding + 28px icon box + 1px gap + 13px label +
+  // 5px padding). 66px minus the border and 6px margins leaves 53px.
+  const bottomInset = Math.max(insets.bottom, 8);
   const tabBarStyle = {
-    height: 68 + insets.bottom,
-    paddingHorizontal: 8,
-    paddingBottom: Math.max(insets.bottom, 7),
+    height: 66 + bottomInset,
+    paddingHorizontal: 4,
+    paddingBottom: bottomInset,
     backgroundColor: theme.surfaceRaised,
     borderTopColor: theme.border,
     borderTopWidth: 1,
@@ -44,8 +47,8 @@ function BusinessTabs() {
         tabBarActiveBackgroundColor: theme.accentSubtle,
         tabBarShowLabel: true,
         tabBarLabelStyle: { fontSize: 10, lineHeight: 13, fontWeight: '700', marginTop: 1 },
-        tabBarIconStyle: { marginTop: 3 },
-        tabBarItemStyle: { marginHorizontal: 3, marginVertical: 7, borderRadius: ui.radius.medium },
+        // Four tabs are narrow: no side margins, so "Հաճախորդներ" fits on 360px-wide phones.
+        tabBarItemStyle: { marginVertical: 6, borderRadius: ui.radius.medium },
         tabBarStyle,
       }}
     >
