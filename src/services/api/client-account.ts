@@ -1,4 +1,4 @@
-import { clientAuthClient, tokenStore } from './client';
+import { businessAuthClient, clientAuthClient, tokenStore } from './client';
 import { debugEmptyList, normalizeList, normalizeResource } from './normalize';
 import { revokePushDevice, synchronizePushDevice } from '../notifications';
 import { guestBookingStore } from '../guest-booking-store';
@@ -32,7 +32,17 @@ export const clientAccountApi = {
     void synchronizePushDevice('client');
     return data.user as ClientUser;
   },
-  async forgotPassword(email: string) { return (await clientAuthClient.post('/client/auth/forgot-password', { email })).data; },
+  // One login screen serves customers and business accounts, so ask both account
+  // types to send a reset link. Each endpoint answers the same way for unknown emails.
+  async forgotPassword(email: string) {
+    const results = await Promise.allSettled([
+      clientAuthClient.post('/client/auth/forgot-password', { email }),
+      businessAuthClient.post('/auth/forgot-password', { email }),
+    ]);
+    const sent = results.find((result) => result.status === 'fulfilled');
+    if (!sent) throw (results[0] as PromiseRejectedResult).reason;
+    return sent.value.data;
+  },
   async resetPassword(payload: { token: string; email: string; password: string; password_confirmation: string }) { return (await clientAuthClient.post('/client/auth/reset-password', payload)).data; },
   async me(): Promise<ClientUser> {
     const token = await tokenStore.get('client');
