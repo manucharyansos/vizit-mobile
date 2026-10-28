@@ -19,7 +19,11 @@ const copy = {
     identity: 'Email կամ հեռախոս',
     password: 'Գաղտնաբառ',
     submit: 'Մուտք գործել',
-    failed: 'Մուտքը չհաջողվեց։ Ստուգեք տվյալները։',
+    failed: 'Email-ը կամ գաղտնաբառը սխալ է։',
+    disabled: 'Հաշիվն անջատված է։ Կապվիր աջակցության հետ։',
+    throttled: 'Շատ փորձեր եղան։ Սպասիր 1 րոպե և նորից փորձիր։',
+    network: 'Սերվերի հետ կապ չկա։ Ստուգիր ինտերնետը և նորից փորձիր։',
+    server: 'Սերվերի սխալ։ Փորձիր մի քիչ ուշ։',
     chooseTitle: 'Ընտրեք հաշիվը',
     chooseText: 'Այս տվյալներով հասանելի է երկու հաշիվ։ Որտե՞ղ շարունակել։',
     client: 'Հաճախորդ',
@@ -38,7 +42,11 @@ const copy = {
     identity: 'Email или телефон',
     password: 'Пароль',
     submit: 'Войти',
-    failed: 'Не удалось войти. Проверьте данные.',
+    failed: 'Неверный email или пароль.',
+    disabled: 'Аккаунт отключён. Обратитесь в поддержку.',
+    throttled: 'Слишком много попыток. Подождите минуту и попробуйте снова.',
+    network: 'Нет связи с сервером. Проверьте интернет и попробуйте снова.',
+    server: 'Ошибка сервера. Попробуйте чуть позже.',
     chooseTitle: 'Выберите аккаунт',
     chooseText: 'С этими данными доступны два аккаунта. Куда продолжить?',
     client: 'Клиент',
@@ -57,7 +65,11 @@ const copy = {
     identity: 'Email or phone',
     password: 'Password',
     submit: 'Sign in',
-    failed: 'Sign-in failed. Check your details.',
+    failed: 'Incorrect email or password.',
+    disabled: 'This account is disabled. Contact support.',
+    throttled: 'Too many attempts. Wait a minute and try again.',
+    network: 'Cannot reach the server. Check your connection and try again.',
+    server: 'Server error. Please try again later.',
     chooseTitle: 'Choose account',
     chooseText: 'These credentials match two accounts. Where would you like to continue?',
     client: 'Client',
@@ -106,7 +118,18 @@ export default function UnifiedLoginScreen() {
       queryClient.setQueryData(['business-me'], user);
       finishLogin(user.needs_onboarding ? 'admin' : 'today');
     },
-    onError: () => Alert.alert(c.failed),
+    onError: (error) => {
+      const response = (error as { response?: { status?: number; data?: { errors?: { identity?: unknown } } } }).response;
+      const status = response?.status;
+      const identityError = JSON.stringify(response?.data?.errors?.identity ?? '');
+      Alert.alert(
+        !response ? c.network
+          : status === 429 ? c.throttled
+          : status && status >= 500 ? c.server
+          : identityError.includes('disabled') ? c.disabled
+          : c.failed,
+      );
+    },
   });
 
   const canSubmit = Boolean(identity.trim() && password) && !login.isPending;
