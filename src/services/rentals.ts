@@ -1,9 +1,10 @@
 import type { Locale } from '@/i18n/translations';
 
 export type RentalUnit = 'minutes' | 'hours' | 'days';
-export type RentalRates = { hourly_price: number | null; min_minutes: number; max_minutes: number; buffer_minutes: number; slot_step_minutes: number; allow_overnight?: boolean; currency?: string };
+export type RentalDiscount = { min_minutes: number; percent: number };
+export type RentalRates = { hourly_price: number | null; min_minutes: number; max_minutes: number; buffer_minutes: number; slot_step_minutes: number; allow_overnight?: boolean; currency?: string; duration_discounts?: RentalDiscount[] };
 export type RentalMedia = { id: number; url: string; kind: 'image' | 'video'; caption?: string | null; sort_order: number };
-export type RentalSlot = { starts_at: string; ends_at: string; price: number; currency: string };
+export type RentalSlot = { starts_at: string; ends_at: string; price: number; gross_price?: number; discount_percent?: number; currency: string };
 export type RentalSettings = RentalRates & { timezone: string; gallery: RentalMedia[] };
 export type RentalBooking = { id: number; starts_at: string; ends_at: string; client_name: string; client_phone: string; client_email?: string | null; notes?: string | null; status: string; final_price: number; paid_amount: number; outstanding_amount: number; currency: string; is_expired?: boolean };
 export type RentalSummary = { bookings_count: number; pending_count: number; booked_amount: number; completed_amount: number; net_received: number; refunded_amount: number; outstanding_amount: number; refund_due: number; occupancy_percent: number; currency: string };

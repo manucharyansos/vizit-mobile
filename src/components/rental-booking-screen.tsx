@@ -93,6 +93,7 @@ export function RentalBookingScreen({ business, manual = false }: { business: Pu
             <PremiumInput label={`${c.duration}, ${c[unit]}`} value={quantity} keyboardType="decimal-pad" onChangeText={changeDuration} maxLength={10} error={validDuration ? undefined : `${c.durationHint}: ${rentalDurationLabel(rates.min_minutes, c)} – ${rentalDurationLabel(rates.max_minutes, c)}`} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>{Array.from(new Set([rates.min_minutes, 60, 120, 180, 1440, 4320])).filter((value) => validRentalDuration(value, rates)).map((value) => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: duration === value }} onPress={() => { setQuantity(String(value / rentalUnitFactors[unit])); setStartsAt(''); }} style={[styles.preset, { borderColor: duration === value ? theme.accent : theme.border }]}><Text style={[styles.unitText, { color: duration === value ? theme.accentText : theme.text }]}>{rentalDurationLabel(value, c)}</Text></Pressable>)}</ScrollView>
             <Text style={[styles.caption, { color: theme.muted }]}>{c.durationHint}: {rentalDurationLabel(rates.min_minutes, c)} – {rentalDurationLabel(rates.max_minutes, c)} · {c.step}: {rates.slot_step_minutes} {c.minutes}</Text>
+            {rates.duration_discounts?.length ? <Text style={[styles.caption, { color: theme.success }]}>{[...rates.duration_discounts].sort((x, y) => x.min_minutes - y.min_minutes).map((tier) => c.discountTier(String(Math.round(tier.min_minutes / 60 * 100) / 100), tier.percent)).join(' · ')}</Text> : null}
             <Text style={[styles.caption, { color: theme.muted }]}>{c.dayHelp}</Text>
           </Surface>
         </> : <>
@@ -118,7 +119,7 @@ export function RentalBookingScreen({ business, manual = false }: { business: Pu
         <Text style={[styles.caption, { color: theme.muted }]}>{c.timezone}: {business.timezone || 'Asia/Yerevan'}</Text>
       </ScrollView>
       <View style={[styles.footer, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
-        <View style={styles.footerPrice}><Text style={[styles.caption, { color: theme.muted }]}>{selected ? c.total : c.hourly}</Text><Text style={[styles.price, { color: theme.text }]}>{money(selected?.price ?? rates.hourly_price)}</Text></View>
+        <View style={styles.footerPrice}><Text style={[styles.caption, { color: theme.muted }]}>{selected ? c.total : c.hourly}</Text><Text style={[styles.price, { color: theme.text }]}>{money(selected?.price ?? rates.hourly_price)}</Text>{selected?.discount_percent ? <Text style={[styles.caption, { color: theme.success }]}>{c.discountApplied(selected.discount_percent)}{selected.gross_price ? ` · ${money(selected.gross_price)}` : ''}</Text> : null}</View>
         <PremiumButton title={step < 2 ? t('continue') : manual ? c.create : c.confirm} disabled={!canContinue || create.isSuccess} loading={create.isPending} onPress={() => { if (!canContinue) return; if (step < 2) next(step + 1); else if (!create.isPending && !create.isSuccess) create.mutate(); }} style={styles.footerButton} />
       </View>
     </KeyboardAvoidingView>
