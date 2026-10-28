@@ -14,6 +14,8 @@ export type ScheduleDay = { weekday: number; is_closed: boolean; start: string |
 export type BusinessTask = { id: number; title: string; description?: string | null; status: 'open' | 'in_progress' | 'completed' | 'canceled'; priority: 'low' | 'medium' | 'high' | 'urgent'; due_at?: string | null; assignee?: { id: number; name: string } | null };
 export type GiftCard = { id: number; code: string; initial_amount: number; balance: number; currency: string; status: string; issued_to_name?: string | null };
 export type WaitlistEntry = { id: number; customer_name: string; customer_phone: string; desired_date: string; status: 'waiting' | 'offered' | 'booked' | 'cancelled' | 'expired'; service?: { name: string } | null };
+export type BillingInvoice = { id: number; status: string; amount: number; currency: string; billing_cycle?: string | null; plan?: { name?: string | null; code?: string | null } | null };
+export type BillingTransaction = { id: number; invoice_id: number; provider: string; provider_transaction_id: string; status: 'pending' | 'paid' | 'failed'; requires_manual_review?: boolean; amount: number; currency: string };
 export type BusinessLocation = { id: number; name?: string | null; address?: string | null; city?: string | null; district?: string | null; phone?: string | null; latitude?: number | null; longitude?: number | null; is_primary: boolean; is_active: boolean };
 export type BusinessSettings = {
   id?: number;
@@ -121,6 +123,10 @@ export const businessApi = {
   async waitlist(): Promise<WaitlistEntry[]> { const response = await businessAuthClient.get('/waitlist'); const list = normalizeList<WaitlistEntry>(response.data, ['waitlist']); debugEmptyList('business.waitlist', response, list); return list; },
   async updateWaitlist(id: number, status: 'waiting' | 'cancelled'): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.patch(`/waitlist/${id}`, { status }); return normalizeResource<Record<string, unknown>>(data); },
   async billing(): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.get('/billing/me'); return normalizeResource<Record<string, unknown>>(data); },
+  async invoices(): Promise<BillingInvoice[]> { const response = await businessAuthClient.get('/billing/invoices'); return normalizeList<BillingInvoice>(response.data, ['invoices']); },
+  // return_to=app makes the bank's success/fail return reopen the app instead of the website.
+  async createCheckout(invoiceId: number, paymentMethod: 'card' | 'wallet'): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.post('/billing/checkout-session', { invoice_id: invoiceId, payment_method: paymentMethod, return_to: 'app' }); return data as Record<string, unknown>; },
+  async invoicePaymentStatus(invoiceId: number): Promise<{ invoice?: BillingInvoice; transaction?: BillingTransaction | null }> { const { data } = await businessAuthClient.get(`/billing/invoices/${invoiceId}/payment-status`); return normalizeResource<{ invoice?: BillingInvoice; transaction?: BillingTransaction | null }>(data); },
   async telegram(): Promise<{ available: boolean; connected: boolean; bot_url?: string | null }> { const { data } = await businessAuthClient.get('/telegram/connection'); return normalizeResource<{ available: boolean; connected: boolean; bot_url?: string | null }>(data); },
   async createTelegramLink(): Promise<{ url: string }> { const { data } = await businessAuthClient.post('/telegram/connection'); return normalizeResource<{ url: string }>(data); },
   async disconnectTelegram(): Promise<void> { await businessAuthClient.delete('/telegram/connection'); },
