@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
+import { LocationCoordinates } from './location-coordinates';
 
 type Props = {
   latitude?: number | null;
@@ -9,14 +10,9 @@ type Props = {
   height?: number;
 };
 
-export function LocationPicker({ latitude, longitude, height = 238 }: Props) {
-  const { locale, theme } = useApp();
-  const hint = locale === 'hy'
-    ? 'Yandex MapKit native picker-ը հասանելի է Android/iOS development build-ում։'
-    : locale === 'ru'
-      ? 'Нативный Yandex MapKit picker доступен в Android/iOS development build.'
-      : 'The native Yandex MapKit picker is available in Android/iOS development builds.';
-  return <View style={[styles.root, { height, backgroundColor: theme.map, borderColor: theme.border }]}><View style={[styles.badge, { backgroundColor: theme.accentSoft }]}><Text style={[styles.brand, { color: theme.accentText }]}>Yandex MapKit</Text></View><Text style={[styles.hint, { color: theme.muted }]}>{hint}</Text>{typeof latitude === 'number' && typeof longitude === 'number' ? <Text style={[styles.coords, { color: theme.text }]}>{latitude.toFixed(6)}, {longitude.toFixed(6)}</Text> : null}</View>;
+export function LocationPicker({ latitude, longitude, onChange, height = 238 }: Props) {
+  const { theme } = useApp();
+  return <View style={[styles.root, { minHeight: height, backgroundColor: theme.map, borderColor: theme.border }]}><LocationCoordinates latitude={latitude} longitude={longitude} onChange={onChange} /></View>;
 }
 
 const styles = StyleSheet.create({

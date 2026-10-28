@@ -17,11 +17,13 @@ import { guestSummary, normalizeGuestBooking, type GuestAppointment } from '@/se
 import { checkoutUrlFrom, openIdBankCheckout, paymentIdFrom } from '@/services/payments';
 import { bookingStatusLabel } from '@/services/booking-status';
 import { formatApiDateTime, formatApiTime, localDateKey, localDateKeyFromApi, localDateTimeInputFromApi } from '@/services/date-time';
+import { isRentalBusiness, rentalDateKey, rentalLocalStamp, rentalZonedStamp } from '@/services/rentals';
+import { rentalCopy } from '@/i18n/rentals';
 
 const copy = {
-  hy: { title: 'Ամրագրում', otp: '4-նիշ հաստատման կոդ', verify: 'Հաստատել և բացել', resend: 'Ուղարկել նոր կոդ', cancel: 'Չեղարկել ամրագրումը', cancelAll: 'Չեղարկել բոլոր այցերը', reschedule: 'Փոխել ժամը', deposit: 'Վճարել կանխավճարը', choose: 'Ընտրիր նոր օրը և ժամը', updated: 'Ամրագրման ժամը փոխվեց', cancelled: 'Ամրագրումը չեղարկված է', security: 'Քո ամրագրումն ապահով է', hint: 'Մուտքագրիր email/SMS-ով ստացած 4-նիշ հաստատման կոդը։', retry: 'Կրկին փորձել', noSlots: 'Այս օրը ազատ ժամեր չկան։ Ընտրիր այլ օր։', telegram: 'Միացնել Telegram-ը', sent: 'Հաստատման կոդն ուղարկված է', visit: 'Այց', expired: 'Հաստատիր մուտքը՝ ամրագրումը բացելու համար։' },
-  ru: { title: 'Запись', otp: '4-значный код подтверждения', verify: 'Подтвердить и открыть', resend: 'Отправить новый код', cancel: 'Отменить запись', cancelAll: 'Отменить все визиты', reschedule: 'Изменить время', deposit: 'Оплатить предоплату', choose: 'Выберите новые дату и время', updated: 'Время записи изменено', cancelled: 'Запись отменена', security: 'Ваша запись защищена', hint: 'Введите 4-значный код из email или SMS.', retry: 'Повторить', noSlots: 'Свободного времени нет. Выберите другой день.', telegram: 'Подключить Telegram', sent: 'Код подтверждения отправлен', visit: 'Визит', expired: 'Подтвердите доступ, чтобы открыть запись.' },
-  en: { title: 'Booking', otp: '4-digit verification code', verify: 'Verify and open', resend: 'Send a new code', cancel: 'Cancel booking', cancelAll: 'Cancel all visits', reschedule: 'Change time', deposit: 'Pay deposit', choose: 'Choose a new date and time', updated: 'Booking time updated', cancelled: 'Booking cancelled', security: 'Your booking is protected', hint: 'Enter the 4-digit code from your email or SMS.', retry: 'Try again', noSlots: 'No available times. Choose another day.', telegram: 'Connect Telegram', sent: 'Verification code sent', visit: 'Visit', expired: 'Verify your access to open this booking.' },
+  hy: { title: 'Ամրագրում', otp: '4-նիշ հաստատման կոդ', verify: 'Հաստատել և բացել', resend: 'Ուղարկել նոր կոդ', cancel: 'Չեղարկել ամրագրումը', cancelAll: 'Չեղարկել բոլոր այցերը', reschedule: 'Փոխել ժամը', deposit: 'Վճարել կանխավճարը', choose: 'Ընտրիր նոր օրը և ժամը', updated: 'Ամրագրման ժամը փոխվեց', cancelled: 'Ամրագրումը չեղարկված է', security: 'Քո ամրագրումն ապահով է', hint: 'Մուտքագրիր էլ․ փոստով կամ Telegram-ով ստացած 4-նիշ հաստատման կոդը։', retry: 'Կրկին փորձել', noSlots: 'Այս օրը ազատ ժամեր չկան։ Ընտրիր այլ օր։', telegram: 'Միացնել Telegram-ը', sent: 'Հաստատման կոդն ուղարկված է', visit: 'Այց', expired: 'Հաստատիր մուտքը՝ ամրագրումը բացելու համար։' },
+  ru: { title: 'Запись', otp: '4-значный код подтверждения', verify: 'Подтвердить и открыть', resend: 'Отправить новый код', cancel: 'Отменить запись', cancelAll: 'Отменить все визиты', reschedule: 'Изменить время', deposit: 'Оплатить предоплату', choose: 'Выберите новые дату и время', updated: 'Время записи изменено', cancelled: 'Запись отменена', security: 'Ваша запись защищена', hint: 'Введите 4-значный код из email или Telegram.', retry: 'Повторить', noSlots: 'Свободного времени нет. Выберите другой день.', telegram: 'Подключить Telegram', sent: 'Код подтверждения отправлен', visit: 'Визит', expired: 'Подтвердите доступ, чтобы открыть запись.' },
+  en: { title: 'Booking', otp: '4-digit verification code', verify: 'Verify and open', resend: 'Send a new code', cancel: 'Cancel booking', cancelAll: 'Cancel all visits', reschedule: 'Change time', deposit: 'Pay deposit', choose: 'Choose a new date and time', updated: 'Booking time updated', cancelled: 'Booking cancelled', security: 'Your booking is protected', hint: 'Enter the 4-digit code from your email or Telegram.', retry: 'Try again', noSlots: 'No available times. Choose another day.', telegram: 'Connect Telegram', sent: 'Verification code sent', visit: 'Visit', expired: 'Verify your access to open this booking.' },
 };
 
 export function GuestBookingDetail({ code, onBack }: { code: string; onBack: () => void }) {
@@ -55,8 +57,10 @@ export function GuestBookingDetail({ code, onBack }: { code: string; onBack: () 
   const acceptToken = async (data: Record<string, unknown>) => {
     const access = data.manage_token ?? data.guest_token;
     if (typeof access !== 'string' || !access) throw new Error('Verification unavailable');
-    await guestBookingStore.save(code, access);
     setToken(access); setOtp('');
+    // Verification has already succeeded on the server. Keep this session usable
+    // if the device cannot persist it, instead of submitting the OTP again.
+    await guestBookingStore.save(code, access).catch(() => Alert.alert(c.security, { hy: 'Մուտքը բացված է։ Այս սարքում պահպանել չհաջողվեց․ հավելվածը փակելուց հետո կարող է նոր կոդ պահանջվել։', ru: 'Доступ открыт, но сохранить его на устройстве не удалось. После закрытия приложения может понадобиться новый код.', en: 'Access is open, but could not be saved on this device. A new code may be needed after closing the app.' }[locale]));
   };
   const verify = useMutation({ mutationFn: async () => acceptToken(await publicApi.verifyBooking(code, otp)), onError: fail });
   const resend = useMutation({ mutationFn: async () => {
@@ -94,13 +98,14 @@ export function GuestBookingDetail({ code, onBack }: { code: string; onBack: () 
       {booking ? <>
         {booking.bookings.map((visit, index) => <Surface key={visit.id} style={styles.stack} elevated>
           <View style={styles.row}><Text style={[styles.caption, { color: theme.muted }]}>{c.visit}{booking.bookings.length > 1 ? ` ${index + 1} / ${booking.bookings.length}` : ''}</Text><StatusPill label={bookingStatusLabel(visit.status, locale)} tone={visit.status === 'confirmed' ? 'success' : visit.status === 'pending' ? 'warning' : 'neutral'} /></View>
-          <Text style={[styles.serviceTitle, { color: theme.text }]}>{visit.service?.name ?? visit.items?.map((item) => item.service?.name).filter(Boolean).join(' · ') ?? c.title}</Text>
-          <View style={[styles.dateFeature, { backgroundColor: theme.primary }]}><VizitIcon ios="calendar" android="event" color={theme.onPrimary} size={23} /><View style={styles.flex}><Text style={[styles.date, { color: theme.onPrimary }]}>{formatApiDateTime(visit.starts_at, locale)}</Text>{visit.ends_at ? <Text style={[styles.caption, { color: theme.onPrimary }]}>{formatApiTime(visit.starts_at, locale)} – {formatApiTime(visit.ends_at, locale)}</Text> : null}</View></View>
+          <Text style={[styles.serviceTitle, { color: theme.text }]}>{visit.service?.name || visit.items?.map((item) => item.service?.name).filter(Boolean).join(' · ') || (isRentalBusiness(booking) ? rentalCopy[locale].title : c.title)}</Text>
+          <View style={[styles.dateFeature, { backgroundColor: theme.cover }]}><VizitIcon ios="calendar" android="event" color={theme.coverText} size={23} /><View style={styles.flex}><Text style={[styles.date, { color: theme.coverText }]}>{isRentalBusiness(booking) ? rentalZonedStamp(visit.starts_at, locale, booking.business?.timezone) : formatApiDateTime(visit.starts_at, locale)}</Text>{visit.ends_at ? <Text style={[styles.caption, { color: theme.coverMuted }]}>{isRentalBusiness(booking) ? `${rentalCopy[locale].departure}: ${rentalZonedStamp(visit.ends_at, locale, booking.business?.timezone)}` : `${formatApiTime(visit.starts_at, locale)} – ${localDateKeyFromApi(visit.ends_at) !== localDateKeyFromApi(visit.starts_at) ? formatApiDateTime(visit.ends_at, locale) : formatApiTime(visit.ends_at, locale)}`}</Text> : null}</View></View>
           {visit.staff?.name ? <View style={styles.person}><VizitIcon ios="person.fill" android="person" color={theme.muted} size={18} /><Text style={[styles.body, { color: theme.textSecondary }]}>{visit.staff.name}</Text></View> : null}
           {visit.can_reschedule ? <PremiumButton title={c.reschedule} tone="secondary" disabled={cancel.isPending} onPress={() => setRescheduling(rescheduling === visit.id ? null : visit.id)} icon={{ ios: 'calendar.badge.clock', android: 'edit_calendar' }} /> : null}
-          {visit.can_reschedule && rescheduling === visit.id ? <ReschedulePanel visit={visit} code={code} token={token} onUpdated={async () => { setRescheduling(null); await refresh(); Alert.alert(c.updated); }} /> : null}
+          {visit.can_reschedule && rescheduling === visit.id ? <ReschedulePanel visit={visit} code={code} token={token} rental={isRentalBusiness(booking)} timezone={booking.business?.timezone} onUpdated={async () => { setRescheduling(null); await refresh(); Alert.alert(c.updated); }} /> : null}
         </Surface>)}
-        {booking.telegram_connected ? <View style={styles.connected}><VizitIcon ios="checkmark.circle.fill" android="check_circle" color={theme.success} size={19} /><Text style={[styles.body, { color: theme.success }]}>Telegram</Text></View> : <PremiumButton title={c.telegram} onPress={() => telegram.mutate()} loading={telegram.isPending} tone="secondary" icon={{ ios: 'paperplane.fill', android: 'send' }} />}
+        {booking.total_price != null ? <Surface style={styles.row}><Text style={[styles.body, { color: theme.muted }]}>{rentalCopy[locale].total}</Text><Text style={[styles.title, { color: theme.text }]}>{booking.total_price.toLocaleString()} {booking.currency || 'AMD'}</Text></Surface> : null}
+        {booking.telegram_connected ? <View style={styles.connected}><VizitIcon ios="checkmark.circle.fill" android="check_circle" color={theme.success} size={19} /><Text style={[styles.body, { color: theme.success }]}>Telegram</Text></View> : booking.telegram_available ? <PremiumButton title={c.telegram} onPress={() => telegram.mutate()} loading={telegram.isPending} tone="secondary" icon={{ ios: 'paperplane.fill', android: 'send' }} /> : null}
         {caps.data?.deposit_available ? <PremiumButton title={c.deposit} onPress={() => deposit.mutate()} loading={deposit.isPending} icon={{ ios: 'creditcard.fill', android: 'credit_card' }} /> : null}
         {booking.can_cancel ? <PremiumButton title={cancelLabel} tone="danger" loading={cancel.isPending} onPress={() => Alert.alert(cancelLabel, '', [{ text: t('back'), style: 'cancel' }, { text: cancelLabel, style: 'destructive', onPress: () => cancel.mutate() }])} /> : null}
       </> : null}
@@ -108,20 +113,22 @@ export function GuestBookingDetail({ code, onBack }: { code: string; onBack: () 
   </SafeAreaView>;
 }
 
-function ReschedulePanel({ visit, code, token, onUpdated }: { visit: GuestAppointment; code: string; token: string; onUpdated: () => Promise<void> }) {
+type RescheduleSlot = Omit<Slot, 'staff_id' | 'staff_name'> & { staff_id?: number; staff_name?: string };
+function ReschedulePanel({ visit, code, token, onUpdated, rental = false, timezone = 'Asia/Yerevan' }: { visit: GuestAppointment; code: string; token: string; onUpdated: () => Promise<void>; rental?: boolean; timezone?: string }) {
   const { theme, locale, t } = useApp();
   const c = copy[locale];
-  const [date, setDate] = useState(() => { const date = localDateKeyFromApi(visit.starts_at); return date && date > localDateKey() ? date : localDateKey(); });
-  const [selected, setSelected] = useState<Slot>();
-  const options = useQuery({ queryKey: ['reschedule', code, token, visit.id, date], queryFn: async () => normalizeList<Slot>(await publicApi.rescheduleOptions(code, token, { booking_id: visit.id, date }), ['slots']), retry: false, staleTime: 0 });
-  const update = useMutation({ mutationFn: () => publicApi.rescheduleBooking(code, token, { booking_id: visit.id, staff_id: selected!.staff_id, starts_at: localDateTimeInputFromApi(selected!.starts_at) }), onSuccess: onUpdated, onError: () => { setSelected(undefined); void options.refetch(); Alert.alert(t('loadError'), c.retry); } });
-  const available = options.data?.some((slot) => slot.starts_at === selected?.starts_at && slot.staff_id === selected?.staff_id);
+  const today = rental ? rentalDateKey(timezone) : localDateKey();
+  const [date, setDate] = useState(() => { const day = rental ? rentalDateKey(timezone, new Date(visit.starts_at)) : localDateKeyFromApi(visit.starts_at); return day && day > today ? day : today; });
+  const [selected, setSelected] = useState<RescheduleSlot>();
+  const options = useQuery({ queryKey: ['reschedule', code, token, visit.id, date], queryFn: async () => normalizeList<RescheduleSlot>(await publicApi.rescheduleOptions(code, token, { booking_id: visit.id, date }), ['slots']), retry: false, staleTime: 0 });
+  const update = useMutation({ mutationFn: () => publicApi.rescheduleBooking(code, token, { booking_id: visit.id, ...(rental ? {} : { staff_id: selected!.staff_id! }), starts_at: rental ? selected!.starts_at : localDateTimeInputFromApi(selected!.starts_at) }), onSuccess: onUpdated, onError: () => { setSelected(undefined); void options.refetch(); Alert.alert(t('loadError'), c.retry); } });
+  const available = (rental || Boolean(selected?.staff_id)) && options.data?.some((slot) => slot.starts_at === selected?.starts_at && slot.staff_id === selected?.staff_id);
   return <View style={styles.stack}>
     <Text style={[styles.title, { color: theme.text }]}>{c.choose}</Text>
-    <CalendarDatePicker value={date} onChange={(value) => { setDate(value); setSelected(undefined); }} />
+    <CalendarDatePicker value={date} minDate={today} onChange={(value) => { setDate(value); setSelected(undefined); }} />
     {options.isLoading ? <ActivityIndicator color={theme.accent} /> : options.isError ? <PremiumButton title={c.retry} onPress={() => void options.refetch()} tone="secondary" /> : !options.data?.length ? <Text style={[styles.body, { color: theme.muted }]}>{c.noSlots}</Text> : <View style={styles.slots}>{options.data.map((slot) => {
       const active = slot.starts_at === selected?.starts_at && slot.staff_id === selected?.staff_id;
-      return <TimeSlot key={`${slot.starts_at}-${slot.staff_id}`} start={formatApiTime(slot.starts_at, locale)} end={formatApiTime(slot.ends_at, locale)} detail={slot.staff_name} selected={active} disabled={update.isPending} onPress={() => setSelected(slot)} />;
+      return <TimeSlot key={`${slot.starts_at}-${slot.staff_id}`} start={rental ? slot.starts_at.slice(11, 16) : formatApiTime(slot.starts_at, locale)} end={rental ? rentalLocalStamp(slot.ends_at, locale) : formatApiTime(slot.ends_at, locale)} detail={slot.staff_name} selected={active} disabled={update.isPending} onPress={() => setSelected(slot)} />;
     })}</View>}
     <PremiumButton title={c.reschedule} loading={update.isPending} disabled={!available || options.isFetching} onPress={() => update.mutate()} />
   </View>;

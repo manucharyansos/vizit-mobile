@@ -1,3 +1,5 @@
+import { BusinessTypeScreen } from '@/components/business-type-screen';
+import { RentalWorkspaceScreen } from '@/components/rental-workspace-screen';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -23,6 +25,10 @@ const copy = {
 };
 
 export default function TodayScreen() {
+  return <BusinessTypeScreen rental={<RentalWorkspaceScreen mode="calendar" />}><TodayScreenService /></BusinessTypeScreen>;
+}
+
+function TodayScreenService() {
   const { locale, theme } = useApp();
   const c = copy[locale];
   const queryClient = useQueryClient();

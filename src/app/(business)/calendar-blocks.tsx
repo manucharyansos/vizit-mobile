@@ -9,6 +9,8 @@ import { businessApi } from '@/services/api/business';
 import { apiErrorMessage } from '@/services/api/client';
 import { calendarBlocksApi } from '@/services/api/calendar-blocks';
 import { safeBack } from '@/services/navigation';
+import { useBusinessPermissions } from '@/hooks/use-business-permissions';
+import { isRentalBusiness } from '@/services/rentals';
 
 const localDate = (offsetDays = 0) => {
   const date = new Date();
@@ -30,7 +32,9 @@ export default function CalendarBlocksScreen() {
   const from = localDate(-1);
   const to = localDate(60);
   const blocks = useQuery({ queryKey: ['calendar-blocks', from, to], queryFn: () => calendarBlocksApi.list(from, to), retry: false });
-  const staff = useQuery({ queryKey: ['business-staff'], queryFn: businessApi.staff, retry: false });
+  const permissions = useBusinessPermissions();
+  const rental = isRentalBusiness(permissions.user);
+  const staff = useQuery({ queryKey: ['business-staff'], queryFn: businessApi.staff, enabled: !permissions.isLoading && !permissions.isError && !rental, retry: false });
   const [showForm, setShowForm] = useState(false);
   const [staffId, setStaffId] = useState<number>();
   const [form, setForm] = useState({ starts_at: `${localDate()} 13:00`, ends_at: `${localDate()} 14:00`, reason: '' });
@@ -44,7 +48,7 @@ export default function CalendarBlocksScreen() {
     await cache.refetchQueries({ queryKey: ['calendar-blocks', from, to], type: 'active' });
   };
   const create = useMutation({
-    mutationFn: () => calendarBlocksApi.create({ ...form, reason: form.reason.trim() || undefined, staff_id: staffId }),
+    mutationFn: () => calendarBlocksApi.create({ ...form, reason: form.reason.trim() || undefined, staff_id: rental ? undefined : staffId }),
     onSuccess: async () => {
       setShowForm(false);
       setStaffId(undefined);
@@ -73,11 +77,11 @@ export default function CalendarBlocksScreen() {
           <PremiumInput label={c.start} value={form.starts_at} onChangeText={(starts_at) => setForm((value) => ({ ...value, starts_at }))} placeholder={c.startHint} maxLength={16} icon={{ ios: 'calendar', android: 'event' }} />
           <PremiumInput label={c.end} value={form.ends_at} onChangeText={(ends_at) => setForm((value) => ({ ...value, ends_at }))} placeholder={c.endHint} maxLength={16} icon={{ ios: 'clock', android: 'schedule' }} />
           <PremiumInput label={c.reason} value={form.reason} onChangeText={(reason) => setForm((value) => ({ ...value, reason }))} placeholder={c.reason} icon={{ ios: 'note.text', android: 'notes' }} />
-          <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{c.staff}</Text>
+          {!rental ? <><Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{c.staff}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             <ScopeChip selected={!staffId} label={c.all} onPress={() => setStaffId(undefined)} />
             {staff.data?.filter((item) => item.is_active).map((item) => <ScopeChip key={item.id} selected={staffId === item.id} label={item.name} onPress={() => setStaffId(item.id)} />)}
-          </ScrollView>
+          </ScrollView></> : null}
           <View style={styles.actions}><PremiumButton title={c.cancel} tone="secondary" onPress={() => setShowForm(false)} style={styles.flex} /><PremiumButton title={c.save} loading={create.isPending} disabled={!valid} onPress={() => create.mutate()} style={styles.flex} /></View>
         </Surface> : null}
 

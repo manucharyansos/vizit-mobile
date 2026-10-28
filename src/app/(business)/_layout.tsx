@@ -72,6 +72,7 @@ function BusinessTabs() {
       <Tabs.Screen name="client-detail" options={{ href: null }} />
       <Tabs.Screen name="locations" options={{ href: null }} />
       <Tabs.Screen name="profile-media" options={{ href: null }} />
+      <Tabs.Screen name="rental-gallery" options={{ href: null }} />
       <Tabs.Screen name="dashboard" options={{ title: labels[0], tabBarIcon: ({ color }) => <VizitIcon ios="chart.bar.fill" android="dashboard" color={color} size={23} /> }} />
       <Tabs.Screen name="today" options={{ title: labels[1], tabBarIcon: ({ color }) => <VizitIcon ios="calendar" android="calendar_month" color={color} size={23} /> }} />
       <Tabs.Screen name="clients" options={{ title: labels[2], tabBarIcon: ({ color }) => <VizitIcon ios="person.2.fill" android="group" color={color} size={23} /> }} />

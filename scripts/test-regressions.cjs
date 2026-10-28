@@ -603,6 +603,7 @@ test('business registration submits category, resets it on vertical changes and 
     { id: 4, slug: 'auto-service', vertical: 'services' },
     { id: 9, slug: 'dental-clinic', vertical: 'healthcare' },
     { id: 10, slug: 'other-healthcare', vertical: 'healthcare' },
+    { id: 11, slug: 'rental-space', vertical: 'rentals' },
   ] };
   const app = harness({
     react: { ...require('react'), useEffect: () => {}, useRef: () => ({ current: false }), useState: (initial) => {
@@ -615,6 +616,8 @@ test('business registration submits category, resets it on vertical changes and 
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@/components/premium-ui': Object.fromEntries(['BrandLockup', 'IconButton', 'PremiumButton', 'PremiumInput', 'Surface'].map((name) => [name, name])),
     '@/components/vizit-icon': { VizitIcon: 'VizitIcon' },
+    '@/components/location-picker': { LocationPicker: 'LocationPicker' },
+    '@/components/legal-consent': { LegalConsent: 'LegalConsent' },
     '@/components/business-category-picker': { BusinessCategoryPicker: 'CategoryPicker', categoryCopy: { ru: { required: 'Choose category', custom: 'Specific service', customPlaceholder: 'Service' } } },
     '@/services/api/categories': { fetchBusinessCategories: () => {} },
     '@/providers/app-provider': { useApp: () => ({ locale: 'ru', theme: {} }) },
@@ -633,8 +636,14 @@ test('business registration submits category, resets it on vertical changes and 
   nodes = render(); assert.equal(submit(nodes).props.disabled, true);
   assert.deepEqual(picker(nodes).props.categories.map((c) => c.slug), ['auto-service']);
   picker(nodes).props.onChange('auto-service'); nodes = render();
+  assert.equal(submit(nodes).props.disabled, true, 'a real map point is required');
+  nodes.find((n) => n.type === 'LocationPicker').props.onChange({ latitude: 40.19, longitude: 44.52 }); nodes = render();
+  assert.equal(submit(nodes).props.disabled, true, 'consent must be explicit');
+  nodes.find((n) => n.type === 'LegalConsent').props.onChange(true); nodes = render();
   assert.equal(submit(nodes).props.disabled, false); await submit(nodes).props.onPress();
   assert.equal(sent[0].business_category_id, 4); assert.equal(sent[0].business_category_slug, 'auto-service');
+  assert.equal(sent[0].legal_accepted, true); assert.equal(sent[0].terms_version, '2026-09-26');
+  assert.equal(sent[0].latitude, 40.19); assert.equal(sent[0].longitude, 44.52);
   assert.equal('custom_category_name' in sent[0], false);
   nodes.find((n) => n.type === 'Pressable' && elementTree(n).some((child) => child.type === 'Text' && child.props.children === 'Медицина')).props.onPress();
   nodes = render(); assert.equal(picker(nodes).props.value, ''); assert.equal(submit(nodes).props.disabled, true);
@@ -645,10 +654,95 @@ test('business registration submits category, resets it on vertical changes and 
   assert.equal(sent[1].vertical, 'healthcare'); assert.equal(sent[1].business_category_id, 10); assert.equal(sent[1].custom_category_name, 'Home care');
   picker(nodes).props.onChange('dental-clinic'); nodes = render(); await submit(nodes).props.onPress();
   assert.equal('custom_category_name' in sent[2], false);
+  nodes.find((n) => n.type === 'Pressable' && elementTree(n).some((child) => child.type === 'Text' && child.props.children === 'Аренда помещения')).props.onPress();
+  nodes = render(); assert.equal(picker(nodes).props.value, ''); assert.equal(submit(nodes).props.disabled, true);
+  picker(nodes).props.onChange('rental-space'); nodes = render(); await submit(nodes).props.onPress();
+  assert.equal(sent[3].vertical, 'rentals'); assert.equal(sent[3].plan_code, 'rental'); assert.equal(sent[3].business_category_id, 11);
   query = { ...query, isError: true }; nodes = render();
   assert.equal(submit(nodes).props.disabled, true); assert.throws(() => mutation.mutationFn());
   query = { ...query, isError: false, data: [] }; nodes = render();
   assert.equal(submit(nodes).props.disabled, true); assert.throws(() => mutation.mutationFn());
+});
+
+test('rental duration units preserve whole minutes, enforce limits and reject malformed input', () => {
+  const { rentalDuration, validRentalDuration, rentalDurationLabel } = harness().load('src/services/rentals.ts');
+  const rates = { min_minutes: 60, max_minutes: 43200, slot_step_minutes: 30 };
+  for (const [value, unit, expected] of [['2', 'hours', 120], ['5', 'hours', 300], ['3', 'days', 4320], ['1,5', 'hours', 90], ['30', 'days', 43200]]) {
+    assert.equal(rentalDuration(value, unit), expected); assert.equal(validRentalDuration(expected, rates), true);
+  }
+  for (const value of ['', '-1', 'Infinity', '1e3', 'abc', '0.5']) assert.equal(rentalDuration(value, 'minutes'), 0);
+  assert.equal(validRentalDuration(61, rates), false); assert.equal(validRentalDuration(44640, rates), false);
+  assert.equal(rentalDurationLabel(4350, { days: 'd', hours: 'h', minutes: 'm' }), '3 d 30 m');
+});
+
+test('rental selection preserves server wall times and does not infer elapsed time across DST', () => {
+  const { selectedRentalSlot, rentalDateKey, rentalLocalStamp, rentalZonedStamp, rentalTransitions } = harness().load('src/services/rentals.ts');
+  assert.equal(rentalDateKey('Asia/Yerevan', new Date('2026-12-31T22:00:00Z')), '2027-01-01');
+  assert.equal(rentalDateKey('America/Los_Angeles', new Date('2026-12-31T22:00:00Z')), '2026-12-31');
+  const slot = { starts_at: '2026-11-01 01:30', ends_at: '2026-11-01 01:30', price: 1000, currency: 'AMD' };
+  assert.equal(selectedRentalSlot([slot], slot.starts_at), slot);
+  assert.equal(selectedRentalSlot([], slot.starts_at), undefined);
+  assert.equal(selectedRentalSlot([{ ...slot, price: NaN }], slot.starts_at), undefined);
+  assert.match(rentalLocalStamp('2026-10-29 22:00', 'hy'), /22:00/);
+  assert.match(rentalZonedStamp('2026-10-29T18:00:00Z', 'hy', 'Asia/Yerevan'), /22:00/);
+  assert.deepEqual(rentalTransitions({ status: 'pending', is_expired: true }), []);
+  assert.deepEqual(rentalTransitions({ status: 'completed' }), []);
+  assert.deepEqual(rentalTransitions({ status: 'confirmed' }), ['in_progress', 'completed', 'cancelled', 'no_show']);
+});
+
+test('rental schedules validate midnight breaks without blocking overnight or 24-hour windows', () => {
+  const { validRentalScheduleDay } = harness().load('src/services/rentals.ts');
+  const day = { is_closed: false, start: '22:00', end: '06:00', break_start: '23:30', break_end: '00:30' };
+  assert.equal(validRentalScheduleDay(day), true);
+  assert.equal(validRentalScheduleDay({ ...day, break_start: '02:00', break_end: '03:00' }), true);
+  assert.equal(validRentalScheduleDay({ ...day, start: '10:00', end: '10:00', break_start: '01:00', break_end: '02:00' }), true);
+  assert.equal(validRentalScheduleDay({ ...day, break_start: '07:00', break_end: '08:00' }), false);
+  assert.equal(validRentalScheduleDay({ ...day, break_end: null }), false);
+  assert.equal(validRentalScheduleDay({ ...day, end: '25:00' }), false);
+  assert.equal(validRentalScheduleDay({ is_closed: true, start: null, end: null }), true);
+});
+
+test('public rental profiles retain rates, visibility, timezone and gallery media', () => {
+  const app = harness(); const { normalizeBusiness } = app.load('src/services/api/public.ts');
+  const rates = { hourly_price: 5000, min_minutes: 60, max_minutes: 10080, slot_step_minutes: 30, allow_overnight: true };
+  const item = normalizeBusiness({ id: 7, name: 'Space', slug: 'space', business_type: 'rentals', vertical: 'rentals', timezone: 'Europe/Berlin', rental: rates, show_staff: false, show_services: false, gallery: [{ id: 1, kind: 'image', url: '/storage/photo.jpg', sort_order: 1 }], locations: [] });
+  assert.equal(item.business_type, 'rentals'); assert.equal(item.timezone, 'Europe/Berlin'); assert.deepEqual(item.rental, rates);
+  assert.equal(item.show_services, false); assert.equal(item.show_staff, false); assert.match(item.gallery[0].url, /^https:\/\//);
+});
+
+test('rental APIs use separate public and business clients and send the documented duration contract', async () => {
+  const app = harness({ '../notifications': { revokePushDevice: async () => undefined, synchronizePushDevice: async () => false } });
+  const { tokenStore, publicClient, businessAuthClient } = app.load('src/services/api/client.ts');
+  const { rentalApi } = app.load('src/services/api/rentals.ts');
+  await tokenStore.set('business', 'rental-business-session');
+  const requests = [];
+  const adapter = async (config) => { requests.push(config); return { data: { data: [] }, status: 200, statusText: 'OK', headers: {}, config }; };
+  publicClient.defaults.adapter = adapter; businessAuthClient.defaults.adapter = adapter;
+  await rentalApi.slots('space', '2026-10-29', 4320); await rentalApi.manualSlots('2026-10-29', 120);
+  await rentalApi.publicCreate('space', { starts_at: '2026-10-29 10:00', duration_minutes: 4320, client_name: 'Test', client_phone: '+37499000000', client_email: 'test@example.invalid', legal_accepted: true, terms_version: '2026-09-26', privacy_version: '2026-09-26' });
+  assert.equal(requests[0].url, '/public/businesses/space/rental-availability'); assert.equal(requests[0].headers.Authorization, undefined);
+  assert.equal(requests[0].params.duration_minutes, 4320); assert.equal(requests[1].url, '/rental/availability');
+  assert.equal(requests[1].headers.Authorization, 'Bearer rental-business-session'); assert.equal(requests[2].headers.Authorization, undefined);
+  const body = JSON.parse(requests[2].data); assert.equal(body.source, 'mobile'); assert.equal(body.duration_minutes, 4320); assert.equal(body.starts_at, '2026-10-29 10:00');
+  assert.equal('service_id' in body, false); assert.equal('staff_id' in body, false);
+});
+
+test('guest rental normalization retains management metadata without leaking references or access secrets', () => {
+  const { normalizeGuestBooking, guestSummary } = harness().load('src/services/guest-booking.ts');
+  const booking = normalizeGuestBooking({ data: { booking_code: 'private-reference', manage_token: 'secret-token', business: { name: 'Space', business_type: 'rentals', timezone: 'Asia/Yerevan' }, telegram_available: false, total_price: 360000, bookings: [{ id: 1, starts_at: '2026-10-29T06:00:00Z', ends_at: '2026-11-01T06:00:00Z', service: null, staff: null, can_reschedule: true, guest_access_token_hash: 'private-hash' }] } });
+  assert.equal(booking.business_type, 'rentals'); assert.equal(booking.business.timezone, 'Asia/Yerevan');
+  assert.equal(booking.bookings[0].can_reschedule, true); assert.equal(booking.telegram_available, false);
+  const summary = guestSummary(booking); assert.equal(summary.serviceName, 'Space'); assert.equal(summary.endsAt, '2026-11-01T06:00:00Z');
+  assert.doesNotMatch(JSON.stringify({ booking, summary }), /private-reference|secret-token|private-hash/);
+});
+
+test('rental private queries are cleared with the business session and translations cover every locale', () => {
+  const app = harness(); const { belongsToSession } = app.load('src/services/session-cache.ts');
+  for (const key of ['business-rental-settings', 'business-rental-availability', 'business-rental-summary', 'business-rental-bookings']) {
+    assert.equal(belongsToSession([key], 'business'), true); assert.equal(belongsToSession([key], 'client'), false);
+  }
+  const { rentalCopy } = app.load('src/i18n/rentals.ts');
+  assert.deepEqual(Object.keys(rentalCopy.hy).sort(), Object.keys(rentalCopy.ru).sort()); assert.deepEqual(Object.keys(rentalCopy.hy).sort(), Object.keys(rentalCopy.en).sort());
 });
 
 test('cabinet bookings open through the owner access endpoint, never the public resend shortcut', async () => {

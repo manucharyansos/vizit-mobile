@@ -12,6 +12,7 @@ const WEEKDAYS = {
 } as const;
 
 const LOCALE_TAG = { hy: 'hy-AM', ru: 'ru-RU', en: 'en-US' } as const;
+const ARMENIAN_MONTHS = ['Հունվար', 'Փետրվար', 'Մարտ', 'Ապրիլ', 'Մայիս', 'Հունիս', 'Հուլիս', 'Օգոստոս', 'Սեպտեմբեր', 'Հոկտեմբեր', 'Նոյեմբեր', 'Դեկտեմբեր'];
 const two = (value: number) => String(value).padStart(2, '0');
 
 function parseDateKey(value: string) {
@@ -38,7 +39,7 @@ export function CalendarDatePicker({ value, onChange, minDate = localDateKey() }
     ];
   }, [visibleMonth]);
 
-  const monthLabel = new Intl.DateTimeFormat(LOCALE_TAG[locale], { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
+  const monthLabel = locale === 'hy' ? `${ARMENIAN_MONTHS[visibleMonth.month]} ${visibleMonth.year}` : new Intl.DateTimeFormat(LOCALE_TAG[locale], { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
     new Date(Date.UTC(visibleMonth.year, visibleMonth.month, 1)),
   );
   const previousLabel = locale === 'hy' ? 'Նախորդ ամիս' : locale === 'ru' ? 'Предыдущий месяц' : 'Previous month';

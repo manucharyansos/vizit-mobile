@@ -1,3 +1,5 @@
+import { BusinessTypeScreen } from '@/components/business-type-screen';
+import { RentalSettingsScreen } from '@/components/rental-settings-screen';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Href, router } from 'expo-router';
 import { useState } from 'react';
@@ -23,6 +25,10 @@ const copy = {
 };
 
 export default function BusinessAdmin() {
+  return <BusinessTypeScreen rental={<RentalSettingsScreen />} allowIncomplete><BusinessAdminService /></BusinessTypeScreen>;
+}
+
+function BusinessAdminService() {
   const { locale, theme } = useApp();
   const c = copy[locale];
   const cache = useQueryClient();

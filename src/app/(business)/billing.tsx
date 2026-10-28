@@ -8,11 +8,12 @@ import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
 import { businessApi } from '@/services/api/business';
 import { apiErrorMessage } from '@/services/api/client';
+import { isRentalBusiness } from '@/services/rentals';
 
 const copy = {
-  hy: { title: 'Պլան և վճարումներ', subtitle: 'Բաժանորդագրություն և վճարման ենթակառուցվածք', billingStatus: 'Վճարման կարգավիճակ', currentPlan: 'Ընթացիկ պլան', subscription: 'Բաժանորդագրություն', provider: 'Վճարման մատակարար', usage: 'Օգտագործում', staff: 'Աշխատակիցներ', services: 'Ծառայություններ', locations: 'Մասնաճյուղեր', methods: 'Վճարման եղանակներ Հայաստանում', live: 'Ակտիվ', setup: 'Սպասում է merchant կարգավորմանը', planned: 'Միացման փուլում', plannedHint: 'Ցուցադրվում է նախապես, բայց վճարումը դեռ անջատված է մինչև backend ինտեգրումը։', idbank: 'IDBank / vPOS', idram: 'Idram Checkout', telcell: 'Telcell Wallet', easypay: 'EasyPay / easywallet', cards: 'Բանկային քարտեր', cardsHint: 'ArCa · Visa · Mastercard', loadError: 'Չհաջողվեց բեռնել վճարումների տվյալները', retry: 'Կրկին փորձել' },
-  ru: { title: 'Тариф и платежи', subtitle: 'Подписка и платёжная инфраструктура', billingStatus: 'Статус оплаты', currentPlan: 'Текущий тариф', subscription: 'Подписка', provider: 'Платёжный провайдер', usage: 'Использование', staff: 'Сотрудники', services: 'Услуги', locations: 'Филиалы', methods: 'Способы оплаты в Армении', live: 'Активно', setup: 'Ожидает настройки merchant', planned: 'Подключение запланировано', plannedHint: 'Метод показан заранее, но оплата отключена до завершения backend-интеграции.', idbank: 'IDBank / vPOS', idram: 'Idram Checkout', telcell: 'Telcell Wallet', easypay: 'EasyPay / easywallet', cards: 'Банковские карты', cardsHint: 'ArCa · Visa · Mastercard', loadError: 'Не удалось загрузить данные оплаты', retry: 'Повторить' },
-  en: { title: 'Plan and billing', subtitle: 'Subscription and payment infrastructure', billingStatus: 'Billing status', currentPlan: 'Current plan', subscription: 'Subscription', provider: 'Payment provider', usage: 'Usage', staff: 'Staff', services: 'Services', locations: 'Locations', methods: 'Payment methods in Armenia', live: 'Active', setup: 'Waiting for merchant setup', planned: 'Integration planned', plannedHint: 'Shown in advance, but disabled until the backend integration is complete.', idbank: 'IDBank / vPOS', idram: 'Idram Checkout', telcell: 'Telcell Wallet', easypay: 'EasyPay / easywallet', cards: 'Bank cards', cardsHint: 'ArCa · Visa · Mastercard', loadError: 'Could not load billing data', retry: 'Try again' },
+  hy: { title: 'Պլան և վճարումներ', subtitle: 'Բաժանորդագրություն և վճարման ենթակառուցվածք', billingStatus: 'Վճարման կարգավիճակ', currentPlan: 'Ընթացիկ պլան', subscription: 'Բաժանորդագրություն', provider: 'Վճարման մատակարար', usage: 'Օգտագործում', staff: 'Աշխատակիցներ', services: 'Ծառայություններ', locations: 'Մասնաճյուղեր', methods: 'Վճարման եղանակներ Հայաստանում', live: 'Ակտիվ', setup: 'Սպասում է merchant կարգավորմանը', planned: 'Միացման փուլում', plannedHint: 'Վճարումը հասանելի է ծառայության միացումը հաստատվելուց հետո։ Քարտի տվյալները մուտքագրվում են վճարային ծառայության պաշտպանված էջում։', idbank: 'IDBank / vPOS', idram: 'Idram Checkout', telcell: 'Telcell Wallet', easypay: 'EasyPay / easywallet', cards: 'Բանկային քարտեր', cardsHint: 'ArCa · Visa · Mastercard', loadError: 'Չհաջողվեց բեռնել վճարումների տվյալները', retry: 'Կրկին փորձել' },
+  ru: { title: 'Тариф и платежи', subtitle: 'Подписка и платёжная инфраструктура', billingStatus: 'Статус оплаты', currentPlan: 'Текущий тариф', subscription: 'Подписка', provider: 'Платёжный провайдер', usage: 'Использование', staff: 'Сотрудники', services: 'Услуги', locations: 'Филиалы', methods: 'Способы оплаты в Армении', live: 'Активно', setup: 'Ожидает настройки merchant', planned: 'Подключение запланировано', plannedHint: 'Оплата доступна после подтверждения подключения. Платёжные данные вводятся на защищённой странице платёжного сервиса.', idbank: 'IDBank / vPOS', idram: 'Idram Checkout', telcell: 'Telcell Wallet', easypay: 'EasyPay / easywallet', cards: 'Банковские карты', cardsHint: 'ArCa · Visa · Mastercard', loadError: 'Не удалось загрузить данные оплаты', retry: 'Повторить' },
+  en: { title: 'Plan and billing', subtitle: 'Subscription and payment infrastructure', billingStatus: 'Billing status', currentPlan: 'Current plan', subscription: 'Subscription', provider: 'Payment provider', usage: 'Usage', staff: 'Staff', services: 'Services', locations: 'Locations', methods: 'Payment methods in Armenia', live: 'Active', setup: 'Waiting for merchant setup', planned: 'Integration planned', plannedHint: 'Payment is available after the connection is confirmed. Payment details are entered on the payment service’s secure page.', idbank: 'IDBank / vPOS', idram: 'Idram Checkout', telcell: 'Telcell Wallet', easypay: 'EasyPay / easywallet', cards: 'Bank cards', cardsHint: 'ArCa · Visa · Mastercard', loadError: 'Could not load billing data', retry: 'Try again' },
 };
 
 const show = (value: unknown) => value == null || value === '' ? '—' : String(value);
@@ -48,15 +49,11 @@ export default function BillingScreen() {
   const provider = data?.payment_provider as Record<string, unknown> | undefined;
   const usage = data?.usage as Record<string, unknown> | undefined;
   const providerName = String(provider?.default ?? '').toLocaleLowerCase();
-  const providerMode = String(provider?.mode ?? '').toLocaleLowerCase();
-  const idbankConfigured = providerName.includes('idbank');
-  const idbankLive = idbankConfigured && providerMode === 'live' && provider?.live_ready === true;
+  const rental = isRentalBusiness(business as { business_type?: string } | undefined);
+  const ready = provider?.checkout_available === true;
+  const idram = providerName === 'idram';
   const methods: Method[] = [
-    { key: 'idbank', name: c.idbank, detail: idbankLive ? c.live : c.setup, active: idbankLive, officialLogo: idbankLogo },
-    { key: 'idram', name: c.idram, detail: c.planned, active: false },
-    { key: 'telcell', name: c.telcell, detail: c.planned, active: false },
-    { key: 'easypay', name: c.easypay, detail: c.planned, active: false },
-    { key: 'cards', name: c.cards, detail: c.cardsHint, active: false },
+    { key: idram ? 'idram' : 'idbank', name: idram ? c.idram : c.idbank, detail: ready ? c.live : c.setup, active: ready, officialLogo: idram ? 'https://vizit.am/payments/idram.png' : idbankLogo },
   ];
 
   return (
@@ -70,15 +67,15 @@ export default function BillingScreen() {
             <Surface style={[styles.planCard, { backgroundColor: theme.cover, borderColor: theme.cover }]}>
               <View style={styles.planTop}><Text style={[styles.planEyebrow, { color: theme.coverMuted }]}>{c.currentPlan.toLocaleUpperCase()}</Text><StatusPill label={statusText(subscription?.status, locale)} tone={statusTone(subscription?.status)} onCover /></View>
               <Text style={[styles.planName, { color: theme.coverText }]}>{show(plan?.name ?? plan?.code)}</Text>
-              <View style={[styles.planMeta, { borderTopColor: 'rgba(255,255,255,0.16)' }]}><View><Text style={[styles.planMetaLabel, { color: theme.coverMuted }]}>{c.billingStatus}</Text><Text style={[styles.planMetaValue, { color: theme.coverText }]}>{statusText(business?.billing_status, locale)}</Text></View><View style={styles.planMetaRight}><Text style={[styles.planMetaLabel, { color: theme.coverMuted }]}>{c.provider}</Text><Text style={[styles.planMetaValue, { color: theme.coverText }]}>{show(provider?.default)} · {show(provider?.mode)}</Text></View></View>
+              <View style={[styles.planMeta, { borderTopColor: 'rgba(255,255,255,0.16)' }]}><View><Text style={[styles.planMetaLabel, { color: theme.coverMuted }]}>{c.billingStatus}</Text><Text style={[styles.planMetaValue, { color: theme.coverText }]}>{statusText(business?.billing_status, locale)}</Text></View><View style={styles.planMetaRight}><Text style={[styles.planMetaLabel, { color: theme.coverMuted }]}>{c.provider}</Text><Text style={[styles.planMetaValue, { color: theme.coverText }]}>{String(provider?.display_name ?? (idram ? c.idram : c.idbank))}</Text></View></View>
             </Surface>
 
             <Surface style={styles.usageCard} elevated>
               <SectionHeader title={c.usage} />
-              <UsageRow label={c.staff} value={ratio(usage?.active_staff, usage?.staff_limit)} icon={{ ios: 'person.2.fill', android: 'group' }} />
+              {!rental ? <><UsageRow label={c.staff} value={ratio(usage?.active_staff, usage?.staff_limit)} icon={{ ios: 'person.2.fill', android: 'group' }} />
               <Divider />
               <UsageRow label={c.services} value={ratio(usage?.services_count, usage?.services_limit)} icon={{ ios: 'square.grid.2x2.fill', android: 'grid_view' }} />
-              <Divider />
+              <Divider /></> : null}
               <UsageRow label={c.locations} value={ratio(usage?.locations_count, usage?.locations_limit)} icon={{ ios: 'mappin.and.ellipse', android: 'location_on' }} />
             </Surface>
 

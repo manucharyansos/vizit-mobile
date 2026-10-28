@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
+import { LocationCoordinates } from './location-coordinates';
 
 type MapKitModule = typeof import('expo-yandex-mapkit');
 type Point = { latitude: number; longitude: number };
@@ -62,14 +63,8 @@ export function LocationPicker({ latitude, longitude, onChange, height = 238 }: 
     return () => { active = false; };
   }, [apiKey]);
 
-  const fallback = !apiKey
-    ? locale === 'hy' ? 'Yandex MapKit API key-ը բացակայում է։' : locale === 'ru' ? 'Не найден ключ Yandex MapKit.' : 'Yandex MapKit API key is missing.'
-    : mapError
-      ? locale === 'hy' ? `Yandex MapKit-ը չբացվեց․ ${mapError}` : locale === 'ru' ? `Yandex MapKit не открылся: ${mapError}` : `Yandex MapKit failed to open: ${mapError}`
-      : locale === 'hy' ? 'Yandex քարտեզը բեռնվում է…' : locale === 'ru' ? 'Yandex-карта загружается…' : 'Loading Yandex MapKit…';
-
   if (!apiKey || !mapKit) {
-    return <View style={[styles.fallback, { height, backgroundColor: theme.map, borderColor: theme.border }]}><View style={[styles.mapBadge, { backgroundColor: theme.accentSoft }]}><Text style={[styles.brand, { color: theme.accentText }]}>Yandex MapKit</Text></View><Text style={[styles.hint, { color: theme.muted }]}>{fallback}</Text>{finite(latitude) && finite(longitude) ? <Text style={[styles.coords, { color: theme.text }]}>{latitude.toFixed(6)}, {longitude.toFixed(6)}</Text> : null}</View>;
+    return <View style={[styles.fallback, { minHeight: height, backgroundColor: theme.map, borderColor: theme.border }]}>{mapError ? <Text style={[styles.hint, { color: theme.muted }]}>{locale === 'hy' ? 'Քարտեզը հասանելի չէ․ վայրը կարող եք ընտրել ստորև։' : locale === 'ru' ? 'Карта недоступна. Место можно указать ниже.' : 'The map is unavailable. Choose the location below.'}</Text> : null}<LocationCoordinates latitude={latitude} longitude={longitude} onChange={onChange} /></View>;
   }
 
   const { YandexMapView, Marker } = mapKit;

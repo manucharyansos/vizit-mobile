@@ -1,9 +1,10 @@
 import { API_BASE_URL, publicClient } from './client';
 import { debugEmptyList, normalizeList, normalizeResource } from './normalize';
 import { validPoint } from '../geo';
+import type { RentalMedia, RentalRates } from '../rentals';
 
 export type Location = { id: number; name: string; address?: string | null; lat?: number; lng?: number };
-export type PublicBusiness = { business_id: number; name: string; slug: string; category_name?: string | null; category_names?: { hy?: string; ru?: string; en?: string }; address?: string | null; phone?: string | null; description?: string | null; short_description?: string | null; cover_url?: string | null; logo_url?: string | null; locations: Location[] };
+export type PublicBusiness = { business_id: number; name: string; slug: string; business_type?: string; vertical?: string; timezone?: string; show_services?: boolean; show_staff?: boolean; rental?: RentalRates | null; gallery?: RentalMedia[]; category_name?: string | null; category_names?: { hy?: string; ru?: string; en?: string }; address?: string | null; phone?: string | null; description?: string | null; short_description?: string | null; cover_url?: string | null; logo_url?: string | null; locations: Location[] };
 export type BusinessPin = { business_id: number; name: string; slug: string; category_name?: string; location_id: number; location_name: string; address?: string; lat: number; lng: number };
 export type Service = { id: number; name: string; description?: string | null; duration_minutes: number; price: number; currency: string; image_url?: string | null; location_id?: number | null };
 export type Staff = { id: number; name: string; role?: string; avatar_url?: string | null; bio?: string | null; location_id?: number | null };
@@ -17,13 +18,20 @@ const mediaUrl = (value?: string | null): string | null => {
   return `${apiOrigin}/${path.replace(/^\/+/, '')}`;
 };
 
-function normalizeBusiness(v: Record<string, unknown>): PublicBusiness {
+export function normalizeBusiness(v: Record<string, unknown>): PublicBusiness {
   const rawLocations = normalizeList<Record<string, unknown>>(v.locations, ['locations']);
   const category = v.category as Record<string, string> | undefined;
   return {
     business_id: Number(v.business_id ?? v.id),
     name: String(v.name ?? ''),
     slug: String(v.slug ?? ''),
+    business_type: typeof v.business_type === 'string' ? v.business_type : undefined,
+    vertical: typeof v.vertical === 'string' ? v.vertical : undefined,
+    timezone: typeof v.timezone === 'string' ? v.timezone : 'Asia/Yerevan',
+    show_services: v.show_services !== false,
+    show_staff: v.show_staff !== false,
+    rental: v.rental && typeof v.rental === 'object' ? v.rental as RentalRates : null,
+    gallery: normalizeList<RentalMedia>(v.gallery).map((item) => ({ ...item, url: mediaUrl(item.url) ?? item.url })).sort((a, b) => a.sort_order - b.sort_order),
     category_name: String(v.category_name ?? v.custom_category_name ?? category?.name ?? category?.name_hy ?? '') || null,
     category_names: category ? { hy: category.name_hy, ru: category.name_ru, en: category.name_en } : undefined,
     address: v.address == null ? null : String(v.address),
@@ -102,7 +110,7 @@ export const publicApi = {
   telegramLink: async (bookingCode: string, guestToken: string): Promise<{ url: string }> => normalizeResource<{ url: string }>((await publicClient.post(`/public/bookings/${bookingCode}/telegram-link`, {}, { headers: { 'X-Guest-Token': guestToken } })).data),
   cancelBooking: async (bookingCode: string, guestToken: string) => (await publicClient.post(`/public/bookings/${bookingCode}/cancel`, {}, { headers: { 'X-Guest-Token': guestToken } })).data,
   rescheduleOptions: async (bookingCode: string, guestToken: string, params: { booking_id: number; date: string; staff_id?: number }) => (await publicClient.get(`/public/bookings/${bookingCode}/reschedule-options`, { params: { ...params, _t: Date.now() }, headers: { 'X-Guest-Token': guestToken } })).data,
-  rescheduleBooking: async (bookingCode: string, guestToken: string, payload: { booking_id: number; staff_id: number; starts_at: string }) => (await publicClient.post(`/public/bookings/${bookingCode}/reschedule`, payload, { headers: { 'X-Guest-Token': guestToken } })).data,
+  rescheduleBooking: async (bookingCode: string, guestToken: string, payload: { booking_id: number; staff_id?: number; starts_at: string }) => (await publicClient.post(`/public/bookings/${bookingCode}/reschedule`, payload, { headers: { 'X-Guest-Token': guestToken } })).data,
   createDepositSession: async (bookingCode: string, guestToken: string, payload: { return_url: string; cancel_url: string }) => (await publicClient.post(`/public/bookings/${bookingCode}/payments/idbank/session`, payload, { headers: { 'X-Guest-Token': guestToken } })).data,
   paymentCapabilities: async (bookingCode: string, guestToken: string) => (await publicClient.get(`/public/bookings/${bookingCode}/payments/capabilities`, { headers: { 'X-Guest-Token': guestToken } })).data,
   paymentStatus: async (bookingCode: string, paymentId: string, guestToken: string) => (await publicClient.get(`/public/bookings/${bookingCode}/payments/${paymentId}/status`, { headers: { 'X-Guest-Token': guestToken } })).data,

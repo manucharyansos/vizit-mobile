@@ -1,4 +1,4 @@
-import { create } from 'axios';
+import { create, isAxiosError } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { appQueryClient } from '@/services/query-client';
 import { isSessionDataQuery, sessionQueryKey } from '@/services/session-cache';
@@ -99,7 +99,8 @@ export const businessAuthClient = createApiClient('business');
 export function apiErrorMessage(error: unknown): string {
   const candidate = error as { response?: { data?: { message?: unknown; errors?: Record<string, unknown> } } };
   const data = candidate.response?.data;
-  if (typeof data?.message === 'string') return data.message;
   const first = data?.errors && Object.values(data.errors).flat().find((value) => typeof value === 'string');
-  return typeof first === 'string' ? first : 'Please try again.';
+  if (typeof first === 'string') return first;
+  if (typeof data?.message === 'string') return data.message;
+  return error instanceof Error && !isAxiosError(error) ? error.message : 'Please try again.';
 }

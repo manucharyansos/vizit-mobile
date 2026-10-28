@@ -1,4 +1,4 @@
-import { PropsWithChildren, ReactNode } from 'react';
+import { PropsWithChildren, ReactNode, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -115,7 +115,7 @@ export function PageHeader({
         {action ? <View style={styles.headerAction}>{action}</View> : null}
       </View> : null}
       <View style={styles.pageHeaderText}>
-        <Text style={[styles.pageTitle, { color: theme.text }]}>{title}</Text>
+        <Text accessibilityRole="header" style={[styles.pageTitle, { color: theme.text }]}>{title}</Text>
         {subtitle ? <Text style={[styles.pageSubtitle, { color: theme.muted }]}>{subtitle}</Text> : null}
       </View>
     </View>
@@ -179,7 +179,7 @@ export function PremiumButton({
     >
       {loading ? <ActivityIndicator size="small" color={foreground} /> : null}
       {!loading && icon ? <VizitIcon ios={icon.ios} android={icon.android} color={foreground} size={18} /> : null}
-      {!loading ? <Text style={[styles.buttonText, { color: foreground }, textStyle]}>{title}</Text> : null}
+      <Text style={[styles.buttonText, { color: foreground }, textStyle]}>{title}</Text>
     </Pressable>
   );
 }
@@ -199,20 +199,23 @@ export function PremiumInput({
   inputStyle?: StyleProp<TextStyle>;
 }) {
   const { theme } = useApp();
+  const [focused, setFocused] = useState(false);
   return (
     <View style={[styles.fieldGroup, containerStyle]}>
       {label ? <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{label}</Text> : null}
-      <View style={[styles.fieldShell, props.multiline && styles.fieldShellMultiline, { backgroundColor: theme.surface, borderColor: error ? theme.danger : theme.border }]}>
+      <View style={[styles.fieldShell, props.multiline && styles.fieldShellMultiline, { backgroundColor: theme.surface, borderColor: error ? theme.danger : focused ? theme.accent : theme.border }]}>
         {icon ? <VizitIcon ios={icon.ios} android={icon.android} color={theme.faint} size={19} style={props.multiline ? styles.fieldIconMultiline : undefined} /> : null}
         <TextInput
           {...props}
           accessibilityLabel={props.accessibilityLabel ?? label ?? props.placeholder}
+          onFocus={(event) => { setFocused(true); props.onFocus?.(event); }}
+          onBlur={(event) => { setFocused(false); props.onBlur?.(event); }}
           placeholderTextColor={theme.faint}
           selectionColor={theme.accent}
           style={[styles.field, props.multiline && styles.fieldMultiline, { color: theme.text }, inputStyle]}
         />
       </View>
-      {error ? <Text style={[styles.fieldError, { color: theme.danger }]}>{error}</Text> : null}
+      {error ? <Text accessibilityLiveRegion="polite" style={[styles.fieldError, { color: theme.danger }]}>{error}</Text> : null}
     </View>
   );
 }

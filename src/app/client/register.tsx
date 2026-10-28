@@ -6,6 +6,8 @@ import { ClientAuthShell } from '@/components/client-auth-shell';
 import { PremiumButton, PremiumInput } from '@/components/premium-ui';
 import { useApp } from '@/providers/app-provider';
 import { clientAccountApi } from '@/services/api/client-account';
+import { LegalConsent } from '@/components/legal-consent';
+import { LEGAL_DOCUMENT_VERSION } from '@/constants/legal';
 
 const copy = {
   hy: { title: 'Ստեղծիր հաշիվ', subtitle: 'Քո բոլոր այցերն ու ծանուցումները՝ մեկ անվտանգ հաշվում', name: 'Անուն ազգանուն', email: 'Էլ․ փոստ', phone: 'Հեռախոսահամար', password: 'Գաղտնաբառ՝ առնվազն 8 նիշ', confirm: 'Կրկնել գաղտնաբառը', submit: 'Գրանցվել', contact: 'Նշիր email կամ հեռախոսահամար', mismatch: 'Գաղտնաբառերը չեն համընկնում', failed: 'Գրանցումը չհաջողվեց' },
@@ -19,15 +21,17 @@ export default function ClientRegisterScreen() {
   const queryClient = useQueryClient();
   const finishLogin = useAuthNavigation();
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirmation: '' });
+  const [legal, setLegal] = useState(false);
   const valid = form.name.trim().length >= 2 && Boolean(form.email.trim() || form.phone.trim()) && form.password.length >= 8 && form.password === form.confirmation;
   const register = useMutation({
-    mutationFn: () => clientAccountApi.register({ name: form.name.trim(), email: form.email.trim() || null, phone: form.phone.trim() || null, password: form.password, password_confirmation: form.confirmation }),
+    mutationFn: () => clientAccountApi.register({ name: form.name.trim(), email: form.email.trim() || null, phone: form.phone.trim() || null, password: form.password, password_confirmation: form.confirmation, legal_accepted: legal, terms_version: LEGAL_DOCUMENT_VERSION, privacy_version: LEGAL_DOCUMENT_VERSION }),
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['client-me'] }); finishLogin('profile'); },
     onError: () => Alert.alert(c.failed),
   });
   const submit = () => {
     if (!form.email.trim() && !form.phone.trim()) return Alert.alert(c.contact);
     if (form.password !== form.confirmation) return Alert.alert(c.mismatch);
+    if (!legal || register.isPending) return;
     register.mutate();
   };
   return (
@@ -37,7 +41,8 @@ export default function ClientRegisterScreen() {
       <PremiumInput label={c.phone} placeholder={c.phone} value={form.phone} keyboardType="phone-pad" onChangeText={(phone) => setForm((value) => ({ ...value, phone }))} icon={{ ios: 'phone.fill', android: 'call' }} />
       <PremiumInput label={c.password} placeholder={c.password} value={form.password} secureTextEntry onChangeText={(password) => setForm((value) => ({ ...value, password }))} icon={{ ios: 'lock.fill', android: 'lock' }} />
       <PremiumInput label={c.confirm} placeholder={c.confirm} value={form.confirmation} secureTextEntry onChangeText={(confirmation) => setForm((value) => ({ ...value, confirmation }))} icon={{ ios: 'lock.rotation', android: 'password' }} />
-      <PremiumButton title={c.submit} loading={register.isPending} disabled={!valid} onPress={submit} icon={{ ios: 'arrow.right', android: 'arrow_forward' }} />
+      <LegalConsent checked={legal} onChange={setLegal} />
+      <PremiumButton title={c.submit} loading={register.isPending} disabled={!valid || !legal} onPress={submit} icon={{ ios: 'arrow.right', android: 'arrow_forward' }} />
     </ClientAuthShell>
   );
 }
