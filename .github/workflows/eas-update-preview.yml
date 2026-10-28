@@ -1,6 +1,10 @@
 name: Publish Preview OTA
 
 on:
+  workflow_run:
+    workflows: [Mobile CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       message:
@@ -22,9 +26,18 @@ concurrency:
 
 jobs:
   publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     name: Validate and publish preview update
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 120
+    concurrency:
+      group: preview-android-build
+      cancel-in-progress: false
     steps:
       - name: Check EXPO_TOKEN
         shell: bash
@@ -36,36 +49,66 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Check that this is still the latest main commit
+        id: current
+        shell: bash
+        run: |
+          LATEST_MAIN_SHA="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$(git rev-parse HEAD)" = "$LATEST_MAIN_SHA" ]; then
+            echo 'publish=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'publish=false' >> "$GITHUB_OUTPUT"
+            echo 'Preview OTA skipped: main already has a newer commit.' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Use Node.js
+        if: steps.current.outputs.publish == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: 22.13.1
           cache: npm
 
       - name: Setup Expo and EAS
+        if: steps.current.outputs.publish == 'true'
         uses: expo/expo-github-action@v8
         with:
-          eas-version: latest
+          eas-version: 27.0.0
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
+        if: steps.current.outputs.publish == 'true'
         run: npm ci
 
       - name: Expo dependency check
-        if: ${{ !inputs.skip_expo_install_check }}
+        if: steps.current.outputs.publish == 'true' && !inputs.skip_expo_install_check
         run: npx expo install --check
 
       - name: TypeScript
+        if: steps.current.outputs.publish == 'true'
         run: npm run typecheck
 
       - name: ESLint
+        if: steps.current.outputs.publish == 'true'
         run: npm run lint
 
       - name: Regression checks
+        if: steps.current.outputs.publish == 'true'
         run: npm test
 
-      - name: Publish preview OTA
+      - name: Ensure a compatible Android preview APK exists
+        if: steps.current.outputs.publish == 'true'
         env:
-          UPDATE_MESSAGE: ${{ inputs.message }}
-        run: eas update --channel preview --environment preview --message "$UPDATE_MESSAGE" --non-interactive
+          REUSE_COMPATIBLE_BUILD: 'true'
+          DOWNLOAD_APK: 'false'
+        run: node scripts/eas-preview-build.cjs
+
+      - name: Publish preview OTA
+        if: steps.current.outputs.publish == 'true'
+        env:
+          UPDATE_MESSAGE: ${{ inputs.message || github.event.workflow_run.head_commit.message || 'Preview update from main' }}
+        run: |
+          eas update --channel preview --environment preview --message "$UPDATE_MESSAGE" --non-interactive
+          node -e 'const fs = require("node:fs"); const { expo } = require("./app.json"); fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Preview OTA published for runtime ${expo.version}. An installed preview APK with that runtime is required.\n`);'

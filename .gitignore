@@ -8,6 +8,7 @@ node_modules/
 dist/
 dist-android/
 dist-ios/
+artifacts/
 web-build/
 expo-env.d.ts
 

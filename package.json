@@ -48,7 +48,7 @@
     "zod": "^4.6.6"
   },
   "scripts": {
-    "test": "node --test scripts/test-regressions.cjs",
+    "test": "node --test scripts/test-regressions.cjs scripts/test-eas-preview.cjs",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
