@@ -27,7 +27,7 @@ jobs:
         run: npm ci
 
       - name: Security audit
-        run: npm audit --audit-level=high
+        run: node scripts/audit-check.cjs
 
       - name: Expo dependency check
         run: npx expo install --check
