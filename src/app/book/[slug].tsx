@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { trackAppBooking } from '@/services/site-analytics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -85,6 +86,7 @@ function ServiceBookingScreen({ business }: { business: PublicBusiness }) {
       privacy_version: LEGAL_DOCUMENT_VERSION,
     }),
     onSuccess: async (result) => {
+      trackAppBooking(`/book/${slug}`);
       const response = result.data ?? result;
       const bookingReference = response.booking_code;
       if (typeof bookingReference === 'string' && bookingReference.trim()) {

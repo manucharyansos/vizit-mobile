@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { trackAppBooking } from '@/services/site-analytics';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -58,6 +59,7 @@ export function RentalBookingScreen({ business, manual = false }: { business: Pu
       // Mark success before storage/cache work: an accepted reservation must never
       // be submitted twice because the device keychain or a refresh failed.
       setReceived(true);
+      if (!manual) trackAppBooking(`/book/${business.slug}`);
       if (!manual) {
         const response = result.data ?? result;
         const code = typeof response.booking_code === 'string' ? response.booking_code.trim() : '';
