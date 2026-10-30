@@ -4,6 +4,9 @@ import { revokePushDevice, synchronizePushDevice } from '../notifications';
 import { collectPages } from './pagination';
 import { databaseUtcTimestamp } from '../date-time';
 
+export type ServiceDiscountTiers = { visit_tiers: { min_visits: number; percent: number }[]; bundle_tiers: { min_services: number; percent: number }[] };
+export type ServiceDiscountSettings = ServiceDiscountTiers & { visit_enabled: boolean; bundle_enabled: boolean };
+
 export type BusinessUser = { id: number; name: string; email?: string; role?: string; audience?: 'business'; business_id?: number; business_name?: string; business_slug?: string; business_type?: string; vertical?: string; needs_onboarding?: boolean };
 export type CalendarBooking = { id: number; starts_at: string; ends_at: string; status: string; client_name?: string; client_phone?: string; customer_name?: string; notes?: string | null; final_price?: number | null; service?: { id: number; name: string }; staff?: { id: number; name: string }; client?: { id: number; name: string; phone?: string | null } | null };
 export type BusinessClient = { id: number; name: string; phone?: string; email?: string; bookings_count?: number; last_booking_at?: string; next_booking_at?: string | null; total_spent?: number; group_name?: string | null; is_vip?: boolean; is_blacklisted?: boolean };
@@ -118,6 +121,8 @@ export const businessApi = {
   async analytics(): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.get('/analytics/overview'); return normalizeResource<Record<string, unknown>>(data); },
   async giftCards(): Promise<GiftCard[]> { const response = await businessAuthClient.get('/gift-cards'); const list = normalizeList<GiftCard>(response.data, ['gift_cards', 'giftCards']); debugEmptyList('business.giftCards', response, list); return list; },
   async createGiftCard(payload: { amount: number; issued_to_name?: string; issued_to_phone?: string }): Promise<GiftCard> { const { data } = await businessAuthClient.post('/gift-cards', { ...payload, currency: 'AMD' }); return normalizeResource<GiftCard>(data, ['gift_card']); },
+  async serviceDiscounts(): Promise<ServiceDiscountSettings> { const { data } = await businessAuthClient.get('/business/service-discounts'); return normalizeResource<ServiceDiscountSettings>(data); },
+  async saveServiceDiscounts(payload: ServiceDiscountSettings): Promise<ServiceDiscountSettings> { const { data } = await businessAuthClient.put('/business/service-discounts', payload); return normalizeResource<ServiceDiscountSettings>(data); },
   async loyalty(): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.get('/loyalty/summary'); return normalizeResource<Record<string, unknown>>(data); },
   async loyaltyProgram(): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.get('/loyalty/program'); return normalizeResource<Record<string, unknown>>(data); },
   async updateLoyaltyProgram(payload: Record<string, unknown>): Promise<Record<string, unknown>> { const { data } = await businessAuthClient.put('/loyalty/program', payload); return normalizeResource<Record<string, unknown>>(data); },

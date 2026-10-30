@@ -15,6 +15,7 @@ import { openDirections } from '@/services/directions';
 import { businessCategory } from '@/services/business-category';
 import { BusinessAvatar } from '@/components/business-avatar';
 import { RentalProfileDetails } from '@/components/rental-profile-details';
+import { ServiceDiscountsNotice } from '@/components/service-discounts-notice';
 import { isRentalBusiness } from '@/services/rentals';
 import { rentalCopy } from '@/i18n/rentals';
 
@@ -99,6 +100,7 @@ export default function BusinessScreen() {
         {item.short_description || item.description ? <Text style={[styles.description, { color: theme.textSecondary }]}>{item.short_description ?? item.description}</Text> : null}
 
         {rental ? <RentalProfileDetails business={item} /> : null}
+        {!rental ? <ServiceDiscountsNotice slug={item.slug} discounts={item.service_discounts} /> : null}
         {showServices ? <Section title={t('services')} loading={services.isLoading} error={services.isError} retry={() => services.refetch()} empty={!services.data?.length ? c.emptyServices : undefined}>
           <View style={styles.verticalList}>
             {services.data?.map((service) => (

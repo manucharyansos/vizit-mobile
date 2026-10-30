@@ -64,6 +64,7 @@ function BusinessTabs() {
       <Tabs.Screen name="telegram" options={{ href: null }} />
       <Tabs.Screen name="gift-cards" options={{ href: null }} />
       <Tabs.Screen name="loyalty" options={{ href: null }} />
+      <Tabs.Screen name="discounts" options={{ href: null }} />
       <Tabs.Screen name="growth" options={{ href: null }} />
       <Tabs.Screen name="billing" options={{ href: null }} />
       <Tabs.Screen name="admin" options={{ href: null }} />

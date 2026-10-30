@@ -2,9 +2,11 @@ import { API_BASE_URL, publicClient } from './client';
 import { debugEmptyList, normalizeList, normalizeResource } from './normalize';
 import { validPoint } from '../geo';
 import type { RentalMedia, RentalRates } from '../rentals';
+import { parseServiceDiscounts } from '../service-discounts';
+import type { ServiceDiscountTiers } from './business';
 
 export type Location = { id: number; name: string; address?: string | null; lat?: number; lng?: number };
-export type PublicBusiness = { business_id: number; name: string; slug: string; business_type?: string; vertical?: string; timezone?: string; show_services?: boolean; show_staff?: boolean; rental?: RentalRates | null; gallery?: RentalMedia[]; category_name?: string | null; category_names?: { hy?: string; ru?: string; en?: string }; address?: string | null; phone?: string | null; description?: string | null; short_description?: string | null; cover_url?: string | null; logo_url?: string | null; locations: Location[] };
+export type PublicBusiness = { business_id: number; name: string; slug: string; business_type?: string; vertical?: string; timezone?: string; show_services?: boolean; show_staff?: boolean; rental?: RentalRates | null; service_discounts?: ServiceDiscountTiers | null; gallery?: RentalMedia[]; category_name?: string | null; category_names?: { hy?: string; ru?: string; en?: string }; address?: string | null; phone?: string | null; description?: string | null; short_description?: string | null; cover_url?: string | null; logo_url?: string | null; locations: Location[] };
 export type BusinessPin = { business_id: number; name: string; slug: string; category_name?: string; location_id: number; location_name: string; address?: string; lat: number; lng: number };
 export type Service = { id: number; name: string; description?: string | null; duration_minutes: number; price: number; currency: string; image_url?: string | null; location_id?: number | null };
 export type Staff = { id: number; name: string; role?: string; avatar_url?: string | null; bio?: string | null; location_id?: number | null };
@@ -31,6 +33,7 @@ export function normalizeBusiness(v: Record<string, unknown>): PublicBusiness {
     show_services: v.show_services !== false,
     show_staff: v.show_staff !== false,
     rental: v.rental && typeof v.rental === 'object' ? v.rental as RentalRates : null,
+    service_discounts: parseServiceDiscounts(v.service_discounts),
     gallery: normalizeList<RentalMedia>(v.gallery).map((item) => ({ ...item, url: mediaUrl(item.url) ?? item.url })).sort((a, b) => a.sort_order - b.sort_order),
     category_name: String(v.category_name ?? v.custom_category_name ?? category?.name ?? category?.name_hy ?? '') || null,
     category_names: category ? { hy: category.name_hy, ru: category.name_ru, en: category.name_en } : undefined,

@@ -11,9 +11,9 @@ import { isRentalBusiness } from '@/services/rentals';
 import { rentalCopy } from '@/i18n/rentals';
 
 const labels = {
-  hy: { title: 'Բոլոր բաժինները', subtitle: 'Կառավարման ամբողջ գործիքակազմը', booking: 'Նոր ամրագրում', services: 'Ծառայություններ', staff: 'Աշխատակիցներ և գրաֆիկ', hours: 'Աշխատանքային ժամեր', blocks: 'Փակ ժամեր և բացակայություններ', locations: 'Հասցեներ և մասնաճյուղեր', media: 'Լոգո և նկարներ', tasks: 'Առաջադրանքներ', analytics: 'Վերլուծություն', gifts: 'Նվեր քարտեր', loyalty: 'Հավատարմություն', growth: 'Աճ և marketing', settings: 'Բիզնեսի կարգավորումներ', billing: 'Պլան և վճարումներ', telegram: 'Telegram ծանուցումներ', logout: 'Դուրս գալ', logoutConfirm: 'Դուրս գա՞լ բիզնես հաշվից։', cancel: 'Չեղարկել', operations: 'Գործառույթներ', insights: 'Աճ և վերլուծություն', workspace: 'Աշխատանքային տարածք', language: 'Լեզու', theme: 'Թեմա' },
-  ru: { title: 'Все разделы', subtitle: 'Полный набор инструментов управления', booking: 'Новая запись', services: 'Услуги', staff: 'Сотрудники и график', hours: 'Рабочие часы', blocks: 'Закрытые часы и отсутствие', locations: 'Адреса и филиалы', media: 'Логотип и фото', tasks: 'Задачи', analytics: 'Аналитика', gifts: 'Подарочные карты', loyalty: 'Лояльность', growth: 'Рост и маркетинг', settings: 'Настройки бизнеса', billing: 'Тариф и платежи', telegram: 'Telegram-уведомления', logout: 'Выйти', logoutConfirm: 'Выйти из бизнес-аккаунта?', cancel: 'Отмена', operations: 'Операции', insights: 'Рост и аналитика', workspace: 'Рабочее пространство', language: 'Язык', theme: 'Тема' },
-  en: { title: 'All sections', subtitle: 'Your complete management toolkit', booking: 'New booking', services: 'Services', staff: 'Team and schedules', hours: 'Working hours', blocks: 'Blocked time and leave', locations: 'Locations and branches', media: 'Logo and images', tasks: 'Tasks', analytics: 'Analytics', gifts: 'Gift cards', loyalty: 'Loyalty', growth: 'Growth and marketing', settings: 'Business settings', billing: 'Plan and billing', telegram: 'Telegram notifications', logout: 'Sign out', logoutConfirm: 'Sign out of the business account?', cancel: 'Cancel', operations: 'Operations', insights: 'Growth and insights', workspace: 'Workspace', language: 'Language', theme: 'Appearance' },
+  hy: { title: 'Բոլոր բաժինները', subtitle: 'Կառավարման ամբողջ գործիքակազմը', booking: 'Նոր ամրագրում', services: 'Ծառայություններ', staff: 'Աշխատակիցներ և գրաֆիկ', hours: 'Աշխատանքային ժամեր', blocks: 'Փակ ժամեր և բացակայություններ', locations: 'Հասցեներ և մասնաճյուղեր', media: 'Լոգո և նկարներ', tasks: 'Առաջադրանքներ', analytics: 'Վերլուծություն', gifts: 'Նվեր քարտեր', loyalty: 'Հավատարմություն', discounts: 'Զեղչեր', growth: 'Աճ և marketing', settings: 'Բիզնեսի կարգավորումներ', billing: 'Պլան և վճարումներ', telegram: 'Telegram ծանուցումներ', logout: 'Դուրս գալ', logoutConfirm: 'Դուրս գա՞լ բիզնես հաշվից։', cancel: 'Չեղարկել', operations: 'Գործառույթներ', insights: 'Աճ և վերլուծություն', workspace: 'Աշխատանքային տարածք', language: 'Լեզու', theme: 'Թեմա' },
+  ru: { title: 'Все разделы', subtitle: 'Полный набор инструментов управления', booking: 'Новая запись', services: 'Услуги', staff: 'Сотрудники и график', hours: 'Рабочие часы', blocks: 'Закрытые часы и отсутствие', locations: 'Адреса и филиалы', media: 'Логотип и фото', tasks: 'Задачи', analytics: 'Аналитика', gifts: 'Подарочные карты', loyalty: 'Лояльность', discounts: 'Скидки', growth: 'Рост и маркетинг', settings: 'Настройки бизнеса', billing: 'Тариф и платежи', telegram: 'Telegram-уведомления', logout: 'Выйти', logoutConfirm: 'Выйти из бизнес-аккаунта?', cancel: 'Отмена', operations: 'Операции', insights: 'Рост и аналитика', workspace: 'Рабочее пространство', language: 'Язык', theme: 'Тема' },
+  en: { title: 'All sections', subtitle: 'Your complete management toolkit', booking: 'New booking', services: 'Services', staff: 'Team and schedules', hours: 'Working hours', blocks: 'Blocked time and leave', locations: 'Locations and branches', media: 'Logo and images', tasks: 'Tasks', analytics: 'Analytics', gifts: 'Gift cards', loyalty: 'Loyalty', discounts: 'Discounts', growth: 'Growth and marketing', settings: 'Business settings', billing: 'Plan and billing', telegram: 'Telegram notifications', logout: 'Sign out', logoutConfirm: 'Sign out of the business account?', cancel: 'Cancel', operations: 'Operations', insights: 'Growth and insights', workspace: 'Workspace', language: 'Language', theme: 'Appearance' },
 };
 
 const profileLabels = {
@@ -35,7 +35,7 @@ export default function BusinessMore() {
   const profile = profileLabels[locale];
   const permissions = useBusinessPermissions();
   const rental = isRentalBusiness(permissions.user);
-  const hiddenForRentals = new Set(['/(business)/services', '/(business)/staff', 'tasks', 'gift-cards', 'loyalty', 'growth', 'locations']);
+  const hiddenForRentals = new Set(['/(business)/services', '/(business)/staff', 'tasks', 'gift-cards', 'loyalty', 'discounts', 'growth', 'locations']);
   const groups: { title: string; items: MenuItem[] }[] = [
     { title: c.operations, items: [
       { title: c.services, target: '/(business)/services', ios: 'square.grid.2x2.fill', android: 'grid_view' },
@@ -49,6 +49,7 @@ export default function BusinessMore() {
       { title: c.analytics, target: 'analytics', ios: 'chart.bar.fill', android: 'analytics' },
       { title: c.gifts, target: 'gift-cards', ios: 'giftcard.fill', android: 'card_giftcard' },
       { title: c.loyalty, target: 'loyalty', ios: 'heart.fill', android: 'loyalty' },
+      { title: c.discounts, target: 'discounts', ios: 'tag.fill', android: 'sell' },
       { title: c.growth, target: 'growth', ios: 'chart.line.uptrend.xyaxis', android: 'trending_up' },
     ] },
     { title: c.workspace, items: [

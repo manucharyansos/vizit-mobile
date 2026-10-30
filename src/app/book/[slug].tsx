@@ -15,6 +15,7 @@ import { LegalConsent } from '@/components/legal-consent';
 import { LEGAL_DOCUMENT_VERSION } from '@/constants/legal';
 import { checkoutUrlFrom, openIdBankCheckout } from '@/services/payments';
 import { apiErrorMessage } from '@/services/api/client';
+import { ServiceDiscountsNotice } from '@/components/service-discounts-notice';
 import { guestBookingStore } from '@/services/guest-booking-store';
 import { formatApiTime, localDateKey, localDateTimeInputFromApi } from '@/services/date-time';
 import { safeBack } from '@/services/navigation';
@@ -102,7 +103,9 @@ function ServiceBookingScreen({ business }: { business: PublicBusiness }) {
       router.replace('/(customer)/bookings');
       const checkoutUrl = checkoutUrlFrom(result);
       if (checkoutUrl) await openIdBankCheckout(checkoutUrl).catch(() => Alert.alert(t('loadError')));
-      Alert.alert(t('bookingSuccess'), t('bookingOtpHint'));
+      const discountPercent = Number((response as { discount?: { percent?: number } }).discount?.percent ?? 0);
+      const discountNote = discountPercent ? `\n\n${locale === 'ru' ? `Применена скидка ${discountPercent}%.` : locale === 'en' ? `A ${discountPercent}% discount was applied.` : `Կիրառվեց ${discountPercent}% զեղչ։`}` : '';
+      Alert.alert(t('bookingSuccess'), t('bookingOtpHint') + discountNote);
     },
     onError: async (error) => {
       setSlot(undefined);
@@ -139,6 +142,8 @@ function ServiceBookingScreen({ business }: { business: PublicBusiness }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {/* The app books one service at a time, so only the returning-client discount can apply here. */}
+        {business.service_discounts?.visit_tiers.length ? <ServiceDiscountsNotice slug={slug} discounts={{ visit_tiers: business.service_discounts.visit_tiers, bundle_tiers: [] }} /> : null}
         {locations.length > 1 ? (
           <View style={styles.locationBlock}>
             <Text style={[styles.locationTitle, { color: theme.text }]}>{c.location}</Text>
