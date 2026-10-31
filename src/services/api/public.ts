@@ -6,7 +6,7 @@ import { parseServiceDiscounts } from '../service-discounts';
 import type { ServiceDiscountTiers } from './business';
 
 export type Location = { id: number; name: string; address?: string | null; lat?: number; lng?: number };
-export type PublicBusiness = { business_id: number; name: string; slug: string; business_type?: string; vertical?: string; timezone?: string; show_services?: boolean; show_staff?: boolean; rental?: RentalRates | null; service_discounts?: ServiceDiscountTiers | null; gallery?: RentalMedia[]; category_name?: string | null; category_names?: { hy?: string; ru?: string; en?: string }; address?: string | null; phone?: string | null; description?: string | null; short_description?: string | null; cover_url?: string | null; logo_url?: string | null; locations: Location[] };
+export type PublicBusiness = { business_id: number; name: string; slug: string; business_type?: string; vertical?: string; timezone?: string; show_services?: boolean; show_staff?: boolean; rental?: RentalRates | null; service_discounts?: ServiceDiscountTiers | null; gallery?: RentalMedia[]; category_name?: string | null; category_names?: { hy?: string; ru?: string; en?: string }; address?: string | null; phone?: string | null; description?: string | null; short_description?: string | null; text_translations?: TextTranslations; cover_url?: string | null; logo_url?: string | null; locations: Location[] };
 export type BusinessPin = { business_id: number; name: string; slug: string; category_name?: string; location_id: number; location_name: string; address?: string; lat: number; lng: number };
 export type Service = { id: number; name: string; description?: string | null; duration_minutes: number; price: number; currency: string; image_url?: string | null; location_id?: number | null };
 export type Staff = { id: number; name: string; role?: string; avatar_url?: string | null; bio?: string | null; location_id?: number | null };
@@ -41,6 +41,7 @@ export function normalizeBusiness(v: Record<string, unknown>): PublicBusiness {
     phone: v.phone == null ? null : String(v.phone),
     description: v.description == null ? null : String(v.description),
     short_description: v.short_description == null ? null : String(v.short_description),
+    text_translations: parseTextTranslations(v.text_translations),
     cover_url: mediaUrl(v.cover_url as string | null),
     logo_url: mediaUrl(v.logo_url as string | null),
     locations: rawLocations.map((location) => ({
@@ -51,6 +52,30 @@ export function normalizeBusiness(v: Record<string, unknown>): PublicBusiness {
       lng: location.lng == null ? (location.longitude == null ? undefined : Number(location.longitude)) : Number(location.lng),
     })),
   };
+}
+
+export type TextTranslations = Partial<Record<'short_description' | 'description', Partial<Record<'hy' | 'ru' | 'en', string>>>>;
+
+function parseTextTranslations(value: unknown): TextTranslations {
+  if (!value || typeof value !== 'object') return {};
+  const out: TextTranslations = {};
+  for (const field of ['short_description', 'description'] as const) {
+    const byLocale = (value as Record<string, unknown>)[field];
+    if (!byLocale || typeof byLocale !== 'object') continue;
+    for (const locale of ['hy', 'ru', 'en'] as const) {
+      const text = (byLocale as Record<string, unknown>)[locale];
+      if (typeof text === 'string' && text.trim()) out[field] = { ...out[field], [locale]: text.trim() };
+    }
+  }
+  return out;
+}
+
+/** The owner's version for the app language, or the main text when that language has none. */
+export function localizedBusinessText(business: Pick<PublicBusiness, 'short_description' | 'description' | 'text_translations'>, field: 'short_description' | 'description', locale: 'hy' | 'ru' | 'en'): string | null {
+  const translated = business.text_translations?.[field]?.[locale];
+  if (translated) return translated;
+  const main = business[field];
+  return main && main.trim() ? main : null;
 }
 
 function normalizeBusinesses(payload: unknown): PublicBusiness[] {

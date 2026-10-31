@@ -8,7 +8,7 @@ import { IconButton, PremiumButton, SectionHeader, StateCard, StatusPill, Surfac
 import { VizitIcon } from '@/components/vizit-icon';
 import { ui } from '@/constants/vizit-theme';
 import { useApp } from '@/providers/app-provider';
-import { publicApi } from '@/services/api/public';
+import { localizedBusinessText, publicApi } from '@/services/api/public';
 import { safeBack } from '@/services/navigation';
 import { validPoint } from '@/services/geo';
 import { openDirections } from '@/services/directions';
@@ -51,6 +51,7 @@ export default function BusinessScreen() {
 
   const item = business.data;
   const address = selectedLocation?.address ?? item.address;
+  const aboutText = localizedBusinessText(item, 'short_description', locale) ?? localizedBusinessText(item, 'description', locale);
   const showCover = Boolean(item.cover_url && item.cover_url !== failedCover);
 
   return (
@@ -97,7 +98,7 @@ export default function BusinessScreen() {
           </View>
         ) : null}
 
-        {item.short_description || item.description ? <Text style={[styles.description, { color: theme.textSecondary }]}>{item.short_description ?? item.description}</Text> : null}
+        {aboutText ? <Text style={[styles.description, { color: theme.textSecondary }]}>{aboutText}</Text> : null}
 
         {rental ? <RentalProfileDetails business={item} /> : null}
         {!rental ? <ServiceDiscountsNotice slug={item.slug} discounts={item.service_discounts} /> : null}
