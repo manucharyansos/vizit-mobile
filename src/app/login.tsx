@@ -10,6 +10,7 @@ import { useApp } from '@/providers/app-provider';
 import { BusinessUser } from '@/services/api/business';
 import { TokenAudience } from '@/services/api/client';
 import { unifiedAuthApi } from '@/services/api/unified-auth';
+import { adminApi } from '@/services/api/admin';
 import { useAuthNavigation } from '@/hooks/use-auth-navigation';
 
 const copy = {
@@ -118,8 +119,23 @@ export default function UnifiedLoginScreen() {
       queryClient.setQueryData(['business-me'], user);
       finishLogin(user.needs_onboarding ? 'admin' : 'today');
     },
-    onError: (error) => {
+    onError: async (error) => {
       const response = (error as { response?: { status?: number; data?: { errors?: { identity?: unknown } } } }).response;
+      // A Vizit super admin has no business or client account: try the admin login with the same details.
+      if (response && (response.status === 401 || response.status === 422) && identity.includes('@')) {
+        try {
+          const admin = await adminApi.login(identity.trim(), password);
+          if (admin.role === 'super_admin') {
+            setPassword('');
+            queryClient.removeQueries({ queryKey: ['admin-session'] });
+            router.replace('/admin' as Href);
+            return;
+          }
+          await adminApi.logout();
+        } catch {
+          // Not an admin either: fall through to the normal message.
+        }
+      }
       const status = response?.status;
       const identityError = JSON.stringify(response?.data?.errors?.identity ?? '');
       Alert.alert(
