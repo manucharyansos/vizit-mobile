@@ -17,7 +17,7 @@ import type { PublicBusiness } from '@/services/api/public';
 import { rentalApi } from '@/services/api/rentals';
 import { guestBookingStore } from '@/services/guest-booking-store';
 import { safeBack } from '@/services/navigation';
-import { rentalDateKey, rentalDuration, rentalDurationLabel, rentalLocalStamp, rentalUnitFactors, selectedRentalSlot, validRentalDuration, type RentalUnit } from '@/services/rentals';
+import { dateKeyDiffDays, rentalDateKey, rentalDuration, rentalDurationLabel, rentalLocalStamp, rentalQuote, rentalRangeEnd, rentalSlotWithin, rentalUnitFactors, selectedRentalSlot, validRentalDuration, type RentalUnit } from '@/services/rentals';
 
 
 export function RentalBookingScreen({ business, manual = false }: { business: PublicBusiness; manual?: boolean }) {
@@ -78,6 +78,19 @@ export function RentalBookingScreen({ business, manual = false }: { business: Pu
   if (received) return <SafeAreaView style={[styles.screen, styles.content, { backgroundColor: theme.background }]}><PageHeader title={c.success} subtitle={business.name} /><StateCard title={c.success} message={manual ? c.financeHint : c.stored} action={<PremiumButton title={c.back} onPress={() => safeBack(manual ? '/(business)/today' : '/(customer)/bookings')} />} /></SafeAreaView>;
 
   const changeDuration = (value: string) => { setQuantity(value); setStartsAt(''); };
+  const rangeEnd = rentalRangeEnd(date, validDuration ? duration : 0, selected);
+  const allowRange = Boolean(rates.allow_overnight) && rates.max_minutes >= 1440;
+  // Tapping an end day turns the booking into that many whole days.
+  const pickRange = (start: string, end: string | null) => {
+    setDate(start); setStartsAt(''); setMessage('');
+    if (end === null) return;
+    const days = dateKeyDiffDays(start, end);
+    if (days <= 0) { if (duration >= 1440) { setUnit('hours'); setQuantity(String(rates.min_minutes / 60)); } return; }
+    let minutes = days * 1440;
+    if (minutes > rates.max_minutes) { minutes = Math.floor(rates.max_minutes / 1440) * 1440; setMessage(`${c.durationHint}: ${rentalDurationLabel(rates.min_minutes, c)} – ${rentalDurationLabel(rates.max_minutes, c)}`); }
+    if (minutes >= rates.min_minutes) { setUnit('days'); setQuantity(String(minutes / 1440)); }
+  };
+  const estimate = validDuration && rates.hourly_price != null ? rentalQuote(rates.hourly_price, duration, rates.duration_discounts ?? []) : null;
   const validSelection = Boolean(selected && validDuration && date >= today && !slots.isError && !slots.isFetching);
   const canContinue = step === 0 ? validDuration && date >= today : step === 1 ? validSelection : validSelection && validContact && (manual || legal);
   return <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
@@ -88,7 +101,7 @@ export function RentalBookingScreen({ business, manual = false }: { business: Pu
         {message ? <StateCard title={c.failed} message={message} tone="danger" /> : null}
         {step === 0 ? <>
           <SectionHeader title={c.date} detail={c.intro} />
-          <CalendarDatePicker value={date} minDate={today} onChange={(value) => { setDate(value); setStartsAt(''); }} />
+          <CalendarDatePicker value={date} minDate={today} rangeEnd={rangeEnd} onRangeChange={allowRange ? pickRange : undefined} onChange={(value) => { setDate(value); setStartsAt(''); }} />
           <Surface style={styles.stack}>
             <SectionHeader title={c.duration} />
             <View style={styles.units}>{(['minutes', 'hours', 'days'] as RentalUnit[]).map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityLabel={c[value]} accessibilityState={{ checked: value === unit }} onPress={() => { setUnit(value); setQuantity(String(duration / rentalUnitFactors[value])); setStartsAt(''); }} style={[styles.unit, { backgroundColor: value === unit ? theme.accentSoft : theme.surface, borderColor: value === unit ? theme.accent : theme.border }]}><Text style={[styles.unitText, { color: value === unit ? theme.accentText : theme.textSecondary }]}>{c[value]}</Text></Pressable>)}</View>
@@ -100,12 +113,12 @@ export function RentalBookingScreen({ business, manual = false }: { business: Pu
           </Surface>
         </> : <>
           <Surface style={[styles.stack, { backgroundColor: theme.accentSubtle }]}>
-            <View style={styles.row}><VizitIcon ios="calendar" android="calendar_month" color={theme.accentText} size={20} /><Text style={[styles.body, { color: theme.text }]}>{date} · {rentalDurationLabel(duration, c)}</Text></View>
+            <View style={styles.row}><VizitIcon ios="calendar" android="calendar_month" color={theme.accentText} size={20} /><Text style={[styles.body, { color: theme.text }]}>{rangeEnd > date ? `${date} → ${rangeEnd}` : date} · {rentalDurationLabel(duration, c)}</Text></View>
             {selected ? <><Text style={[styles.body, { color: theme.text }]}>{c.arrival}: {rentalLocalStamp(selected.starts_at, locale)}</Text><Text style={[styles.body, { color: theme.text }]}>{c.departure}: {rentalLocalStamp(selected.ends_at, locale)}</Text></> : null}
           </Surface>
           {step === 1 ? <>
             <SectionHeader title={c.availability} detail={rates.allow_overnight ? c.overnight : c.withinHours} />
-            {slots.isLoading ? <ActivityIndicator color={theme.accent} accessibilityLabel={c.loading} /> : slots.isError ? <StateCard title={t('loadError')} message={apiErrorMessage(slots.error)} action={<PremiumButton title={c.retry} onPress={() => void slots.refetch()} tone="secondary" />} /> : !slots.data?.length ? <StateCard title={c.noSlots} /> : <View style={styles.slots}>{slots.data.map((slot) => <Pressable key={slot.starts_at} accessibilityRole="button" accessibilityLabel={`${c.arrival}: ${rentalLocalStamp(slot.starts_at, locale)}, ${c.departure}: ${rentalLocalStamp(slot.ends_at, locale)}`} accessibilityState={{ selected: slot.starts_at === startsAt }} onPress={() => setStartsAt(slot.starts_at)} style={[styles.slot, { backgroundColor: slot.starts_at === startsAt ? theme.accentSoft : theme.surfaceRaised, borderColor: slot.starts_at === startsAt ? theme.accent : theme.border }]}><Text style={[styles.slotStart, { color: theme.text }]}>{slot.starts_at.slice(11, 16)}</Text><Text style={[styles.caption, { color: theme.muted }]}>– {slot.ends_at.slice(0, 10) === date ? slot.ends_at.slice(11, 16) : rentalLocalStamp(slot.ends_at, locale)}</Text></Pressable>)}</View>}
+            {slots.isLoading ? <ActivityIndicator color={theme.accent} accessibilityLabel={c.loading} /> : slots.isError ? <StateCard title={t('loadError')} message={apiErrorMessage(slots.error)} action={<PremiumButton title={c.retry} onPress={() => void slots.refetch()} tone="secondary" />} /> : !slots.data?.length ? <StateCard title={c.noSlots} /> : <View style={styles.slots}>{slots.data.map((slot) => <Pressable key={slot.starts_at} accessibilityRole="button" accessibilityLabel={`${c.arrival}: ${rentalLocalStamp(slot.starts_at, locale)}, ${c.departure}: ${rentalLocalStamp(slot.ends_at, locale)}`} accessibilityState={{ selected: slot.starts_at === startsAt }} onPress={() => setStartsAt(slot.starts_at)} style={[styles.slot, slot.starts_at === startsAt ? { backgroundColor: theme.primary, borderColor: theme.primary } : rentalSlotWithin(slot, selected) ? { backgroundColor: theme.accentSoft, borderColor: theme.accent } : { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}><Text style={[styles.slotStart, { color: slot.starts_at === startsAt ? theme.onPrimary : theme.text }]}>{slot.starts_at.slice(11, 16)}</Text><Text style={[styles.caption, { color: slot.starts_at === startsAt ? theme.onPrimary : theme.muted }]}>– {slot.ends_at.slice(0, 10) === date ? slot.ends_at.slice(11, 16) : rentalLocalStamp(slot.ends_at, locale)}</Text></Pressable>)}</View>}
           </> : <>
             {!selected && !slots.isFetching ? <StateCard title={c.taken} action={<PremiumButton title={c.availability} onPress={() => next(1)} tone="secondary" />} /> : null}
             <Surface style={styles.stack}>
@@ -121,7 +134,7 @@ export function RentalBookingScreen({ business, manual = false }: { business: Pu
         <Text style={[styles.caption, { color: theme.muted }]}>{c.timezone}: {business.timezone || 'Asia/Yerevan'}</Text>
       </ScrollView>
       <View style={[styles.footer, { backgroundColor: theme.surfaceRaised, borderColor: theme.border }]}>
-        <View style={styles.footerPrice}><Text style={[styles.caption, { color: theme.muted }]}>{selected ? c.total : c.hourly}</Text><Text style={[styles.price, { color: theme.text }]}>{money(selected?.price ?? rates.hourly_price)}</Text>{selected?.discount_percent ? <Text style={[styles.caption, { color: theme.success }]}>{c.discountApplied(selected.discount_percent)}{selected.gross_price ? ` · ${money(selected.gross_price)}` : ''}</Text> : null}</View>
+        <View style={styles.footerPrice}><Text style={[styles.caption, { color: theme.muted }]}>{selected || estimate ? c.total : c.hourly}</Text><Text style={[styles.price, { color: theme.text }]}>{money(selected?.price ?? estimate?.price ?? rates.hourly_price)}</Text>{(selected?.discount_percent ?? estimate?.percent) ? <Text style={[styles.caption, { color: theme.success }]}>{c.discountApplied((selected?.discount_percent ?? estimate?.percent)!)} · {money(selected?.gross_price ?? estimate?.gross ?? 0)}</Text> : null}</View>
         <PremiumButton title={step < 2 ? t('continue') : manual ? c.create : c.confirm} disabled={!canContinue || create.isSuccess} loading={create.isPending} onPress={() => { if (!canContinue) return; if (step < 2) next(step + 1); else if (!create.isPending && !create.isSuccess) create.mutate(); }} style={styles.footerButton} />
       </View>
     </KeyboardAvoidingView>

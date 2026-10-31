@@ -24,8 +24,28 @@ function parseDateKey(value: string) {
   };
 }
 
-export function CalendarDatePicker({ value, onChange, minDate = localDateKey() }: { value: string; onChange: (value: string) => void; minDate?: string }) {
+type RangeProps = {
+  /** Last day of the period; highlighted together with the days in between. */
+  rangeEnd?: string;
+  /** When set, the first tap picks the start and the second the end (end is null in between). */
+  onRangeChange?: (start: string, end: string | null) => void;
+};
+
+const RANGE_HINT = {
+  hy: { start: 'Նշեք սկզբի օրը', end: 'Հիմա նշեք ավարտի օրը (կամ նույն օրը՝ ժամերով վարձակալության համար)' },
+  ru: { start: 'Выберите день начала', end: 'Теперь выберите день окончания (или тот же день для почасовой аренды)' },
+  en: { start: 'Choose the start day', end: 'Now choose the end day (or the same day for an hourly rental)' },
+} as const;
+
+export function CalendarDatePicker({ value, onChange, minDate = localDateKey(), rangeEnd, onRangeChange }: { value: string; onChange: (value: string) => void; minDate?: string } & RangeProps) {
   const { locale, theme } = useApp();
+  const [picking, setPicking] = useState<'start' | 'end'>('start');
+  const pick = (key: string) => {
+    if (!onRangeChange) { onChange(key); return; }
+    if (picking === 'start' || key < value) { onRangeChange(key, null); setPicking('end'); return; }
+    onRangeChange(value, key); setPicking('start');
+  };
+  const end = rangeEnd && rangeEnd > value ? rangeEnd : null;
   const initial = parseDateKey(value || minDate);
   const [visibleMonth, setVisibleMonth] = useState({ year: initial.year, month: initial.month });
 
@@ -68,30 +88,33 @@ export function CalendarDatePicker({ value, onChange, minDate = localDateKey() }
         {cells.map((day, index) => {
           if (day == null) return <View key={`empty-${index}`} style={styles.cell} />;
           const key = `${visibleMonth.year}-${two(visibleMonth.month + 1)}-${two(day)}`;
-          const selected = key === value;
+          const isEnd = key === end;
+          const selected = key === value || isEnd;
+          const within = Boolean(end) && key > value && key < end!;
           const today = key === localDateKey();
           const disabled = key < minDate;
           return (
-            <View key={key} style={styles.cell}>
+            <View key={key} style={[styles.cell, (within || (key === value && end) || isEnd) && { backgroundColor: theme.accentSoft }, key === value && end ? styles.rangeStart : null, isEnd ? styles.rangeEnd : null]}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={key}
                 accessibilityState={{ disabled, selected }}
                 disabled={disabled}
-                onPress={() => onChange(key)}
+                onPress={() => pick(key)}
                 style={({ pressed }) => [
                   styles.day,
                   { borderColor: today ? theme.accent : 'transparent', opacity: disabled ? 0.25 : pressed ? 0.7 : 1 },
                   selected && { backgroundColor: theme.primary, borderColor: theme.primary },
                 ]}
               >
-                <Text style={[styles.dayText, { color: selected ? theme.onPrimary : theme.text }]}>{day}</Text>
+                <Text style={[styles.dayText, { color: selected ? theme.onPrimary : within ? theme.accentText : theme.text }]}>{day}</Text>
                 {today && !selected ? <View style={[styles.todayDot, { backgroundColor: theme.accent }]} /> : null}
               </Pressable>
             </View>
           );
         })}
       </View>
+      {onRangeChange ? <Text style={[styles.hint, { color: theme.muted }]}>{picking === 'end' ? RANGE_HINT[locale].end : RANGE_HINT[locale].start}</Text> : null}
     </View>
   );
 }
@@ -106,5 +129,8 @@ const styles = StyleSheet.create({
   cell: { width: '14.2857%', height: 43, alignItems: 'center', justifyContent: 'center' },
   day: { width: 36, height: 36, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   dayText: { fontSize: 14, fontWeight: '800' },
+  rangeStart: { borderTopLeftRadius: 12, borderBottomLeftRadius: 12 },
+  rangeEnd: { borderTopRightRadius: 12, borderBottomRightRadius: 12 },
+  hint: { fontSize: 12, lineHeight: 17, marginTop: ui.spacing.xs },
   todayDot: { position: 'absolute', bottom: 3, width: 3, height: 3, borderRadius: 2 },
 });
